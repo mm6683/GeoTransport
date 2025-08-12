@@ -1,0 +1,11 @@
+{
+  "name": "geotransport",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler publish"
+  },
+  "dependencies": {
+    "itty-router": "^4.0.17"
+  }
+}
