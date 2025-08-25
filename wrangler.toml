@@ -1,7 +1,7 @@
 name = "geotransport"
 main = "src/worker.js"
 compatibility_date = "2025-08-12"
-account_id = "<YOUR_ACCOUNT_ID>"
+account_id = "<7b278146a8175762dd73cd0da58441ab>"
 workers_dev = true
 
 [site]
