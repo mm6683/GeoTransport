@@ -1,17 +1,9 @@
-name = "geotransport"
+name = "Geotransport"
 main = "src/worker.js"
 compatibility_date = "2025-08-12"
-account_id = "<7b278146a8175762dd73cd0da58441ab>"
+account_id = "7b278146a8175762dd73cd0da58441ab"
 workers_dev = true
 
 [site]
 bucket = "./public"
 entry-point = "."
-
-[vars]
-UPSTREAM_API_URL = "https://api.delijn.be/gtfs/v3/realtime?json=true&position=true"
-
-# Optional: KV binding if you want caching
-# [[kv_namespaces]]
-# binding = "CACHE"
-# id = "<KV_NAMESPACE_ID>"
