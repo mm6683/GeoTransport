@@ -2,14 +2,27 @@ import { Router } from 'itty-router'
 
 const router = Router()
 
-router.get('/api/buses', async () => {
+const DELIJN_RT_URL = 'https://api.delijn.be/gtfs/v3/realtime?json=true&position=true'
+
+router.get('/api/busses', async (_request, env) => {
   try {
-    // Example: fetch from upstream GTFS source
-    const res = await fetch(`${UPSTREAM_API_URL}/buses`) 
-    if (!res.ok) return new Response('Upstream error', { status: 502 })
+    if (!env?.DL_GTFSRT) {
+      return new Response('Missing realtime API key', { status: 500 })
+    }
+
+    const res = await fetch(DELIJN_RT_URL, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Ocp-Apim-Subscription-Key': env.DL_GTFSRT
+      }
+    })
+
+    if (!res.ok) {
+      return new Response('Upstream error', { status: 502 })
+    }
+
     const data = await res.json()
 
-    // Optionally normalize the data here
     return new Response(JSON.stringify(data), {
       headers: { 'Content-Type': 'application/json' }
     })

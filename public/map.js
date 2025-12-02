@@ -17,7 +17,7 @@ const markers = new Map();
 
 async function updateVehicles() {
   try {
-    const res = await fetch('/api/buses', { cache: 'no-store' });
+    const res = await fetch('/api/busses', { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const payload = await res.json();
 
