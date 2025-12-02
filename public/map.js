@@ -9,11 +9,52 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 const icons = {
-  bus: L.icon({ iconUrl: '/icons/bus.svg', iconSize: [36,36], iconAnchor: [18,18] }),
-  tram: L.icon({ iconUrl: '/icons/tram.svg', iconSize: [36,36], iconAnchor: [18,18] })
+  bus: L.icon({ iconUrl: '/icons/bus.svg', iconSize: [36, 36], iconAnchor: [18, 18] }),
+  tram: L.icon({ iconUrl: '/icons/tram.svg', iconSize: [36, 36], iconAnchor: [18, 18] })
 };
 
-const markers = new Map();
+const markers = new Map(); // id -> { marker, iconKey, content }
+
+function deriveLatLng(pos) {
+  if (!pos || typeof pos.latitude !== 'number' || typeof pos.longitude !== 'number') return null;
+  return [pos.latitude, pos.longitude];
+}
+
+function deriveVehicleId(entity) {
+  const v = entity?.vehicle;
+  return (
+    v?.vehicle?.id ||
+    v?.vehicle?.label ||
+    v?.trip?.trip_id ||
+    entity?.id ||
+    null
+  );
+}
+
+function deriveRoute(v) {
+  return v?.trip?.route_id || v?.trip?.trip_id || '';
+}
+
+function deriveKind(v, routeHint) {
+  const type = v?.vehicle?.type;
+  if (typeof type === 'number') {
+    // GTFS vehicle types: 0 tram, 3 bus
+    if (type === 0) return 'tram';
+    if (type === 3) return 'bus';
+  }
+
+  const normalized = `${routeHint}`.toLowerCase();
+  return normalized.includes('tram') ? 'tram' : 'bus';
+}
+
+function deriveLabel(v, route) {
+  return v?.vehicle?.label || v?.vehicle?.id || route || 'Onbekend voertuig';
+}
+
+function buildPopupContent(label, route) {
+  const routeText = route ? `<div>Lijn: ${route}</div>` : '';
+  return `<strong>${label}</strong>${routeText}`;
+}
 
 async function updateVehicles() {
   try {
@@ -26,30 +67,47 @@ async function updateVehicles() {
 
     entities.forEach((e) => {
       const v = e?.vehicle;
-      const pos = v?.position;
-      if (!v || !pos || typeof pos.latitude !== 'number' || typeof pos.longitude !== 'number') return;
+      if (!v) return;
 
-      const id = String(v.vehicle?.id || v.trip?.trip_id || e.id || `${pos.latitude},${pos.longitude}`);
+      const latlng = deriveLatLng(v.position);
+      if (!latlng) return;
+
+      const id = String(deriveVehicleId(e) || `${latlng[0]},${latlng[1]}`);
       seen.add(id);
 
-      const latlng = [pos.latitude, pos.longitude];
-      const routeHint = `${v.trip?.route_id || v.trip?.trip_id || ''}`.toLowerCase();
-      const icon = routeHint.includes('tram') ? icons.tram : icons.bus;
-      const label = v.vehicle?.label || v.vehicle?.id || v.trip?.route_id || 'Onbekend voertuig';
+      const route = deriveRoute(v);
+      const kind = deriveKind(v, route);
+      const iconKey = kind === 'tram' ? 'tram' : 'bus';
+      const content = buildPopupContent(deriveLabel(v, route), route);
 
       if (markers.has(id)) {
-        markers.get(id).setLatLng(latlng);
+        const entry = markers.get(id);
+        entry.marker.setLatLng(latlng);
+        if (entry.iconKey !== iconKey) {
+          entry.marker.setIcon(icons[iconKey]);
+          entry.iconKey = iconKey;
+        }
+        if (entry.content !== content) {
+          const popup = entry.marker.getPopup();
+          if (popup) {
+            popup.setContent(content);
+          } else {
+            entry.marker.bindPopup(content);
+          }
+          entry.content = content;
+        }
       } else {
-        const m = L.marker(latlng, { icon }).addTo(map);
-        m.bindPopup(`<strong>${label}</strong>`);
-        markers.set(id, m);
+        const marker = L.marker(latlng, { icon: icons[iconKey] }).addTo(map);
+        marker.bindPopup(content);
+        markers.set(id, { marker, iconKey, content });
       }
     });
 
     // remove disappeared
     for (const id of markers.keys()) {
       if (!seen.has(id)) {
-        map.removeLayer(markers.get(id));
+        const entry = markers.get(id);
+        map.removeLayer(entry.marker);
         markers.delete(id);
       }
     }
