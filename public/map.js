@@ -22,20 +22,26 @@ async function updateVehicles() {
     const payload = await res.json();
 
     const seen = new Set();
-    payload.entity.forEach(e => {
-      const v = e.vehicle;
-      if (!v || !v.position) return;
-      const id = String(v.id);
+    const entities = Array.isArray(payload.entity) ? payload.entity : [];
+
+    entities.forEach((e) => {
+      const v = e?.vehicle;
+      const pos = v?.position;
+      if (!v || !pos || typeof pos.latitude !== 'number' || typeof pos.longitude !== 'number') return;
+
+      const id = String(v.vehicle?.id || v.trip?.trip_id || e.id || `${pos.latitude},${pos.longitude}`);
       seen.add(id);
 
-      const latlng = [v.position.latitude, v.position.longitude];
-      const icon = v.route_id?.toLowerCase().includes('tram') ? icons.tram : icons.bus;
+      const latlng = [pos.latitude, pos.longitude];
+      const routeHint = `${v.trip?.route_id || v.trip?.trip_id || ''}`.toLowerCase();
+      const icon = routeHint.includes('tram') ? icons.tram : icons.bus;
+      const label = v.vehicle?.label || v.vehicle?.id || v.trip?.route_id || 'Onbekend voertuig';
 
       if (markers.has(id)) {
         markers.get(id).setLatLng(latlng);
       } else {
         const m = L.marker(latlng, { icon }).addTo(map);
-        m.bindPopup(`<strong>${v.id}</strong>`);
+        m.bindPopup(`<strong>${label}</strong>`);
         markers.set(id, m);
       }
     });
