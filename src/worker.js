@@ -9,19 +9,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type'
 }
 
+function parseNumber(value) {
+  const num = typeof value === 'string' ? Number.parseFloat(value) : value
+  return Number.isFinite(num) ? num : null
+}
+
 function deriveLatLng(pos) {
-  if (!pos || typeof pos.latitude !== 'number' || typeof pos.longitude !== 'number') return null
-  return { lat: pos.latitude, lng: pos.longitude }
+  if (!pos) return null
+
+  const lat = parseNumber(pos.latitude)
+  const lng = parseNumber(pos.longitude)
+
+  if (lat === null || lng === null) return null
+
+  return { lat, lng }
 }
 
 function deriveVehicleId(entity) {
   const v = entity?.vehicle
-  const id = v?.vehicle?.id || v?.vehicle?.label || v?.trip?.trip_id || entity?.id
+  const id =
+    v?.vehicle?.id || v?.vehicle?.label || v?.trip?.trip_id || v?.trip?.tripId || entity?.id
   return id ? String(id) : null
 }
 
 function deriveRoute(v) {
-  return v?.trip?.route_id || v?.trip?.trip_id || ''
+  return v?.trip?.route_id || v?.trip?.routeId || v?.trip?.trip_id || v?.trip?.tripId || ''
 }
 
 function deriveMode(v, routeHint) {
@@ -55,7 +67,7 @@ function mapEntities(payload) {
       id: deriveVehicleId(entity) || `${coords.lat},${coords.lng}`,
       lat: coords.lat,
       lng: coords.lng,
-      bearing: typeof vehicleData?.position?.bearing === 'number' ? vehicleData.position.bearing : null,
+      bearing: parseNumber(vehicleData?.position?.bearing),
       route,
       mode: deriveMode(vehicleData, route),
       label: deriveLabel(vehicleData, route)
