@@ -20,37 +20,6 @@ function deriveLatLng(pos) {
   return [pos.latitude, pos.longitude];
 }
 
-function deriveVehicleId(entity) {
-  const v = entity?.vehicle;
-  return (
-    v?.vehicle?.id ||
-    v?.vehicle?.label ||
-    v?.trip?.trip_id ||
-    entity?.id ||
-    null
-  );
-}
-
-function deriveRoute(v) {
-  return v?.trip?.route_id || v?.trip?.trip_id || '';
-}
-
-function deriveKind(v, routeHint) {
-  const type = v?.vehicle?.type;
-  if (typeof type === 'number') {
-    // GTFS vehicle types: 0 tram, 3 bus
-    if (type === 0) return 'tram';
-    if (type === 3) return 'bus';
-  }
-
-  const normalized = `${routeHint}`.toLowerCase();
-  return normalized.includes('tram') ? 'tram' : 'bus';
-}
-
-function deriveLabel(v, route) {
-  return v?.vehicle?.label || v?.vehicle?.id || route || 'Onbekend voertuig';
-}
-
 function buildPopupContent(label, route) {
   const routeText = route ? `<div>Lijn: ${route}</div>` : '';
   return `<strong>${label}</strong>${routeText}`;
@@ -63,22 +32,19 @@ async function updateVehicles() {
     const payload = await res.json();
 
     const seen = new Set();
-    const entities = Array.isArray(payload.entity) ? payload.entity : [];
+    const vehicles = Array.isArray(payload.vehicles) ? payload.vehicles : [];
 
-    entities.forEach((e) => {
-      const v = e?.vehicle;
-      if (!v) return;
-
-      const latlng = deriveLatLng(v.position);
+    vehicles.forEach((vehicle) => {
+      const latlng = deriveLatLng({ latitude: vehicle.lat, longitude: vehicle.lng });
       if (!latlng) return;
 
-      const id = String(deriveVehicleId(e) || `${latlng[0]},${latlng[1]}`);
+      const id = String(vehicle.id || `${latlng[0]},${latlng[1]}`);
       seen.add(id);
 
-      const route = deriveRoute(v);
-      const kind = deriveKind(v, route);
+      const route = vehicle.route || '';
+      const kind = vehicle.mode === 'tram' ? 'tram' : 'bus';
       const iconKey = kind === 'tram' ? 'tram' : 'bus';
-      const content = buildPopupContent(deriveLabel(v, route), route);
+      const content = buildPopupContent(vehicle.label || 'Onbekend voertuig', route);
 
       if (markers.has(id)) {
         const entry = markers.get(id);
