@@ -1,0 +1,10 @@
+name = "dl-gtfs-rt-map"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+assets = { directory = "./public", binding = "ASSETS" }
+
+# Set the secret via CLI:
+#   wrangler secret put DL_GTFSRT
+# Then enter your Ocp-Apim-Subscription-Key value when prompted.
