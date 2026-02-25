@@ -1,16 +1,13 @@
 {
   "name": "dl-gtfs-rt-map",
-  "version": "1.0.0",
-  "description": "De Lijn GTFS-RT realtime vehicle map on a dark OSM layer, served via Cloudflare Workers.",
+  "version": "1.1.0",
+  "description": "De Lijn GTFS-RT realtime vehicle map — pure-JS protobuf decoder, no runtime deps.",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "secret": "wrangler secret put DL_GTFSRT"
-  },
-  "dependencies": {
-    "gtfs-realtime-bindings": "^1.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.0.0",
