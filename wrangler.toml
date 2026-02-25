@@ -1,4 +1,4 @@
-name = "dl-gtfs-rt-map"
+name = "geotransport"
 main = "src/worker.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
