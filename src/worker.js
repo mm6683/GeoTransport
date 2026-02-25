@@ -1,8 +1,6 @@
 /**
  * De Lijn GTFS-RT Cloudflare Worker
- *
- * Decodes the binary protobuf feed with a hand-rolled parser —
- * no Node.js polyfills, no npm runtime deps, works on the V8 isolate directly.
+ * Pure-JS protobuf decoder — no npm deps, V8-isolate safe.
  */
 
 const GTFS_API_URL =
@@ -13,82 +11,85 @@ const CORS = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-// ── Minimal Protobuf reader ──────────────────────────────────────────────────
+// ── Protobuf reader ──────────────────────────────────────────────────────────
 const _dec = new TextDecoder();
 
 class PBReader {
-  constructor(buf) {
-    this.b = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  constructor(input) {
+    // Always work on a fresh copy so byteOffset is always 0
+    if (input instanceof ArrayBuffer) {
+      this.b = new Uint8Array(input.slice(0));
+    } else if (input instanceof Uint8Array) {
+      this.b = input.slice(0);
+    } else {
+      throw new Error("PBReader: unsupported input type");
+    }
     this.p = 0;
     this.end = this.b.length;
-    this.v = new DataView(this.b.buffer, this.b.byteOffset, this.b.byteLength);
+    this.v = new DataView(this.b.buffer);
   }
 
   get done() { return this.p >= this.end; }
 
-  /** Unsigned varint → JS number (safe up to 2^53, handles 64-bit timestamps) */
   varint() {
     let lo = 0, hi = 0, s = 0;
     for (let i = 0; i < 10; i++) {
+      if (this.p >= this.end) throw new Error(`varint: unexpected EOF at byte ${this.p}`);
       const b = this.b[this.p++];
-      if (s < 32) lo |= (b & 0x7f) << s;
-      else        hi |= (b & 0x7f) << (s - 32);
+      if (s < 28)      lo |= (b & 0x7f) << s;
+      else if (s < 32) { lo |= (b & 0x7f) << s; hi |= (b & 0x7f) >>> (32 - s); }
+      else             hi |= (b & 0x7f) << (s - 32);
       s += 7;
       if (!(b & 0x80)) break;
     }
     return (lo >>> 0) + hi * 4294967296;
   }
 
-  /** Signed int32 varint — handles negative values encoded as 10-byte int64 */
   varintS32() {
-    let lo = 0, s = 0;
-    for (let i = 0; i < 10; i++) {
-      const b = this.b[this.p++];
-      if (s < 32) lo |= (b & 0x7f) << s;
-      s += 7;
-      if (!(b & 0x80)) break;
-    }
-    return lo | 0; // reinterpret bits as signed 32-bit
+    return this.varint() | 0;
   }
 
-  /** IEEE-754 single float (wire type 5) */
   float() {
+    if (this.p + 4 > this.end) throw new Error(`float: unexpected EOF at byte ${this.p}`);
     const f = this.v.getFloat32(this.p, true);
     this.p += 4;
     return f;
   }
 
-  /** Read a length-delimited byte slice */
-  bytes() {
-    const len = this.varint();
-    const s = this.p;
-    this.p += len;
-    return this.b.slice(s, this.p);
+  double() {
+    if (this.p + 8 > this.end) throw new Error(`double: unexpected EOF at byte ${this.p}`);
+    const f = this.v.getFloat64(this.p, true);
+    this.p += 8;
+    return f;
   }
 
-  /** Length-delimited UTF-8 string */
+  bytes() {
+    const len = this.varint();
+    if (this.p + len > this.end) throw new Error(`bytes: need ${len} but only ${this.end - this.p} left at byte ${this.p}`);
+    const s = this.b.slice(this.p, this.p + len);
+    this.p += len;
+    return s;
+  }
+
   str() { return _dec.decode(this.bytes()); }
 
-  /** Child reader for the next length-delimited message field */
   sub() { return new PBReader(this.bytes()); }
 
-  /** [fieldNumber, wireType] */
   tag() {
     const t = this.varint();
     return [t >>> 3, t & 7];
   }
 
-  /** Skip an unknown field */
   skip(wire) {
     if      (wire === 0) this.varint();
-    else if (wire === 1) this.p += 8;
-    else if (wire === 2) this.p += this.varint();
-    else if (wire === 5) this.p += 4;
-    else throw new Error(`Unknown wire type ${wire}`);
+    else if (wire === 1) { if (this.p + 8 > this.end) throw new Error("skip64 EOF"); this.p += 8; }
+    else if (wire === 2) this.bytes();   // consume length + body
+    else if (wire === 5) { if (this.p + 4 > this.end) throw new Error("skip32 EOF"); this.p += 4; }
+    else throw new Error(`Unknown wire type ${wire} at byte ${this.p}`);
   }
 }
 
-// ── GTFS-RT message parsers (field numbers from the official .proto) ─────────
+// ── GTFS-RT parsers ──────────────────────────────────────────────────────────
 
 function parseStopTimeEvent(r) {
   const o = {};
@@ -106,11 +107,11 @@ function parseStopTimeUpdate(r) {
   const o = {};
   while (!r.done) {
     const [f, w] = r.tag();
-    if      (f === 1) o.stopSequence          = r.varint();
-    else if (f === 4) o.stopId                = r.str();
-    else if (f === 2) o.arrival               = parseStopTimeEvent(r.sub());
-    else if (f === 3) o.departure             = parseStopTimeEvent(r.sub());
-    else if (f === 5) o.scheduleRelationship  = r.varint();
+    if      (f === 1) o.stopSequence         = r.varint();
+    else if (f === 4) o.stopId               = r.str();
+    else if (f === 2) o.arrival              = parseStopTimeEvent(r.sub());
+    else if (f === 3) o.departure            = parseStopTimeEvent(r.sub());
+    else if (f === 5) o.scheduleRelationship = r.varint();
     else              r.skip(w);
   }
   return o;
@@ -147,11 +148,11 @@ function parsePosition(r) {
   const o = {};
   while (!r.done) {
     const [f, w] = r.tag();
-    if      (f === 1) o.latitude  = r.float();   // float, wire 5
-    else if (f === 2) o.longitude = r.float();   // float, wire 5
-    else if (f === 3) o.bearing   = r.float();   // float, wire 5
-    else if (f === 4) { r.p += 8; }              // odometer double, skip
-    else if (f === 5) o.speed     = r.float();   // float, wire 5
+    if      (f === 1) o.latitude  = r.float();
+    else if (f === 2) o.longitude = r.float();
+    else if (f === 3) o.bearing   = r.float();
+    else if (f === 4) o.odometer  = r.double();
+    else if (f === 5) o.speed     = r.float();
     else              r.skip(w);
   }
   return o;
@@ -197,7 +198,7 @@ function parseFeedEntity(r) {
     else if (f === 2) o.isDeleted  = !!r.varint();
     else if (f === 3) o.tripUpdate = parseTripUpdate(r.sub());
     else if (f === 4) o.vehicle    = parseVehiclePosition(r.sub());
-    else              r.skip(w);   // alert (5) and extensions — skip
+    else              r.skip(w);
   }
   return o;
 }
@@ -225,62 +226,80 @@ function parseFeedMessage(buf) {
   return feed;
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function toHex(buf, maxBytes = 32) {
+  const a = new Uint8Array(buf instanceof ArrayBuffer ? buf : buf.buffer, 0, Math.min(buf.byteLength, maxBytes));
+  return Array.from(a).map(b => b.toString(16).padStart(2, "0")).join(" ");
+}
+
+function json(obj, status = 200) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...CORS },
+  });
+}
+
 // ── Worker entry-point ───────────────────────────────────────────────────────
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers: CORS });
-    }
+    if (request.method === "OPTIONS") return new Response(null, { headers: CORS });
 
     if (url.pathname === "/api/gtfs") {
       if (!env.DL_GTFSRT) {
-        return json(
-          { error: "Secret DL_GTFSRT not configured. Run: wrangler secret put DL_GTFSRT" },
-          500,
-        );
+        return json({ error: "Secret DL_GTFSRT not configured. Run: wrangler secret put DL_GTFSRT" }, 500);
       }
 
-      let raw;
+      // ── Fetch upstream ──────────────────────────────────────────────────
+      let upResp;
       try {
-        const resp = await fetch(GTFS_API_URL, {
+        upResp = await fetch(GTFS_API_URL, {
           headers: {
             "Cache-Control": "no-cache",
             "Ocp-Apim-Subscription-Key": env.DL_GTFSRT,
+            // Ask for raw binary, no gzip surprises
+            "Accept-Encoding": "identity",
+            "Accept": "application/octet-stream, application/x-protobuf, */*",
           },
         });
-        if (!resp.ok) {
-          const detail = await resp.text();
-          return json({ error: `De Lijn API returned ${resp.status}`, detail }, resp.status);
-        }
-        raw = await resp.arrayBuffer();
       } catch (err) {
         return json({ error: "Upstream fetch failed", detail: err.message }, 502);
       }
 
+      if (!upResp.ok) {
+        const detail = await upResp.text();
+        return json({ error: `De Lijn API returned ${upResp.status}`, detail }, upResp.status);
+      }
+
+      const contentType = upResp.headers.get("content-type") || "";
+      const raw = await upResp.arrayBuffer();
+
+      if (raw.byteLength === 0) {
+        return json({ error: "De Lijn API returned empty body", contentType }, 502);
+      }
+
+      // ── Decode ──────────────────────────────────────────────────────────
       let feed;
       try {
         feed = parseFeedMessage(raw);
       } catch (err) {
-        return json({ error: "Protobuf decode failed", detail: err.message }, 500);
+        // Return diagnostic info so we can see exactly what came back
+        return json({
+          error: "Protobuf decode failed",
+          detail: err.message,
+          contentType,
+          bodyBytes: raw.byteLength,
+          first32Hex: toHex(raw, 32),
+          // first 200 chars as text to catch JSON/HTML error responses
+          first200Text: new TextDecoder().decode(new Uint8Array(raw).slice(0, 200)),
+        }, 500);
       }
 
       return json(feed);
     }
 
-    // Everything else → static assets
     return env.ASSETS.fetch(request);
   },
 };
-
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-      ...CORS,
-    },
-  });
-}
