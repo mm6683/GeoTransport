@@ -1,7 +1,7 @@
 {
-  "name": "dl-gtfs-rt-map",
-  "version": "1.1.0",
-  "description": "De Lijn GTFS-RT realtime vehicle map — pure-JS protobuf decoder, no runtime deps.",
+  "name": "geotransport",
+  "version": "1.2.0",
+  "description": "GeoTransport — De Lijn GTFS-RT live map with cancellation support, served via Cloudflare Workers.",
   "private": true,
   "type": "module",
   "scripts": {
