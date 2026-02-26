@@ -5,6 +5,11 @@ compatibility_flags = ["nodejs_compat"]
 
 assets = { directory = "./public", binding = "ASSETS" }
 
-# Set the secret via CLI:
+# Custom domain — requires geotransport.be to be on Cloudflare (proxied)
+[[routes]]
+pattern = "geotransport.be/*"
+zone_name = "geotransport.be"
+
+# Set the API key secret via CLI:
 #   wrangler secret put DL_GTFSRT
-# Then enter your Ocp-Apim-Subscription-Key value when prompted.
+# Then paste your Ocp-Apim-Subscription-Key when prompted.
