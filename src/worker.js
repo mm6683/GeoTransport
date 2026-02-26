@@ -209,18 +209,18 @@ function parsePosition(r) {
 }
 
 function parseVehiclePosition(r) {
+  // De Lijn actual field numbers (verified from binary):
+  //   1 = trip (TripDescriptor)
+  //   2 = position (Position)        <- standard proto uses field 3
+  //   5 = timestamp (varint)         <- standard proto uses field 7
+  //   8 = vehicle (VehicleDescriptor)<- standard proto uses field 2
   const o = {};
   while (!r.done) {
     const [f, w] = r.tag();
-    if      (f === 1) o.trip            = readIf(r, w, W_LEN,    () => parseTripDescriptor(r.sub()))    ?? o.trip;
-    else if (f === 2) o.vehicle         = readIf(r, w, W_LEN,    () => parseVehicleDescriptor(r.sub())) ?? o.vehicle;
-    else if (f === 3) o.position        = readIf(r, w, W_LEN,    () => parsePosition(r.sub()))          ?? o.position;
-    else if (f === 4) o.currentStopSeq  = readIf(r, w, W_VARINT, () => r.varint()) ?? o.currentStopSeq;
-    else if (f === 5) o.stopId          = readIf(r, w, W_LEN,    () => r.str())    ?? o.stopId;
-    else if (f === 6) o.currentStatus   = readIf(r, w, W_VARINT, () => r.varint()) ?? o.currentStatus;
-    else if (f === 7) o.timestamp       = readIf(r, w, W_VARINT, () => r.varint()) ?? o.timestamp;
-    else if (f === 8) o.congestionLevel = readIf(r, w, W_VARINT, () => r.varint()) ?? o.congestionLevel;
-    else if (f === 9) o.occupancyStatus = readIf(r, w, W_VARINT, () => r.varint()) ?? o.occupancyStatus;
+    if      (f === 1) o.trip      = readIf(r, w, W_LEN,    () => parseTripDescriptor(r.sub()))    ?? o.trip;
+    else if (f === 2) o.position  = readIf(r, w, W_LEN,    () => parsePosition(r.sub()))          ?? o.position;
+    else if (f === 5) o.timestamp = readIf(r, w, W_VARINT, () => r.varint())                      ?? o.timestamp;
+    else if (f === 8) o.vehicle   = readIf(r, w, W_LEN,    () => parseVehicleDescriptor(r.sub())) ?? o.vehicle;
     else r.skip(w);
   }
   return o;
