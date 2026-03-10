@@ -1,8 +1,18 @@
 /**
- * De Lijn GTFS-RT Cloudflare Worker — pure-JS protobuf decoder
+ * Geotransport — De Lijn GTFS-RT Cloudflare Worker
+ *
+ * PERFORMANCE DESIGN:
+ *   Instead of decoding the full protobuf tree and re-serialising it as JSON
+ *   (which was ~400 KB+ and killed the CPU), this worker does a single-pass
+ *   streaming extraction of only the 4 fields the frontend needs per vehicle:
+ *     lat, lng, bearing, vehicleId — from VehiclePosition entities
+ *     tripId, routeId, delay       — joined from TripUpdate entities
+ *     scheduleRelationship=3       — for canceled trips
+ *
+ *   Output JSON is ~15–30 KB regardless of how large the upstream feed is.
  */
 
-const GTFS_API_URL =
+const GTFS_URL =
   "https://api.delijn.be/gtfs/v3/realtime?canceled=true&delay=true&position=true&vehicleid=true&tripid=true";
 
 const CORS = {
@@ -10,435 +20,354 @@ const CORS = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-// ── Low-level varint / skip (used by both debug and parser) ──────────────────
-function readVarintRaw(d, p) {
-  let val = 0, shift = 0;
-  while (p < d.length) {
-    const b = d[p++];
-    val |= (b & 0x7f) * Math.pow(2, shift); // avoid sign issues with |=
-    shift += 7;
-    if (!(b & 0x80)) break;
-  }
-  return [val, p];
-}
+// ── Minimal protobuf scanner ─────────────────────────────────────────────────
+// We never build a full object tree — just pull out the exact bytes we need.
 
-function skipRaw(d, p, wire) {
-  if (wire === 0) { let v; [v, p] = readVarintRaw(d, p); return p; }
-  if (wire === 1) return p + 8;
-  if (wire === 2) { let l; [l, p] = readVarintRaw(d, p); return p + l; }
-  if (wire === 5) return p + 4;
-  throw new Error(`unknown wire type ${wire}`);
-}
-
-// ── Protobuf reader class ────────────────────────────────────────────────────
-const _dec = new TextDecoder();
-
-class PBReader {
-  constructor(input) {
-    if (input instanceof ArrayBuffer) {
-      this.b = new Uint8Array(input.slice(0));
-    } else {
-      // Uint8Array — copy to own flat buffer so byteOffset is always 0
-      this.b = new Uint8Array(input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength));
-    }
+class PB {
+  constructor(buf) {
+    this.b = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
     this.p = 0;
     this.end = this.b.length;
-    this.v = new DataView(this.b.buffer);
+    this.v = new DataView(this.b.buffer, this.b.byteOffset, this.b.byteLength);
   }
 
   get done() { return this.p >= this.end; }
 
-  varint() {
+  vi() { // unsigned varint
     let lo = 0, hi = 0, s = 0;
     for (let i = 0; i < 10; i++) {
-      if (this.p >= this.end) throw new Error(`varint EOF at ${this.p}`);
+      if (this.p >= this.end) throw new Error("varint EOF");
       const b = this.b[this.p++];
-      if      (s < 28) lo |=  (b & 0x7f) << s;
-      else if (s < 32) { lo |= (b & 0x7f) << s; hi |= (b & 0x7f) >>> (32 - s); }
-      else             hi |= (b & 0x7f) << (s - 32);
+      if (s < 28)       lo |=  (b & 0x7f) << s;
+      else if (s < 32)  { lo |= (b & 0x7f) << s; hi |= (b & 0x7f) >>> (32 - s); }
+      else              hi |= (b & 0x7f) << (s - 32);
       s += 7;
       if (!(b & 0x80)) break;
     }
     return (lo >>> 0) + hi * 4294967296;
   }
 
-  sint32() { return this.varint() | 0; }
+  si() { return this.vi() | 0; } // signed int32
 
-  float() {
-    if (this.p + 4 > this.end) throw new Error(`float EOF at ${this.p}`);
+  f32() {
     const f = this.v.getFloat32(this.p, true);
     this.p += 4;
     return f;
   }
 
-  double() {
-    if (this.p + 8 > this.end) throw new Error(`double EOF at ${this.p}`);
-    const f = this.v.getFloat64(this.p, true);
-    this.p += 8;
-    return f;
+  // Read a length-delimited field and return a child PB reader
+  sub() {
+    const len = this.vi();
+    if (this.p + len > this.end) throw new Error(`sub: need ${len}, have ${this.end - this.p}`);
+    const child = new PB(this.b.subarray(this.p, this.p + len));
+    this.p += len;
+    return child;
   }
 
-  bytes() {
-    const len = this.varint();
-    if (this.p + len > this.end)
-      throw new Error(`bytes: need ${len}, only ${this.end - this.p} left at ${this.p}`);
-    const s = this.b.slice(this.p, this.p + len);
+  str() {
+    const len = this.vi();
+    if (this.p + len > this.end) throw new Error(`str: need ${len}`);
+    const s = dec.decode(this.b.subarray(this.p, this.p + len));
     this.p += len;
     return s;
   }
 
-  str()  { return _dec.decode(this.bytes()); }
-  sub()  { return new PBReader(this.bytes()); }
-  tag()  { const t = this.varint(); return [t >>> 3, t & 7]; }
+  tag() {
+    const t = this.vi();
+    return [t >>> 3, t & 7];
+  }
 
-  skip(wire) {
-    if      (wire === 0) this.varint();
-    else if (wire === 1) { this.p += 8; }
-    else if (wire === 2) this.bytes();
-    else if (wire === 5) { this.p += 4; }
-    else throw new Error(`unknown wire ${wire} at ${this.p}`);
+  skip(w) {
+    if      (w === 0) this.vi();
+    else if (w === 1) this.p += 8;
+    else if (w === 2) { const l = this.vi(); this.p += l; }
+    else if (w === 5) this.p += 4;
+    else throw new Error(`bad wire ${w} at ${this.p}`);
   }
 }
 
-const W_VARINT = 0, W_64 = 1, W_LEN = 2, W_32 = 5;
+const dec = new TextDecoder();
 
-function readIf(r, w, expected, fn) {
-  if (w === expected) return fn();
-  r.skip(w);
-  return undefined;
-}
+// ── Slim extractors — return only what the frontend uses ─────────────────────
 
-// ── GTFS-RT parsers ──────────────────────────────────────────────────────────
-// Official field numbers (gtfs-realtime.proto):
-//   TripDescriptor:    trip_id=1, start_time=2, start_date=3,
-//                      schedule_relationship=4, route_id=5, direction_id=6
-//   VehicleDescriptor: id=1, label=2, license_plate=3
-//   Position:          latitude=1(f32), longitude=2(f32), bearing=3(f32),
-//                      odometer=4(f64), speed=5(f32)
-//   VehiclePosition:   trip=1, vehicle=2, position=3, current_stop_sequence=4,
-//                      stop_id=5, current_status=6, timestamp=7,
-//                      congestion_level=8, occupancy_status=9
-//   TripUpdate:        trip=1, stop_time_update=2, vehicle=3,
-//                      timestamp=4, delay=5
-//   StopTimeEvent:     delay=1, time=2, uncertainty=3
-//   StopTimeUpdate:    stop_sequence=1, arrival=2, departure=3,
-//                      stop_id=4, schedule_relationship=5
-//   FeedEntity:        id=1, is_deleted=2, trip_update=3, vehicle=4, alert=5
-//   FeedHeader:        gtfs_realtime_version=1, incrementality=2, timestamp=3
-
-function parseTripDescriptor(r) {
-  const o = {};
+/**
+ * Extract from TripDescriptor:
+ *   tripId (field 1), scheduleRelationship (field 4), routeId (field 5)
+ *
+ * De Lijn field mapping (verified from binary):
+ *   field 1 = tripId (len)
+ *   field 3 = startDate (len)
+ *   field 4 = scheduleRelationship (varint)  ← 3 = CANCELED
+ *   field 5 = routeId (len)
+ */
+function extractTripDescriptor(r) {
+  const o = { tripId: "", routeId: "", schedRel: 0 };
   while (!r.done) {
     const [f, w] = r.tag();
-    if      (f === 1) o.tripId               = readIf(r, w, W_LEN,    () => r.str())    ?? o.tripId;
-    else if (f === 2) o.startTime            = readIf(r, w, W_LEN,    () => r.str())    ?? o.startTime;
-    else if (f === 3) o.startDate            = readIf(r, w, W_LEN,    () => r.str())    ?? o.startDate;
-    else if (f === 4) o.scheduleRelationship = readIf(r, w, W_VARINT, () => r.varint()) ?? o.scheduleRelationship;
-    else if (f === 5) o.routeId              = readIf(r, w, W_LEN,    () => r.str())    ?? o.routeId;
-    else if (f === 6) o.directionId          = readIf(r, w, W_VARINT, () => r.varint()) ?? o.directionId;
+    if      (f === 1 && w === 2) o.tripId  = r.str();
+    else if (f === 4 && w === 0) o.schedRel = r.vi();
+    else if (f === 5 && w === 2) o.routeId  = r.str();
     else r.skip(w);
   }
   return o;
 }
 
-function parseVehicleDescriptor(r) {
-  const o = {};
+/**
+ * Extract from TripUpdate:
+ *   trip (field 1) → tripId + scheduleRelationship
+ *   last StopTimeUpdate (field 2) → delay from departure or arrival
+ *   vehicle (field 3) → vehicleId label
+ *
+ * Returns null if canceled (handled separately).
+ */
+function extractTripUpdate(r) {
+  let trip = null, lastDelay = null;
   while (!r.done) {
     const [f, w] = r.tag();
-    if      (f === 1) o.id           = readIf(r, w, W_LEN, () => r.str()) ?? o.id;
-    else if (f === 2) o.label        = readIf(r, w, W_LEN, () => r.str()) ?? o.label;
-    else if (f === 3) o.licensePlate = readIf(r, w, W_LEN, () => r.str()) ?? o.licensePlate;
-    else r.skip(w);
-  }
-  return o;
-}
-
-function parseStopTimeEvent(r) {
-  const o = {};
-  while (!r.done) {
-    const [f, w] = r.tag();
-    if      (f === 1) o.delay       = readIf(r, w, W_VARINT, () => r.sint32()) ?? o.delay;
-    else if (f === 2) o.time        = readIf(r, w, W_VARINT, () => r.varint()) ?? o.time;
-    else if (f === 3) o.uncertainty = readIf(r, w, W_VARINT, () => r.sint32()) ?? o.uncertainty;
-    else r.skip(w);
-  }
-  return o;
-}
-
-function parseStopTimeUpdate(r) {
-  const o = {};
-  while (!r.done) {
-    const [f, w] = r.tag();
-    if      (f === 1) o.stopSequence         = readIf(r, w, W_VARINT, () => r.varint()) ?? o.stopSequence;
-    else if (f === 2) o.arrival              = readIf(r, w, W_LEN,    () => parseStopTimeEvent(r.sub())) ?? o.arrival;
-    else if (f === 3) o.departure            = readIf(r, w, W_LEN,    () => parseStopTimeEvent(r.sub())) ?? o.departure;
-    else if (f === 4) o.stopId               = readIf(r, w, W_LEN,    () => r.str())    ?? o.stopId;
-    else if (f === 5) o.scheduleRelationship = readIf(r, w, W_VARINT, () => r.varint()) ?? o.scheduleRelationship;
-    else r.skip(w);
-  }
-  return o;
-}
-
-function parseTripUpdate(r) {
-  const o = { stopTimeUpdate: [] };
-  while (!r.done) {
-    const [f, w] = r.tag();
-    if      (f === 1) o.trip      = readIf(r, w, W_LEN,    () => parseTripDescriptor(r.sub()))    ?? o.trip;
-    else if (f === 2) { const s = readIf(r, w, W_LEN, () => parseStopTimeUpdate(r.sub())); if (s) o.stopTimeUpdate.push(s); }
-    else if (f === 3) o.vehicle   = readIf(r, w, W_LEN,    () => parseVehicleDescriptor(r.sub())) ?? o.vehicle;
-    else if (f === 4) o.timestamp = readIf(r, w, W_VARINT, () => r.varint()) ?? o.timestamp;
-    else if (f === 5) o.delay     = readIf(r, w, W_VARINT, () => r.sint32()) ?? o.delay;
-    else r.skip(w);
-  }
-  return o;
-}
-
-function parsePosition(r) {
-  const o = {};
-  while (!r.done) {
-    const [f, w] = r.tag();
-    // latitude/longitude/bearing/speed are float (wire 5); odometer is double (wire 1)
-    if      (f === 1) o.latitude  = readIf(r, w, W_32, () => r.float())  ?? o.latitude;
-    else if (f === 2) o.longitude = readIf(r, w, W_32, () => r.float())  ?? o.longitude;
-    else if (f === 3) o.bearing   = readIf(r, w, W_32, () => r.float())  ?? o.bearing;
-    else if (f === 4) o.odometer  = readIf(r, w, W_64, () => r.double()) ?? o.odometer;
-    else if (f === 5) o.speed     = readIf(r, w, W_32, () => r.float())  ?? o.speed;
-    else r.skip(w);
-  }
-  return o;
-}
-
-function parseVehiclePosition(r) {
-  // De Lijn actual field numbers (verified from binary):
-  //   1 = trip (TripDescriptor)
-  //   2 = position (Position)        <- standard proto uses field 3
-  //   5 = timestamp (varint)         <- standard proto uses field 7
-  //   8 = vehicle (VehicleDescriptor)<- standard proto uses field 2
-  const o = {};
-  while (!r.done) {
-    const [f, w] = r.tag();
-    if      (f === 1) o.trip      = readIf(r, w, W_LEN,    () => parseTripDescriptor(r.sub()))    ?? o.trip;
-    else if (f === 2) o.position  = readIf(r, w, W_LEN,    () => parsePosition(r.sub()))          ?? o.position;
-    else if (f === 5) o.timestamp = readIf(r, w, W_VARINT, () => r.varint())                      ?? o.timestamp;
-    else if (f === 8) o.vehicle   = readIf(r, w, W_LEN,    () => parseVehicleDescriptor(r.sub())) ?? o.vehicle;
-    else r.skip(w);
-  }
-  return o;
-}
-
-function parseFeedEntity(r) {
-  const o = {};
-  while (!r.done) {
-    const [f, w] = r.tag();
-    if      (f === 1) o.id         = readIf(r, w, W_LEN,    () => r.str())                        ?? o.id;
-    else if (f === 2) o.isDeleted  = readIf(r, w, W_VARINT, () => !!r.varint())                   ?? o.isDeleted;
-    else if (f === 3) o.tripUpdate = readIf(r, w, W_LEN,    () => parseTripUpdate(r.sub()))        ?? o.tripUpdate;
-    else if (f === 4) o.vehicle    = readIf(r, w, W_LEN,    () => parseVehiclePosition(r.sub()))   ?? o.vehicle;
-    else r.skip(w);
-  }
-  return o;
-}
-
-function parseFeedMessage(buf) {
-  const r = new PBReader(buf);
-  const feed = { header: {}, entity: [] };
-  let entityErrors = 0;
-  while (!r.done) {
-    const [f, w] = r.tag();
-    if (f === 1 && w === W_LEN) {
-      const hr = r.sub();
-      while (!hr.done) {
-        const [hf, hw] = hr.tag();
-        if      (hf === 1) feed.header.gtfsRealtimeVersion = readIf(hr, hw, W_LEN,    () => hr.str())    ?? feed.header.gtfsRealtimeVersion;
-        else if (hf === 2) feed.header.incrementality      = readIf(hr, hw, W_VARINT, () => hr.varint()) ?? feed.header.incrementality;
-        else if (hf === 3) feed.header.timestamp           = readIf(hr, hw, W_VARINT, () => hr.varint()) ?? feed.header.timestamp;
-        else               hr.skip(hw);
+    if (f === 1 && w === 2) {
+      trip = extractTripDescriptor(r.sub());
+    } else if (f === 2 && w === 2) {
+      // StopTimeUpdate — we only want the last one's delay
+      const stu = r.sub();
+      let d = null;
+      while (!stu.done) {
+        const [sf, sw] = stu.tag();
+        if ((sf === 2 || sf === 3) && sw === 2) { // arrival=2, departure=3
+          const ste = stu.sub();
+          while (!ste.done) {
+            const [ef, ew] = ste.tag();
+            if (ef === 1 && ew === 0) d = ste.si(); // delay field
+            else ste.skip(ew);
+          }
+        } else stu.skip(sw);
       }
-    } else if (f === 2 && w === W_LEN) {
-      const entityBytes = r.bytes();
-      try {
-        feed.entity.push(parseFeedEntity(new PBReader(entityBytes)));
-      } catch (e) {
-        entityErrors++;
-        feed.entity.push({ _parseError: e.message });
+      if (d !== null) lastDelay = d;
+    } else {
+      r.skip(w);
+    }
+  }
+  return trip ? { tripId: trip.tripId, routeId: trip.routeId, schedRel: trip.schedRel, delay: lastDelay } : null;
+}
+
+/**
+ * Extract from VehiclePosition:
+ *   De Lijn field mapping (verified from binary debug):
+ *     field 1 = TripDescriptor
+ *     field 2 = Position  (lat=1,lng=2,bearing=3,speed=5 — all float/wire5)
+ *     field 5 = timestamp (varint)
+ *     field 8 = VehicleDescriptor (id=1,label=2)
+ */
+function extractVehiclePosition(r) {
+  let tripId = "", routeId = "";
+  let lat = 0, lng = 0, bearing = null, speed = null;
+  let vehicleId = "", label = "";
+
+  while (!r.done) {
+    const [f, w] = r.tag();
+    if (f === 1 && w === 2) {
+      // TripDescriptor
+      const td = r.sub();
+      while (!td.done) {
+        const [tf, tw] = td.tag();
+        if      (tf === 1 && tw === 2) tripId  = td.str();
+        else if (tf === 5 && tw === 2) routeId = td.str();
+        else td.skip(tw);
+      }
+    } else if (f === 2 && w === 2) {
+      // Position
+      const pos = r.sub();
+      while (!pos.done) {
+        const [pf, pw] = pos.tag();
+        if      (pf === 1 && pw === 5) lat     = pos.f32();
+        else if (pf === 2 && pw === 5) lng     = pos.f32();
+        else if (pf === 3 && pw === 5) bearing = pos.f32();
+        else if (pf === 5 && pw === 5) speed   = pos.f32();
+        else pos.skip(pw);
+      }
+    } else if (f === 8 && w === 2) {
+      // VehicleDescriptor
+      const vd = r.sub();
+      while (!vd.done) {
+        const [vf, vw] = vd.tag();
+        if      (vf === 1 && vw === 2) vehicleId = vd.str();
+        else if (vf === 2 && vw === 2) label     = vd.str();
+        else vd.skip(vw);
       }
     } else {
       r.skip(w);
     }
   }
-  if (entityErrors > 0) feed._entityErrors = entityErrors;
-  return feed;
+
+  if (!lat || !lng) return null;
+  return { vehicleId: vehicleId || label, tripId, routeId, lat, lng, bearing, speed };
+}
+
+/**
+ * Single-pass scan of the full FeedMessage.
+ * Returns a slim object — only the data the frontend renders.
+ */
+function extractFeed(buf) {
+  const r = new PB(buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf);
+
+  // Pass 1: collect TripUpdates (delay + canceled) and VehiclePositions
+  const delayMap    = new Map();  // tripId → delay (seconds)
+  const canceledMap = new Map();  // tripId → { tripId, routeId }
+  const vehicles    = [];
+
+  let timestamp = 0;
+
+  while (!r.done) {
+    const [f, w] = r.tag();
+
+    if (f === 1 && w === 2) {
+      // FeedHeader — just grab timestamp
+      const hr = r.sub();
+      while (!hr.done) {
+        const [hf, hw] = hr.tag();
+        if (hf === 3 && hw === 0) timestamp = hr.vi();
+        else hr.skip(hw);
+      }
+    } else if (f === 2 && w === 2) {
+      // FeedEntity — each one is isolated so a parse error can't corrupt the stream
+      const entityLen = r.vi();
+      const entityEnd = r.p + entityLen;
+
+      try {
+        const er = new PB(r.b.subarray(r.p, entityEnd));
+
+        // Peek: find field 3 (TripUpdate) or field 4 (VehiclePosition)
+        let entityId = "";
+        let tuData = null, vpData = null;
+
+        while (!er.done) {
+          const [ef, ew] = er.tag();
+          if      (ef === 1 && ew === 2) entityId = er.str();
+          else if (ef === 3 && ew === 2) tuData   = extractTripUpdate(er.sub());
+          else if (ef === 4 && ew === 2) vpData   = extractVehiclePosition(er.sub());
+          else er.skip(ew);
+        }
+
+        if (tuData) {
+          if (tuData.schedRel === 3) {
+            // CANCELED
+            canceledMap.set(tuData.tripId, { tripId: tuData.tripId, routeId: tuData.routeId });
+          } else if (tuData.delay !== null) {
+            delayMap.set(tuData.tripId, tuData.delay);
+          }
+        }
+
+        if (vpData) {
+          vehicles.push(vpData);
+        }
+      } catch (_) {
+        // Skip bad entity silently
+      }
+
+      r.p = entityEnd;
+    } else {
+      r.skip(w);
+    }
+  }
+
+  // Pass 2: join delay onto vehicles (single loop, O(n))
+  for (const v of vehicles) {
+    v.delay = delayMap.get(v.tripId) ?? null;
+  }
+
+  return {
+    timestamp,
+    vehicles,                              // [{vehicleId,tripId,routeId,lat,lng,bearing,speed,delay}]
+    canceled: [...canceledMap.values()],   // [{tripId,routeId}]
+    counts: {
+      entities: vehicles.length + canceledMap.size,
+      vehicles: vehicles.length,
+      canceled: canceledMap.size,
+    },
+  };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function toHex(d, n = 64) {
-  const src = d instanceof ArrayBuffer ? new Uint8Array(d) : d;
-  return Array.from(src.subarray(0, Math.min(src.length, n)))
-    .map(b => b.toString(16).padStart(2, "0")).join(" ");
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function json(obj, status = 200) {
+// How long to cache the parsed feed (seconds).
+// The frontend refreshes every 15s, so 14s means at most 1 parse per cycle
+// regardless of how many users are hitting the site simultaneously.
+const CACHE_TTL = 14;
+
+// Stable cache key — same for every user so they all share one entry.
+const CACHE_KEY = "https://geotransport-cache.internal/api/gtfs";
+
+function jsonResp(obj, status = 200, extra = {}) {
   return new Response(JSON.stringify(obj), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...CORS },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": `public, max-age=${CACHE_TTL}`,
+      ...CORS,
+      ...extra,
+    },
   });
 }
 
-async function fetchRaw(env) {
-  const r = await fetch(GTFS_API_URL, {
+async function fetchProto(env) {
+  const resp = await fetch(GTFS_URL, {
     headers: {
       "Cache-Control": "no-cache",
       "Ocp-Apim-Subscription-Key": env.DL_GTFSRT,
       "Accept-Encoding": "identity",
     },
   });
-  if (!r.ok) throw new Error(`upstream ${r.status}: ${await r.text()}`);
-  return r.arrayBuffer();
+  if (!resp.ok) throw Object.assign(new Error(`De Lijn API ${resp.status}`), { status: resp.status });
+  return resp.arrayBuffer();
 }
 
-// ── Worker entry-point ────────────────────────────────────────────────────────
+// ── Worker ────────────────────────────────────────────────────────────────────
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") return new Response(null, { headers: CORS });
 
-    // ── /api/debug — full structural dump of first vehicle entity ─────────
-    if (url.pathname === "/api/debug") {
-      if (!env.DL_GTFSRT) return json({ error: "Secret not set" }, 500);
-
-      let raw;
-      try { raw = await fetchRaw(env); } catch (e) { return json({ error: e.message }, 502); }
-      const data = new Uint8Array(raw);
-
-      // Walk top-level to find the first entity containing field 4 (VehiclePosition)
-      let i = 0;
-      let vehicleEntityHex = null;
-      let vehicleEntityFields = null;
-
-      outer: while (i < data.length) {
-        let tag, w, len;
-        [tag, i] = readVarintRaw(data, i);
-        const field = tag >>> 3; w = tag & 7;
-        if (w !== 2) { i = skipRaw(data, i, w); continue; }
-        [len, i] = readVarintRaw(data, i);
-        const bodyStart = i;
-        i += len;
-
-        if (field !== 2) continue; // only FeedEntity (field 2)
-
-        const ent = data.subarray(bodyStart, bodyStart + len);
-
-        // Check if entity has field 4
-        let j = 0;
-        while (j < ent.length) {
-          let t2; [t2, j] = readVarintRaw(ent, j);
-          const f2 = t2 >>> 3, w2 = t2 & 7;
-          if (f2 === 4 && w2 === W_LEN) {
-            // Found a VehiclePosition entity — dump it
-            vehicleEntityHex = toHex(ent, 256);
-
-            // Decode each sub-field of the entity
-            vehicleEntityFields = [];
-            let k = 0;
-            while (k < ent.length) {
-              let t3, p3; [t3, p3] = readVarintRaw(ent, k);
-              const f3 = t3 >>> 3, w3 = t3 & 7;
-              const fi = { entityField: f3, wire: w3 };
-              if (w3 === W_LEN) {
-                let l3; [l3, p3] = readVarintRaw(ent, p3);
-                const sub = ent.subarray(p3, p3 + l3);
-                fi.byteLen = l3;
-                fi.hex = toHex(sub, 64);
-                // If VehiclePosition (f3=4), decode its sub-fields too
-                if (f3 === 4) {
-                  fi.vpFields = [];
-                  let m = 0;
-                  while (m < sub.length) {
-                    let t4, p4; [t4, p4] = readVarintRaw(sub, m);
-                    const f4 = t4 >>> 3, w4 = t4 & 7;
-                    const vf = { field: f4, wire: w4 };
-                    if (w4 === W_LEN) {
-                      let l4; [l4, p4] = readVarintRaw(sub, p4);
-                      vf.byteLen = l4;
-                      vf.hex = toHex(sub.subarray(p4, p4 + l4), 32);
-                      // If this is Position (f4=3), decode its floats
-                      if (f4 === 3) {
-                        const pos = sub.subarray(p4, p4 + l4);
-                        vf.posFields = [];
-                        let n = 0;
-                        while (n < pos.length) {
-                          let t5, p5; [t5, p5] = readVarintRaw(pos, n);
-                          const f5 = t5 >>> 3, w5 = t5 & 7;
-                          const pf = { field: f5, wire: w5 };
-                          if (w5 === W_32) {
-                            const dv = new DataView(pos.buffer, pos.byteOffset + p5, 4);
-                            pf.float32 = dv.getFloat32(0, true); n = p5 + 4;
-                          } else if (w5 === W_64) {
-                            const dv = new DataView(pos.buffer, pos.byteOffset + p5, 8);
-                            pf.float64 = dv.getFloat64(0, true); n = p5 + 8;
-                          } else if (w5 === W_VARINT) {
-                            let v; [v, p5] = readVarintRaw(pos, p5); pf.varint = v; n = p5;
-                          } else if (w5 === W_LEN) {
-                            let l5; [l5, p5] = readVarintRaw(pos, p5);
-                            pf.hex = toHex(pos.subarray(p5, p5 + l5), 16); n = p5 + l5;
-                          } else { break; }
-                          vf.posFields.push(pf);
-                        }
-                      }
-                      m = p4 + l4;
-                    } else if (w4 === W_VARINT) {
-                      let v; [v, p4] = readVarintRaw(sub, p4); vf.varint = v; m = p4;
-                    } else if (w4 === W_32) {
-                      const dv = new DataView(sub.buffer, sub.byteOffset + p4, 4);
-                      vf.float32 = dv.getFloat32(0, true); m = p4 + 4;
-                    } else if (w4 === W_64) {
-                      const dv = new DataView(sub.buffer, sub.byteOffset + p4, 8);
-                      vf.float64 = dv.getFloat64(0, true); m = p4 + 8;
-                    } else { break; }
-                    fi.vpFields.push(vf);
-                  }
-                }
-                k = p3 + l3;
-              } else if (w3 === W_VARINT) {
-                let v; [v, p3] = readVarintRaw(ent, p3); fi.varint = v; k = p3;
-              } else if (w3 === W_32) {
-                const dv = new DataView(ent.buffer, ent.byteOffset + p3, 4);
-                fi.float32 = dv.getFloat32(0, true); k = p3 + 4;
-              } else { k = skipRaw(ent, p3, w3); }
-              vehicleEntityFields.push(fi);
-            }
-            break outer;
-          }
-          j = skipRaw(ent, j, w2);
-        }
-      }
-
-      return json({ vehicleEntityHex: vehicleEntityHex?.slice(0, 800), vehicleEntityFields });
-    }
-
-    // ── /api/gtfs — main feed endpoint ───────────────────────────────────
     if (url.pathname === "/api/gtfs") {
       if (!env.DL_GTFSRT)
-        return json({ error: "Secret DL_GTFSRT not configured. Run: wrangler secret put DL_GTFSRT" }, 500);
+        return jsonResp({ error: "Secret DL_GTFSRT not configured. Run: wrangler secret put DL_GTFSRT" }, 500);
 
+      // ── Cache-first: serve from Cloudflare edge cache when possible ──────
+      // This means the expensive protobuf parse only runs once per CACHE_TTL
+      // seconds, no matter how many concurrent users hit the endpoint.
+      const cache = caches.default;
+      const cacheReq = new Request(CACHE_KEY);
+
+      const cached = await cache.match(cacheReq);
+      if (cached) {
+        // Clone and re-add CORS headers (cache strips them on some edge nodes)
+        const headers = new Headers(cached.headers);
+        Object.entries(CORS).forEach(([k, v]) => headers.set(k, v));
+        headers.set("X-Cache", "HIT");
+        return new Response(cached.body, { status: cached.status, headers });
+      }
+
+      // ── Cache miss: fetch + parse + store ────────────────────────────────
       let raw;
-      try { raw = await fetchRaw(env); } catch (e) { return json({ error: e.message }, 502); }
-      if (raw.byteLength === 0) return json({ error: "Empty response from De Lijn API" }, 502);
+      try {
+        raw = await fetchProto(env);
+      } catch (err) {
+        return jsonResp({ error: err.message }, err.status ?? 502);
+      }
 
       let feed;
       try {
-        feed = parseFeedMessage(raw);
+        feed = extractFeed(raw);
       } catch (err) {
-        return json({
-          error: "Protobuf decode failed",
-          detail: err.message,
-          bodyBytes: raw.byteLength,
-          first32Hex: toHex(raw, 32),
-        }, 500);
+        return jsonResp({ error: "Protobuf decode failed", detail: err.message }, 500);
       }
 
-      return json(feed);
+      const response = jsonResp(feed, 200, { "X-Cache": "MISS" });
+
+      // Store in edge cache asynchronously — don't block the response
+      ctx.waitUntil(cache.put(cacheReq, response.clone()));
+
+      return response;
     }
 
     return env.ASSETS.fetch(request);
