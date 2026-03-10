@@ -8,16 +8,15 @@
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
-
   <style>
+    /* System font stack — no external font requests that ad blockers kill */
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
     :root {
       --bg:#080c10; --surface:#0e1419; --surface2:#141b23; --border:#1e2d3d;
       --accent:#00d4ff; --accent2:#ff6b35; --accent3:#a8ff3e;
       --text:#c8dae8; --text-dim:#6b8899; --danger:#ff3b5c;
       --panel:320px;
-      --font-ui:'Oxanium',sans-serif; --font-mono:'JetBrains Mono',monospace;
+      --font-ui:'Oxanium',system-ui,-apple-system,'Segoe UI',sans-serif; --font-mono:'JetBrains Mono','Cascadia Code','Consolas','Courier New',monospace;
     }
     html,body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:var(--font-ui); overflow:hidden; }
     #app { position:relative; width:100vw; height:100vh; display:flex; }
@@ -227,10 +226,24 @@ async function loadStatic() {
   }
 }
 
-function lookupTrip(tripId) {
+function lookupLine(tripId, directionId) {
   if (!staticLookup || !tripId) return null;
-  const key = tripId.split('_').slice(0, 3).join('_');
-  return staticLookup.trips?.[key] || null;
+  const lineCode = tripId.split('_')[0];  // e.g. "3021_53_79_..." → "3021"
+  const line = staticLookup.lines?.[lineCode];
+  if (!line) return null;
+  // Pick direction: prefer directionId from RT feed, fall back to dir "0"
+  const dir = (directionId >= 0) ? String(directionId) : '0';
+  const dirData = line.dirs?.[dir] || line.dirs?.['0'] || {};
+  return {
+    name:      line.name,
+    color:     line.color,
+    textColor: line.textColor,
+    type:      line.type,
+    headsign:  dirData.long || '',
+    long:      dirData.long || '',
+    url:       dirData.url  || '',
+    routeId:   lineCode + dir,
+  };
 }
 
 // ── Colours ───────────────────────────────────────────────────────────────────
@@ -240,13 +253,12 @@ function palCol(k) {
   for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) & 0xffffffff;
   return PAL[Math.abs(h) % PAL.length];
 }
-function markerColor(tripId, routeId) {
-  // Use GTFS route color if available, else palette
-  const info = lookupTrip(tripId);
-  return info?.color ? '#' + info.color : palCol(routeId || tripId);
+function markerColor(tripId, directionId) {
+  const info = lookupLine(tripId, directionId);
+  return info?.color ? '#' + info.color : palCol(tripId);
 }
-function routeName(tripId)  { return lookupTrip(tripId)?.name  || tripId.split('_')[1] || '?'; }
-function routeDest(tripId)  { return lookupTrip(tripId)?.headsign || ''; }
+function routeName(tripId, directionId) { return lookupLine(tripId, directionId)?.name || tripId.split('_')[1] || '?'; }
+function routeDest(tripId, directionId) { return lookupLine(tripId, directionId)?.long || ''; }
 
 function fmtD(s) {
   if (s == null || s === 0) return { text:'On time', cls:'green' };
@@ -331,10 +343,9 @@ function drawList(paneId, spacerId, winId, items, rowH, renderFn) {
 }
 
 function renderV(row, v) {
-  const d = fmtD(v.delay);
-  const isE = v.delay != null && v.delay < -30;
-  const name = routeName(v.tripId);
-  const dest = routeDest(v.tripId);
+  const d    = fmtD(v.delay);
+  const name = routeName(v.tripId, v.directionId);
+  const dest = routeDest(v.tripId, v.directionId);
   row.className = "vr" + (v.vehicleId===activeId ? " sel" : "");
   row.onclick = () => select(v.vehicleId);
   row.innerHTML = `
@@ -347,11 +358,13 @@ function renderV(row, v) {
 }
 
 function renderC(row, c) {
+  const name = routeName(c.tripId, c.directionId ?? -1);
+  const dest = routeDest(c.tripId, c.directionId ?? -1);
   row.className = "vr cr";
   row.innerHTML = `
-    <div class="badge" style="background:rgba(255,59,92,.1);color:var(--danger);border:1px solid rgba(255,59,92,.3)">${routeName(c.tripId)}</div>
+    <div class="badge" style="background:rgba(255,59,92,.1);color:var(--danger);border:1px solid rgba(255,59,92,.3)">${name}</div>
     <div class="ri">
-      <div class="rr" style="color:var(--text-dim);text-decoration:line-through">${routeDest(c.tripId) || c.tripId.split('_').slice(0,3).join('_')}</div>
+      <div class="rr" style="color:var(--text-dim);text-decoration:line-through">${dest || c.tripId.split('_').slice(0,3).join('_')}</div>
       <div class="rm">${c.routeId||'–'}</div>
     </div>
     <div class="cx">Canceled</div>`;
@@ -369,9 +382,9 @@ G("pc").addEventListener("scroll", () => drawList("pc","sc3","wc",sortedC,IH_C,r
 function showPopup(id) {
   const v = vData[id];
   if (!v) return;
-  const info  = lookupTrip(v.tripId);
+  const info  = lookupLine(v.tripId, v.directionId);
   const name  = info?.name  || v.tripId.split('_')[1] || '?';
-  const dest  = info?.headsign || '–';
+  const dest  = info?.long  || '–';
   const color = info?.color ? '#' + info.color : v.c;
   const textC = info?.textColor ? '#' + info.textColor : '#fff';
   const d     = fmtD(v.delay);
@@ -392,24 +405,21 @@ function openPanel(id) {
   const v = vData[id];
   if (!v) return;
   activeId = id;
-  const info   = lookupTrip(v.tripId);
-  const name   = info?.name      || v.tripId.split('_')[1] || '?';
-  const dest   = info?.headsign  || '–';
-  const color  = info?.color     ? '#' + info.color    : v.c;
-  const textC  = info?.textColor ? '#' + info.textColor : '#fff';
-  const long   = info?.long      || '';
-  const url    = info?.url       || '';
-  const type   = ROUTE_TYPES[info?.type || '3'] || 'Bus';
-  const d      = fmtD(v.delay);
+  const info  = lookupLine(v.tripId, v.directionId);
+  const name  = info?.name      || v.tripId.split('_')[1] || '?';
+  const dest  = info?.long      || '–';
+  const color = info?.color     ? '#' + info.color    : v.c;
+  const textC = info?.textColor ? '#' + info.textColor : '#fff';
+  const url   = info?.url       || '';
+  const type  = ROUTE_TYPES[info?.type || '3'] || 'Bus';
+  const rid   = info?.routeId   || v.routeId || '–';
+  const d     = fmtD(v.delay);
+  const ag    = staticLookup?.agency?.['delijn'] || {};
 
-  // Agency + feed meta (from static lookup)
-  const ag   = staticLookup?.agency?.['delijn'] || {};
-  const feed = staticLookup?.feed || {};
-
-  G("ip-badge").textContent    = `Line ${name}`;
+  G("ip-badge").textContent      = `Line ${name}`;
   G("ip-badge").style.background = color;
   G("ip-badge").style.color      = textC;
-  G("ip-title").textContent    = dest;
+  G("ip-title").textContent      = dest;
 
   G("ip-body").innerHTML = `
     <div class="ip-section">
@@ -426,13 +436,9 @@ function openPanel(id) {
           <div class="ip-value">${type}</div>
         </div>
         <div class="ip-field ip-full">
-          <div class="ip-label">Destination</div>
-          <div class="ip-value">→ ${dest}</div>
+          <div class="ip-label">Route</div>
+          <div class="ip-value" style="font-size:12px">${dest}</div>
         </div>
-        ${long ? `<div class="ip-field ip-full">
-          <div class="ip-label">Full Route</div>
-          <div class="ip-value" style="font-size:12px">${long}</div>
-        </div>` : ''}
         ${url ? `<div class="ip-field ip-full">
           <div class="ip-label">De Lijn Page</div>
           <div class="ip-value"><a class="ip-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a></div>
@@ -475,7 +481,7 @@ function openPanel(id) {
         </div>
         <div class="ip-field">
           <div class="ip-label">Route ID</div>
-          <div class="ip-value">${v.routeId || info?.routeId || '–'}</div>
+          <div class="ip-value">${rid}</div>
         </div>
       </div>
     </div>
@@ -494,20 +500,6 @@ function openPanel(id) {
         <div class="ip-field ip-full">
           <div class="ip-label">Website</div>
           <div class="ip-value"><a class="ip-link" href="https://www.delijn.be" target="_blank" rel="noopener">www.delijn.be ↗</a></div>
-        </div>
-      </div>
-    </div>` : ''}
-
-    ${feed.version ? `<div class="ip-section">
-      <div class="ip-section-title">Feed Info</div>
-      <div class="ip-grid">
-        <div class="ip-field">
-          <div class="ip-label">Version</div>
-          <div class="ip-value" style="font-size:11px">${feed.version}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Valid Until</div>
-          <div class="ip-value">${feed.endDate ? feed.endDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3') : '–'}</div>
         </div>
       </div>
     </div>` : ''}
@@ -552,7 +544,7 @@ function process(data) {
 
   for (const v of vehicles) {
     const id    = v.vehicleId || v.tripId;
-    const c     = markerColor(v.tripId, v.routeId);
+    const c     = markerColor(v.tripId, v.directionId);
     const delay = v.delay;
 
     seen.add(id);
@@ -560,7 +552,7 @@ function process(data) {
     else if (delay != null && delay >= 60) delayed++;
     if (delay != null && delay < -30) early++;
 
-    vData[id] = { vehicleId:id, tripId:v.tripId, routeId:v.routeId, label:v.vehicleId, lat:v.lat, lng:v.lng, bearing:v.bearing, delay, c };
+    vData[id] = { vehicleId:id, tripId:v.tripId, routeId:v.routeId, label:v.vehicleId, lat:v.lat, lng:v.lng, bearing:v.bearing, delay, directionId:v.directionId ?? -1, c };
 
     if (markers[id]) {
       markers[id].setLatLng([v.lat, v.lng]);
