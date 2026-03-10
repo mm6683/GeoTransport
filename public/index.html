@@ -695,21 +695,25 @@ function panToVehicle(v, zoom) {
   const panelOpen = G("info-panel").classList.contains("open");
   const leftPad   = 290;
   const rightPad  = panelOpen ? 320 : 0;
-  const sz        = map.getSize();
+  const W         = window.innerWidth;
+  const H         = window.innerHeight;
   const z         = zoom ?? map.getZoom();
 
-  // Target container position = centre of the unobstructed visible strip
-  const visCX = leftPad + (sz.x - leftPad - rightPad) / 2;
-  const visCY = sz.y / 2;
+  // Centre of the unobstructed visible strip in container pixels
+  const visCX = leftPad + (W - leftPad - rightPad) / 2;
+  const visCY = H / 2;
 
-  // In projected pixel space at zoom z:
-  //   containerPoint = vehiclePixel - (centerPixel - mapSize/2)
-  // So to make vehicle appear at (visCX, visCY):
-  //   vehiclePixel - (centerPixel - mapSize/2) = [visCX, visCY]
-  //   centerPixel = vehiclePixel - [visCX, visCY] + mapSize/2
-  const vehiclePx   = map.project([v.lat, v.lng], z);
-  const newCenterPx = vehiclePx.subtract([visCX, visCY]).add(sz.divideBy(2));
-  const newCenter   = map.unproject(newCenterPx, z);
+  // Project vehicle to pixel space at target zoom
+  const vPx = map.project([v.lat, v.lng], z);
+
+  // We need a map center such that the vehicle lands at (visCX, visCY).
+  // Container point = projectedPoint - projectedCenter + (W/2, H/2)
+  // => projectedCenter = projectedPoint - (visCX, visCY) + (W/2, H/2)
+  const cPx = L.point(
+    vPx.x - visCX + W / 2,
+    vPx.y - visCY + H / 2
+  );
+  const newCenter = map.unproject(cPx, z);
 
   map.setView(newCenter, z, { animate: true });
 }
