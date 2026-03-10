@@ -2,7 +2,7 @@ name: Update GTFS Static Lookup
 
 on:
   schedule:
-    - cron: '0 4 * * 1'   # Every Monday at 04:00 UTC
+    - cron: '0 4 * * *'   # Every Monday at 04:00 UTC
   workflow_dispatch:        # Also allows manual trigger from GitHub UI
 
 jobs:
