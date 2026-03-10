@@ -153,7 +153,7 @@
       <div class="sc"><div class="sn gr" id="so">–</div><div class="sl">On Time</div></div>
       <div class="sc"><div class="sn or" id="sd">–</div><div class="sl">Delayed</div></div>
       <div class="sc"><div class="sn re" id="sc2">–</div><div class="sl">Canceled</div></div>
-      <div class="sc"><div class="sn ye" id="ss">–</div><div class="sl">Speeding</div></div>
+      <div class="sc"><div class="sn ye" id="ss">–</div><div class="sl">Early</div></div>
       <div class="sc"><div class="sn di" id="se">–</div><div class="sl">Total</div></div>
     </div>
 
@@ -194,7 +194,6 @@ function fmtD(s) {
   const sg = s > 0 ? "+" : "−", a = Math.abs(Math.round(s));
   return a < 60 ? `${sg}${a}s` : `${sg}${Math.floor(a/60)}m ${a%60}s`;
 }
-function fmtS(ms) { return ms == null ? "–" : `${Math.round(ms * 3.6)} km/h`; }
 function fmtB(d) {
   if (d == null) return "–";
   return ["N","NE","E","SE","S","SW","W","NW"][Math.round(d/45)%8] + ` ${Math.round(d)}°`;
@@ -324,22 +323,22 @@ function process(data) {
   const canceled  = data.canceled  || [];
 
   const seen = new Set();
-  let onTime = 0, delayed = 0, speeding = 0;
+  let onTime = 0, delayed = 0, early = 0;
 
   for (const v of vehicles) {
     const id    = v.vehicleId || v.tripId;
     const c     = col(v.routeId || v.tripId);
     const label = v.vehicleId;
     const delay = v.delay;
-    const speed = v.speed;   // m/s, threshold ~80km/h = 22.2 m/s
+    const delay = v.delay;
 
     seen.add(id);
 
     if (delay != null && Math.abs(delay) < 60)    onTime++;
     else if (delay != null && delay >= 60)         delayed++;
-    if (speed != null && speed > 22)               speeding++;
+    if (delay != null && delay < -30)               early++;
 
-    vData[id] = { vehicleId:id, tripId:v.tripId, routeId:v.routeId, label, lat:v.lat, lng:v.lng, bearing:v.bearing, speed, delay, c };
+    vData[id] = { vehicleId:id, tripId:v.tripId, routeId:v.routeId, label, lat:v.lat, lng:v.lng, bearing:v.bearing, delay, c };
 
     if (markers[id]) {
       markers[id].setLatLng([v.lat, v.lng]);
@@ -363,7 +362,7 @@ function process(data) {
   G("so").textContent = onTime;
   G("sd").textContent = delayed;
   G("sc2").textContent = canceled.length;
-  G("ss").textContent = speeding;
+  G("ss").textContent = early;
   G("se").textContent = (data.counts?.entities || vehicles.length + canceled.length);
 
   sortedV = Object.values(vData).sort((a,b) => (b.delay||0) - (a.delay||0));
@@ -391,7 +390,6 @@ function select(id) {
       <div class="pg">
         <div><div class="pfl">Vehicle</div><div class="pfv">${v.vehicleId}</div></div>
         <div><div class="pfl">Delay</div><div class="pfv" style="color:${dc}">${fmtD(v.delay)}</div></div>
-        <div><div class="pfl">Speed</div><div class="pfv">${fmtS(v.speed)}</div></div>
         <div><div class="pfl">Bearing</div><div class="pfv">${fmtB(v.bearing)}</div></div>
         <div><div class="pfl">Lat</div><div class="pfv">${v.lat.toFixed(5)}</div></div>
         <div><div class="pfl">Lng</div><div class="pfv">${v.lng.toFixed(5)}</div></div>
