@@ -159,7 +159,7 @@ function extractTripUpdate(r) {
  */
 function extractVehiclePosition(r) {
   let tripId = "", routeId = "";
-  let lat = 0, lng = 0, bearing = null, speed = null;
+  let lat = 0, lng = 0, bearing = null;
   let vehicleId = "", label = "";
 
   while (!r.done) {
@@ -181,7 +181,6 @@ function extractVehiclePosition(r) {
         if      (pf === 1 && pw === 5) lat     = pos.f32();
         else if (pf === 2 && pw === 5) lng     = pos.f32();
         else if (pf === 3 && pw === 5) bearing = pos.f32();
-        else if (pf === 5 && pw === 5) speed   = pos.f32();
         else pos.skip(pw);
       }
     } else if (f === 8 && w === 2) {
@@ -199,7 +198,7 @@ function extractVehiclePosition(r) {
   }
 
   if (!lat || !lng) return null;
-  return { vehicleId: vehicleId || label, tripId, routeId, lat, lng, bearing, speed };
+  return { vehicleId: vehicleId || label, tripId, routeId, lat, lng, bearing };
 }
 
 /**
@@ -276,7 +275,7 @@ function extractFeed(buf) {
 
   return {
     timestamp,
-    vehicles,                              // [{vehicleId,tripId,routeId,lat,lng,bearing,speed,delay}]
+    vehicles,                              // [{vehicleId,tripId,routeId,lat,lng,bearing,delay}]
     canceled: [...canceledMap.values()],   // [{tripId,routeId}]
     counts: {
       entities: vehicles.length + canceledMap.size,
