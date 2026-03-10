@@ -610,6 +610,9 @@ function openPanel(id){
   `;
 
   G("info-panel").classList.add("open");
+  // Panel opening shifts the visible centre — re-pan to compensate
+  // Use a short delay so the CSS transition has started and getSize() is still correct
+  setTimeout(() => { if (activeId && vData[activeId]) panToVehicle(vData[activeId]); }, 50);
   redraw();
 }
 
@@ -686,18 +689,31 @@ function process(data){
   redraw();
 }
 
-// Pan so the vehicle appears centred in the *visible* area
-// (accounts for the 290px left sidebar and optionally the 320px right panel)
+// Pan so the vehicle appears centred in the visible area,
+// accounting for the sidebar (290px left) and info panel (320px right when open).
 function panToVehicle(v, zoom) {
   const panelOpen = G("info-panel").classList.contains("open");
-  const leftOffset  = 290;                      // sidebar width
-  const rightOffset = panelOpen ? 320 : 0;      // info panel width
-  const offsetX = (leftOffset - rightOffset) / 2;  // net pixel shift needed
+  const leftPad   = 290;
+  const rightPad  = panelOpen ? 320 : 0;
+  const sz        = map.getSize();
 
-  const z = zoom != null ? zoom : map.getZoom();
-  const targetPt = map.project([v.lat, v.lng], z);
-  const corrected = targetPt.subtract([offsetX, 0]);
-  map.setView(map.unproject(corrected, z), z, { animate: true });
+  // Apply zoom first (no animation so container point is accurate)
+  const targetZoom = zoom ?? map.getZoom();
+  if (targetZoom !== map.getZoom()) {
+    map.setZoom(targetZoom, { animate: false });
+  }
+
+  // Where is the vehicle on screen right now?
+  const pt = map.latLngToContainerPoint([v.lat, v.lng]);
+
+  // Where should it be? — centre of the unobstructed visible area
+  const visCX = leftPad + (sz.x - leftPad - rightPad) / 2;
+  const visCY = sz.y / 2;
+
+  // panBy(dx, dy): positive dx scrolls viewport right → content moves left
+  // We want vehicle to move from pt to (visCX, visCY), so content moves by (visCX-pt.x)
+  // → panBy(-(visCX-pt.x)) = panBy(pt.x - visCX)
+  map.panBy([pt.x - visCX, pt.y - visCY], { animate: zoom != null });
 }
 
 function select(id){
