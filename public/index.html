@@ -232,32 +232,111 @@ function fmtB(d) {
 // ── Map ───────────────────────────────────────────────────────────────────────
 const map = L.map("map", {center:[51.0,4.3],zoom:9,preferCanvas:true});
 L.tileLayer(TILE,{attribution:ATTR,subdomains:"abcd",maxZoom:19}).addTo(map);
-map.on('click', () => closePanel());
+// (click handling is done inside ArrowLayer above)
 
-// ── Bearing arrow marker ──────────────────────────────────────────────────────
-// SVG arrow pointing up (north), rotated by bearing degrees
-function makeArrow(color, bearing) {
-  const rot = bearing != null ? Math.round(bearing) : 0;
-  const hasBearing = bearing != null;
-  // Arrow shape: thin body + arrowhead pointing up
-  const svg = hasBearing
-    ? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" style="transform:rotate(${rot}deg)">
-        <polygon points="10,1 14,14 10,11 6,14" fill="${color}" stroke="rgba(0,0,0,0.5)" stroke-width="1" stroke-linejoin="round"/>
-      </svg>`
-    : `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-        <circle cx="6" cy="6" r="5" fill="${color}" stroke="rgba(0,0,0,0.5)" stroke-width="1"/>
-      </svg>`;
-  return L.divIcon({
-    html: svg,
-    className: '',
-    iconSize: hasBearing ? [20,20] : [12,12],
-    iconAnchor: hasBearing ? [10,10] : [6,6],
-    popupAnchor: [0, -12],
-  });
-}
+// ── Custom canvas arrow layer ─────────────────────────────────────────────────
+// Draws all vehicles on a single <canvas> — zero DOM nodes per vehicle.
+// Bearing arrows when bearing is available, circles otherwise.
+const ArrowLayer = L.Layer.extend({
+  initialize() { this._vehicles = []; },
+
+  onAdd(map) {
+    this._map = map;
+    this._canvas = L.DomUtil.create('canvas', 'leaflet-layer');
+    const pane = map.getPanes().overlayPane;
+    pane.appendChild(this._canvas);
+    this._ctx = this._canvas.getContext('2d');
+    map.on('moveend zoomend resize', this._reset, this);
+    this._reset();
+  },
+
+  onRemove(map) {
+    this._canvas.remove();
+    map.off('moveend zoomend resize', this._reset, this);
+  },
+
+  setVehicles(vehicles) {
+    this._vehicles = vehicles;
+    this._draw();
+  },
+
+  _reset() {
+    const size = this._map.getSize();
+    this._canvas.width  = size.x;
+    this._canvas.height = size.y;
+    // Position canvas over the map pane
+    const topLeft = this._map.containerPointToLayerPoint([0,0]);
+    L.DomUtil.setPosition(this._canvas, topLeft);
+    this._draw();
+  },
+
+  _draw() {
+    const ctx = this._ctx, m = this._map;
+    if (!ctx || !m) return;
+    ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+
+    for (const v of this._vehicles) {
+      const pt = m.latLngToContainerPoint([v.lat, v.lng]);
+      const x = pt.x, y = pt.y;
+      const color = v.c;
+      const isActive = v.vehicleId === activeId;
+
+      ctx.save();
+      ctx.translate(x, y);
+
+      if (v.bearing != null) {
+        // Arrow: rotate to bearing (0° = north = up)
+        ctx.rotate((v.bearing * Math.PI) / 180);
+        ctx.beginPath();
+        // Arrowhead pointing up
+        ctx.moveTo(0, -8);   // tip
+        ctx.lineTo(5, 5);    // bottom-right
+        ctx.lineTo(0, 2);    // inner notch
+        ctx.lineTo(-5, 5);   // bottom-left
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.strokeStyle = isActive ? '#ffffff' : 'rgba(0,0,0,0.45)';
+        ctx.lineWidth = isActive ? 1.5 : 1;
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        // No bearing — draw a circle
+        ctx.beginPath();
+        ctx.arc(0, 0, isActive ? 7 : 5, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.strokeStyle = isActive ? '#ffffff' : 'rgba(0,0,0,0.45)';
+        ctx.lineWidth = isActive ? 1.5 : 1;
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+  },
+
+  // Hit test: returns vehicleId of the vehicle clicked, or null
+  getVehicleAt(containerPoint) {
+    for (const v of this._vehicles) {
+      const pt = this._map.latLngToContainerPoint([v.lat, v.lng]);
+      const dx = containerPoint.x - pt.x, dy = containerPoint.y - pt.y;
+      if (Math.sqrt(dx*dx + dy*dy) < 10) return v.vehicleId;
+    }
+    return null;
+  },
+});
+
+const arrowLayer = new ArrowLayer();
+arrowLayer.addTo(map);
+
+// Route map clicks through the arrow layer for hit testing
+map.on('click', e => {
+  const hit = arrowLayer.getVehicleAt(e.containerPoint);
+  if (hit) { L.DomEvent.stopPropagation(e); select(hit); }
+  else closePanel();
+});
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const markers = {}, vData = {};
+const vData = {};  // vehicleId → vehicle obj (no DOM markers needed)
 let sortedV=[], sortedC=[], activeId=null, activeTab="v";
 let rtimer=null, ptimer=null, pstart=null;
 
@@ -332,19 +411,24 @@ G("pv").addEventListener("scroll",()=>drawList("pv","sv2","wv",sortedV,IH_V,rend
 G("pc").addEventListener("scroll",()=>drawList("pc","sc3","wc",sortedC,IH_C,renderC),{passive:true});
 
 // ── Popup ─────────────────────────────────────────────────────────────────────
+let activePopup = null;
 function showPopup(id){
   const v=vData[id]; if(!v) return;
   const name=lineName(v.tripId), dest=lineDest(v.tripId)||'–';
   const color=markerCol(v.tripId), textC=lineTextColor(v.tripId);
   const d=fmtD(v.delay);
-  markers[id]?.bindPopup(`
-    <div class="mp">
-      <div class="mp-badge" style="background:${color};color:${textC}">Line ${name}</div>
-      <div class="mp-dest">→ ${dest}</div>
-      <div class="mp-sub">${v.vehicleId}</div>
-      <div class="mp-delay" style="color:var(--${d.cls})">${d.text}</div>
-      <button class="mp-btn" onclick="openPanel('${id}')">More Info</button>
-    </div>`,{maxWidth:240,minWidth:200}).openPopup();
+  if (activePopup) { activePopup.remove(); activePopup = null; }
+  activePopup = L.popup({maxWidth:240, minWidth:200, closeButton:false})
+    .setLatLng([v.lat, v.lng])
+    .setContent(`
+      <div class="mp">
+        <div class="mp-badge" style="background:${color};color:${textC}">Line ${name}</div>
+        <div class="mp-dest">→ ${dest}</div>
+        <div class="mp-sub">${v.vehicleId}</div>
+        <div class="mp-delay" style="color:var(--${d.cls})">${d.text}</div>
+        <button class="mp-btn" onclick="openPanel('${id}')">More Info</button>
+      </div>`)
+    .openOn(map);
 }
 
 // ── More Info panel ───────────────────────────────────────────────────────────
@@ -461,7 +545,10 @@ function openPanel(id){
 
 function closePanel(){
   G("info-panel").classList.remove("open");
-  activeId=null; redraw();
+  if (activePopup) { activePopup.remove(); activePopup = null; }
+  activeId=null;
+  arrowLayer._draw();
+  redraw();
 }
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
@@ -494,20 +581,15 @@ function process(data){
     if(delay!=null&&delay<-30)early++;
 
     vData[id]={vehicleId:id,tripId:v.tripId,routeId:v.routeId,lat:v.lat,lng:v.lng,bearing:v.bearing,delay,c};
-
-    if(markers[id]){
-      markers[id].setLatLng([v.lat,v.lng]);
-      markers[id].setIcon(makeArrow(c,v.bearing));
-    }else{
-      const m=L.marker([v.lat,v.lng],{icon:makeArrow(c,v.bearing)}).addTo(map);
-      m.on("click",(e)=>{L.DomEvent.stopPropagation(e);select(id)});
-      markers[id]=m;
-    }
   }
 
-  for(const id of Object.keys(markers)){
-    if(!seen.has(id)){map.removeLayer(markers[id]);delete markers[id];delete vData[id]}
+  // Remove stale vehicles
+  for (const id of Object.keys(vData)) {
+    if (!seen.has(id)) delete vData[id];
   }
+
+  // Single canvas redraw — all vehicles in one pass
+  arrowLayer.setVehicles(Object.values(vData));
 
   G("sv").textContent=vehicles.length;
   G("so").textContent=onTime;
@@ -529,7 +611,9 @@ function select(id){
   activeId=id;
   const v=vData[id];if(!v)return;
   map.setView([v.lat,v.lng],Math.max(map.getZoom(),13),{animate:true});
-  showPopup(id);redraw();
+  arrowLayer._draw();
+  showPopup(id);
+  redraw();
 }
 
 function schedNext(){clearTimeout(rtimer);rtimer=setTimeout(async()=>{await refresh();schedNext()},REFRESH)}
