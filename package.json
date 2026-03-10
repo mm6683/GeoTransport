@@ -1,7 +1,7 @@
 {
   "name": "geotransport",
   "version": "1.2.0",
-  "description": "GeoTransport — De Lijn GTFS-RT live map with cancellation support, served via Cloudflare Workers.",
+  "description": "Geotransport — De Lijn GTFS-RT live map, served via Cloudflare Workers.",
   "private": true,
   "type": "module",
   "scripts": {
