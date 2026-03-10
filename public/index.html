@@ -689,31 +689,29 @@ function process(data){
   redraw();
 }
 
-// Pan so the vehicle appears centred in the visible area,
-// accounting for the sidebar (290px left) and info panel (320px right when open).
+// Pan/zoom so the vehicle appears centred in the visible area,
+// accounting for the 290px left sidebar and 320px right panel (when open).
 function panToVehicle(v, zoom) {
   const panelOpen = G("info-panel").classList.contains("open");
   const leftPad   = 290;
   const rightPad  = panelOpen ? 320 : 0;
   const sz        = map.getSize();
+  const z         = zoom ?? map.getZoom();
 
-  // Apply zoom first (no animation so container point is accurate)
-  const targetZoom = zoom ?? map.getZoom();
-  if (targetZoom !== map.getZoom()) {
-    map.setZoom(targetZoom, { animate: false });
-  }
-
-  // Where is the vehicle on screen right now?
-  const pt = map.latLngToContainerPoint([v.lat, v.lng]);
-
-  // Where should it be? — centre of the unobstructed visible area
+  // Target container position = centre of the unobstructed visible strip
   const visCX = leftPad + (sz.x - leftPad - rightPad) / 2;
   const visCY = sz.y / 2;
 
-  // panBy(dx, dy): positive dx scrolls viewport right → content moves left
-  // We want vehicle to move from pt to (visCX, visCY), so content moves by (visCX-pt.x)
-  // → panBy(-(visCX-pt.x)) = panBy(pt.x - visCX)
-  map.panBy([pt.x - visCX, pt.y - visCY], { animate: zoom != null });
+  // In projected pixel space at zoom z:
+  //   containerPoint = vehiclePixel - (centerPixel - mapSize/2)
+  // So to make vehicle appear at (visCX, visCY):
+  //   vehiclePixel - (centerPixel - mapSize/2) = [visCX, visCY]
+  //   centerPixel = vehiclePixel - [visCX, visCY] + mapSize/2
+  const vehiclePx   = map.project([v.lat, v.lng], z);
+  const newCenterPx = vehiclePx.subtract([visCX, visCY]).add(sz.divideBy(2));
+  const newCenter   = map.unproject(newCenterPx, z);
+
+  map.setView(newCenter, z, { animate: true });
 }
 
 function select(id){
