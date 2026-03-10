@@ -101,12 +101,13 @@ const dec = new TextDecoder();
  *   field 5 = routeId (len)
  */
 function extractTripDescriptor(r) {
-  const o = { tripId: "", routeId: "", schedRel: 0 };
+  const o = { tripId: "", routeId: "", schedRel: 0, directionId: -1 };
   while (!r.done) {
     const [f, w] = r.tag();
-    if      (f === 1 && w === 2) o.tripId  = r.str();
-    else if (f === 4 && w === 0) o.schedRel = r.vi();
-    else if (f === 5 && w === 2) o.routeId  = r.str();
+    if      (f === 1 && w === 2) o.tripId      = r.str();
+    else if (f === 4 && w === 0) o.schedRel    = r.vi();
+    else if (f === 5 && w === 2) o.routeId     = r.str();
+    else if (f === 6 && w === 0) o.directionId = r.vi();
     else r.skip(w);
   }
   return o;
@@ -146,7 +147,7 @@ function extractTripUpdate(r) {
       r.skip(w);
     }
   }
-  return trip ? { tripId: trip.tripId, routeId: trip.routeId, schedRel: trip.schedRel, delay: lastDelay } : null;
+  return trip ? { tripId: trip.tripId, routeId: trip.routeId, schedRel: trip.schedRel, directionId: trip.directionId, delay: lastDelay } : null;
 }
 
 /**
@@ -251,7 +252,7 @@ function extractFeed(buf) {
             // CANCELED
             canceledMap.set(tuData.tripId, { tripId: tuData.tripId, routeId: tuData.routeId });
           } else if (tuData.delay !== null) {
-            delayMap.set(tuData.tripId, tuData.delay);
+            delayMap.set(tuData.tripId, { delay: tuData.delay, directionId: tuData.directionId ?? -1 });
           }
         }
 
@@ -268,14 +269,16 @@ function extractFeed(buf) {
     }
   }
 
-  // Pass 2: join delay onto vehicles (single loop, O(n))
+  // Pass 2: join delay + directionId onto vehicles (single loop, O(n))
   for (const v of vehicles) {
-    v.delay = delayMap.get(v.tripId) ?? null;
+    const tu = delayMap.get(v.tripId);
+    v.delay       = tu?.delay       ?? null;
+    v.directionId = tu?.directionId ?? -1;
   }
 
   return {
     timestamp,
-    vehicles,                              // [{vehicleId,tripId,routeId,lat,lng,bearing,delay}]
+    vehicles,                              // [{vehicleId,tripId,routeId,lat,lng,bearing,delay,directionId}]
     canceled: [...canceledMap.values()],   // [{tripId,routeId}]
     counts: {
       entities: vehicles.length + canceledMap.size,
@@ -285,7 +288,6 @@ function extractFeed(buf) {
   };
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // How long to cache the parsed feed (seconds).
