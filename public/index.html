@@ -237,9 +237,7 @@ function lineName(tripId)  { return getLine(tripId)?.name || '…'; }
 function lineDest(tripId)  { return getTrip(tripId)?.headsign || ''; }
 function lineType(tripId)  { return getLine(tripId)?.type || '3'; }
 function lineTypeLabel(tripId) { return ROUTE_TYPES[lineType(tripId)] || 'Bus'; }
-// Type icon shown in badges
-const TYPE_ICON = { '0':'🚃', '1':'🚇', '2':'🚆', '3':'🚌', '4':'⛴️', '11':'🚎' };
-function lineIcon(tripId)  { return TYPE_ICON[lineType(tripId)] || '🚌'; }
+
 
 function lineColor(tripId) {
   const c = getLine(tripId)?.color;
@@ -424,12 +422,12 @@ function drawList(paneId,spacerId,winId,items,rowH,renderFn){
 function renderV(row,v){
   const d=fmtD(v.delay);
   const name=lineName(v.tripId), dest=lineDest(v.tripId)||v.vehicleId;
-  const icon=lineIcon(v.tripId);
+
   const c=markerCol(v.tripId);
   row.className="vr"+(v.vehicleId===activeId?" sel":"");
   row.onclick=()=>select(v.vehicleId);
   row.innerHTML=`
-    <div class="badge" style="background:${c}22;color:${c};border:1px solid ${c}44">${icon} ${name}</div>
+    <div class="badge" style="background:${c}22;color:${c};border:1px solid ${c}44">${name}</div>
     <div class="ri"><div class="rr">${dest}</div><div class="rm">${v.vehicleId}</div></div>
     <div class="rd" style="color:var(--${d.cls})">${d.text}</div>`;
 }
@@ -457,7 +455,6 @@ function showPopup(id){
   const v=vData[id]; if(!v) return;
   const name  = lineName(v.tripId);
   const dest  = lineDest(v.tripId)||'–';
-  const icon  = lineIcon(v.tripId);
   const color = markerCol(v.tripId);
   const textC = lineTextColor(v.tripId);
   const url   = getLine(v.tripId)?.url || '';
@@ -467,7 +464,7 @@ function showPopup(id){
     .setLatLng([v.lat, v.lng])
     .setContent(`
       <div class="mp">
-        <div class="mp-badge" style="background:${color};color:${textC}">${icon} Line ${name}</div>
+        <div class="mp-badge" style="background:${color};color:${textC}">${name}</div>
         <div class="mp-dest">→ ${dest}</div>
         <div class="mp-sub">${v.vehicleId}</div>
         <div class="mp-delay" style="color:var(--${d.cls})">${d.text}</div>
@@ -495,7 +492,6 @@ function openPanel(id){
   const url       = routeInfo.url       || lineInfo.url       || '';
   const type      = routeInfo.type      || lineInfo.type      || '3';
   const typeLabel = ROUTE_TYPES[type]   || 'Bus';
-  const icon      = TYPE_ICON[type]     || '🚌';
   const routeId   = tripInfo.routeId    || v.routeId          || '–';
   const lineCode  = v.tripId?.split('_')[0]                   || '–';
   const d         = fmtD(v.delay);
@@ -508,7 +504,7 @@ function openPanel(id){
   const ag   = SL?.agency?.['delijn'] || {};
   const feed = SL?.feed || {};
 
-  G("ip-badge").textContent      = `${icon} Line ${name}`;
+  G("ip-badge").textContent      = name;
   G("ip-badge").style.background = color;
   G("ip-badge").style.color      = textC;
   G("ip-title").textContent      = dest;
@@ -523,7 +519,7 @@ function openPanel(id){
         </div>
         <div class="ip-field">
           <div class="ip-label">Type</div>
-          <div class="ip-value">${icon} ${typeLabel}</div>
+          <div class="ip-value">${typeLabel}</div>
         </div>
         <div class="ip-field ip-full">
           <div class="ip-label">Direction</div>
