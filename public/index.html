@@ -655,11 +655,20 @@ function process(data){
 
   // Remove stale vehicles
   for (const id of Object.keys(vData)) {
-    if (!seen.has(id)) delete vData[id];
+    if (!seen.has(id)) {
+      if (id === activeId) closePanel(); // vehicle disappeared
+      delete vData[id];
+    }
   }
 
   // Single canvas redraw — all vehicles in one pass
   arrowLayer.setVehicles(Object.values(vData));
+
+  // Keep selected vehicle centred as it moves
+  if (activeId && vData[activeId]) {
+    panToVehicle(vData[activeId]);
+    if (activePopup) activePopup.setLatLng([vData[activeId].lat, vData[activeId].lng]);
+  }
 
   G("sv").textContent=vehicles.length;
   G("so").textContent=onTime;
@@ -677,10 +686,24 @@ function process(data){
   redraw();
 }
 
+// Pan so the vehicle appears centred in the *visible* area
+// (accounts for the 290px left sidebar and optionally the 320px right panel)
+function panToVehicle(v, zoom) {
+  const panelOpen = G("info-panel").classList.contains("open");
+  const leftOffset  = 290;                      // sidebar width
+  const rightOffset = panelOpen ? 320 : 0;      // info panel width
+  const offsetX = (leftOffset - rightOffset) / 2;  // net pixel shift needed
+
+  const z = zoom != null ? zoom : map.getZoom();
+  const targetPt = map.project([v.lat, v.lng], z);
+  const corrected = targetPt.subtract([offsetX, 0]);
+  map.setView(map.unproject(corrected, z), z, { animate: true });
+}
+
 function select(id){
-  activeId=id;
-  const v=vData[id];if(!v)return;
-  map.setView([v.lat,v.lng],Math.max(map.getZoom(),13),{animate:true});
+  activeId = id;
+  const v = vData[id]; if (!v) return;
+  panToVehicle(v, Math.max(map.getZoom(), 13));
   arrowLayer._draw();
   showPopup(id);
   redraw();
