@@ -85,6 +85,8 @@
     .mp-delay{font-size:12px;font-family:var(--font-mono);margin-bottom:12px}
     .mp-btn{width:100%;padding:8px;border:1px solid var(--accent);background:rgba(0,212,255,.08);color:var(--accent);border-radius:6px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .15s}
     .mp-btn:hover{background:rgba(0,212,255,.18)}
+    .mp-link{display:block;font-size:10px;font-family:var(--font-mono);color:var(--text-dim);text-decoration:none;margin-bottom:8px;}
+    .mp-link:hover{color:var(--accent)}
 
     .leaflet-control-attribution{background:rgba(8,12,16,.8)!important;color:#4a6070!important;font-size:10px!important}
     .leaflet-control-attribution a{color:var(--accent)!important}
@@ -181,10 +183,36 @@ const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11
 
 // ── Static lookup ─────────────────────────────────────────────────────────────
 let SL = null;
+
 async function loadStatic() {
   try {
     const r = await fetch('/static-lookup.json', { cache:'force-cache' });
-    if (r.ok) { SL = await r.json(); redraw(); }
+    if (!r.ok) return;
+    const raw = await r.json();
+
+    // Normalise: support both our generated format {lines:{...}} and
+    // the raw static-response format {routes:{"10010":{...}}}
+    if (raw.lines) {
+      SL = raw;  // already our format
+    } else if (raw.routes) {
+      // Convert full route_id keys ("10010") → line code keys ("1001")
+      const lines = {};
+      for (const [rid, r] of Object.entries(raw.routes)) {
+        const code = rid.slice(0, -1), dir = rid.slice(-1);
+        if (!lines[code]) {
+          lines[code] = { name: r.name, color: r.color, textColor: r.textColor, type: r.type, url: r.url };
+        }
+        lines[code][`dir${dir}`] = r.long || '';
+      }
+      SL = { lines, trips: {}, agency: raw.agency || {}, feed: raw.feed || {} };
+    }
+
+    // Refresh everything now that we have real route names + colours
+    arrowLayer.setVehicles(Object.values(vData));
+    redraw();
+    // If a popup is open, re-render it with proper info
+    if (activeId && activePopup) showPopup(activeId);
+
   } catch(e) { console.warn('Static lookup:', e.message); }
 }
 
@@ -193,28 +221,40 @@ function getLine(tripId) {
   if (!SL || !tripId) return null;
   return SL.lines?.[tripId.split('_')[0]] || null;
 }
-// 3-part key  →  trips[key]  (headsign, routeId, dir)
+// 3-part key  →  trips[key]  (headsign, routeId, dir, blockId, shapeId)
 function getTrip(tripId) {
   if (!SL || !tripId) return null;
-  return SL.trips?.[tripId.split('_').slice(0,3).join('_')] || null;
+  return SL.trips?.[tripId.split('_').slice(0, 3).join('_')] || null;
+}
+// Exact per-direction route (routeId e.g. "10011")  →  routes[routeId]
+function getRoute(routeId) {
+  if (!SL || !routeId) return null;
+  return SL.routes?.[routeId] || null;
 }
 
-function lineName(tripId)  { return getLine(tripId)?.name  || tripId.split('_')[0] || '?'; }
+// External line number ("1", "302") — never expose internal code
+function lineName(tripId)  { return getLine(tripId)?.name || '…'; }
 function lineDest(tripId)  { return getTrip(tripId)?.headsign || ''; }
+function lineType(tripId)  { return getLine(tripId)?.type || '3'; }
+function lineTypeLabel(tripId) { return ROUTE_TYPES[lineType(tripId)] || 'Bus'; }
+// Type icon shown in badges
+const TYPE_ICON = { '0':'🚃', '1':'🚇', '2':'🚆', '3':'🚌', '4':'⛴️', '11':'🚎' };
+function lineIcon(tripId)  { return TYPE_ICON[lineType(tripId)] || '🚌'; }
+
 function lineColor(tripId) {
   const c = getLine(tripId)?.color;
-  return c ? '#'+c : null;
+  return c ? '#' + c : null;
 }
 function lineTextColor(tripId) {
   const c = getLine(tripId)?.textColor;
-  return c ? '#'+c : '#ffffff';
+  return c ? '#' + c : '#ffffff';
 }
 
-// Fallback palette for when static isn't loaded yet
+// Fallback palette used before static loads (keyed on internal code, not shown to user)
 const PAL = ["#00d4ff","#ff6b35","#a8ff3e","#ff3b88","#ffcc00","#c77dff","#06ffa5","#ff9f43","#48dbfb","#ff6b6b"];
 function palCol(k) {
-  let h = 0; for (let i=0;i<k.length;i++) h=(h*31+k.charCodeAt(i))&0xffffffff;
-  return PAL[Math.abs(h)%PAL.length];
+  let h = 0; for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) & 0xffffffff;
+  return PAL[Math.abs(h) % PAL.length];
 }
 function markerCol(tripId) { return lineColor(tripId) || palCol(tripId); }
 
@@ -384,11 +424,12 @@ function drawList(paneId,spacerId,winId,items,rowH,renderFn){
 function renderV(row,v){
   const d=fmtD(v.delay);
   const name=lineName(v.tripId), dest=lineDest(v.tripId)||v.vehicleId;
+  const icon=lineIcon(v.tripId);
   const c=markerCol(v.tripId);
   row.className="vr"+(v.vehicleId===activeId?" sel":"");
   row.onclick=()=>select(v.vehicleId);
   row.innerHTML=`
-    <div class="badge" style="background:${c}22;color:${c};border:1px solid ${c}44">${name}</div>
+    <div class="badge" style="background:${c}22;color:${c};border:1px solid ${c}44">${icon} ${name}</div>
     <div class="ri"><div class="rr">${dest}</div><div class="rm">${v.vehicleId}</div></div>
     <div class="rd" style="color:var(--${d.cls})">${d.text}</div>`;
 }
@@ -414,18 +455,23 @@ G("pc").addEventListener("scroll",()=>drawList("pc","sc3","wc",sortedC,IH_C,rend
 let activePopup = null;
 function showPopup(id){
   const v=vData[id]; if(!v) return;
-  const name=lineName(v.tripId), dest=lineDest(v.tripId)||'–';
-  const color=markerCol(v.tripId), textC=lineTextColor(v.tripId);
-  const d=fmtD(v.delay);
+  const name  = lineName(v.tripId);
+  const dest  = lineDest(v.tripId)||'–';
+  const icon  = lineIcon(v.tripId);
+  const color = markerCol(v.tripId);
+  const textC = lineTextColor(v.tripId);
+  const url   = getLine(v.tripId)?.url || '';
+  const d     = fmtD(v.delay);
   if (activePopup) { activePopup.remove(); activePopup = null; }
   activePopup = L.popup({maxWidth:240, minWidth:200, closeButton:false})
     .setLatLng([v.lat, v.lng])
     .setContent(`
       <div class="mp">
-        <div class="mp-badge" style="background:${color};color:${textC}">Line ${name}</div>
+        <div class="mp-badge" style="background:${color};color:${textC}">${icon} Line ${name}</div>
         <div class="mp-dest">→ ${dest}</div>
         <div class="mp-sub">${v.vehicleId}</div>
         <div class="mp-delay" style="color:var(--${d.cls})">${d.text}</div>
+        ${url ? `<a class="mp-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a>` : ''}
         <button class="mp-btn" onclick="openPanel('${id}')">More Info</button>
       </div>`)
     .openOn(map);
@@ -433,62 +479,76 @@ function showPopup(id){
 
 // ── More Info panel ───────────────────────────────────────────────────────────
 function openPanel(id){
-  const v=vData[id]; if(!v) return;
-  activeId=id;
+  const v = vData[id]; if (!v) return;
+  activeId = id;
 
-  const lineInfo = getLine(v.tripId) || {};
-  const tripInfo = getTrip(v.tripId) || {};
+  const lineInfo  = getLine(v.tripId)  || {};
+  const tripInfo  = getTrip(v.tripId)  || {};
+  const routeInfo = getRoute(tripInfo.routeId || v.routeId) || {};
 
-  const name     = lineInfo.name      || v.tripId.split('_')[0] || '–';
-  const dest     = tripInfo.headsign  || '–';
-  const color    = lineInfo.color     ? '#'+lineInfo.color    : markerCol(v.tripId);
-  const textC    = lineInfo.textColor ? '#'+lineInfo.textColor : '#fff';
-  const fullRoute= lineInfo[`dir${tripInfo.dir||'0'}`] || lineInfo.dir0 || lineInfo.dir1 || '–';
-  const url      = lineInfo.url       || '';
-  const type     = ROUTE_TYPES[lineInfo.type||'3'] || 'Bus';
-  const routeId  = tripInfo.routeId   || v.routeId || '–';
-  const lineCode = v.tripId.split('_')[0] || '–';   // internal De Lijn line code
-  const d        = fmtD(v.delay);
+  // Prefer exact per-direction route data; fall back to line-level data
+  const name      = routeInfo.name      || lineInfo.name      || '–';
+  const dest      = tripInfo.headsign   || '–';
+  const color     = '#' + (routeInfo.color     || lineInfo.color     || '444');
+  const textC     = '#' + (routeInfo.textColor || lineInfo.textColor || 'fff');
+  const routeLong = routeInfo.long      || lineInfo[`dir${tripInfo.dir}`] || lineInfo.dir0 || '–';
+  const url       = routeInfo.url       || lineInfo.url       || '';
+  const type      = routeInfo.type      || lineInfo.type      || '3';
+  const typeLabel = ROUTE_TYPES[type]   || 'Bus';
+  const icon      = TYPE_ICON[type]     || '🚌';
+  const routeId   = tripInfo.routeId    || v.routeId          || '–';
+  const lineCode  = v.tripId?.split('_')[0]                   || '–';
+  const d         = fmtD(v.delay);
 
-  const agencyName = SL?.agency?.['delijn']?.name || 'De Lijn';
+  // Both terminals for context (line level)
+  const t0 = lineInfo.dir0 || '', t1 = lineInfo.dir1 || '';
+  const terminals = (t0 && t1) ? `${t0} ↔ ${t1}` : (t0 || t1 || '–');
 
-  G("ip-badge").textContent=`Line ${name}`;
-  G("ip-badge").style.background=color;
-  G("ip-badge").style.color=textC;
-  G("ip-title").textContent=dest;
+  // Agency
+  const ag   = SL?.agency?.['delijn'] || {};
+  const feed = SL?.feed || {};
 
-  G("ip-body").innerHTML=`
+  G("ip-badge").textContent      = `${icon} Line ${name}`;
+  G("ip-badge").style.background = color;
+  G("ip-badge").style.color      = textC;
+  G("ip-title").textContent      = dest;
+
+  G("ip-body").innerHTML = `
     <div class="ip-section">
       <div class="ip-section-title">Route</div>
       <div class="ip-grid">
         <div class="ip-field">
-          <div class="ip-label">Line Name</div>
+          <div class="ip-label">Line</div>
           <div class="ip-value accent"><span class="ip-swatch" style="background:${color}"></span>${name}</div>
         </div>
         <div class="ip-field">
           <div class="ip-label">Type</div>
-          <div class="ip-value">${type}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Internal Line ID</div>
-          <div class="ip-value">${lineCode}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Route ID</div>
-          <div class="ip-value">${routeId}</div>
+          <div class="ip-value">${icon} ${typeLabel}</div>
         </div>
         <div class="ip-field ip-full">
-          <div class="ip-label">Destination</div>
+          <div class="ip-label">Direction</div>
           <div class="ip-value">→ ${dest}</div>
         </div>
         <div class="ip-field ip-full">
           <div class="ip-label">Full Route</div>
-          <div class="ip-value" style="font-size:12px">${fullRoute}</div>
+          <div class="ip-value" style="font-size:11px">${routeLong}</div>
         </div>
-        ${url?`<div class="ip-field ip-full">
+        <div class="ip-field ip-full">
+          <div class="ip-label">Terminals</div>
+          <div class="ip-value" style="font-size:11px;color:var(--text-dim)">${terminals}</div>
+        </div>
+        <div class="ip-field">
+          <div class="ip-label">Internal Line ID</div>
+          <div class="ip-value di" style="font-size:11px">${lineCode}</div>
+        </div>
+        <div class="ip-field">
+          <div class="ip-label">Route ID</div>
+          <div class="ip-value di" style="font-size:11px">${routeId}</div>
+        </div>
+        ${url ? `<div class="ip-field ip-full">
           <div class="ip-label">De Lijn Page</div>
           <div class="ip-value"><a class="ip-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a></div>
-        </div>`:''}
+        </div>` : ''}
       </div>
     </div>
 
@@ -513,7 +573,7 @@ function openPanel(id){
         </div>
         <div class="ip-field ip-full">
           <div class="ip-label">Trip ID</div>
-          <div class="ip-value" style="font-size:10px;color:var(--text-dim)">${v.tripId||'–'}</div>
+          <div class="ip-value" style="font-size:10px;color:var(--text-dim)">${v.tripId || '–'}</div>
         </div>
       </div>
     </div>
@@ -521,22 +581,36 @@ function openPanel(id){
     <div class="ip-section">
       <div class="ip-section-title">Vehicle</div>
       <div class="ip-grid">
-        <div class="ip-field">
+        <div class="ip-field ip-full">
           <div class="ip-label">Vehicle ID</div>
           <div class="ip-value">${v.vehicleId}</div>
         </div>
       </div>
     </div>
 
-    <div class="ip-section">
+    ${ag.name ? `<div class="ip-section">
       <div class="ip-section-title">Operator</div>
       <div class="ip-grid">
         <div class="ip-field ip-full">
           <div class="ip-label">Agency</div>
-          <div class="ip-value">${agencyName}</div>
+          <div class="ip-value">${ag.name}</div>
         </div>
       </div>
-    </div>
+    </div>` : ''}
+
+    ${feed.version ? `<div class="ip-section">
+      <div class="ip-section-title">Feed</div>
+      <div class="ip-grid">
+        <div class="ip-field">
+          <div class="ip-label">Version</div>
+          <div class="ip-value" style="font-size:10px;color:var(--text-dim)">${feed.version}</div>
+        </div>
+        <div class="ip-field">
+          <div class="ip-label">Valid Until</div>
+          <div class="ip-value" style="font-size:11px">${feed.endDate ? feed.endDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3') : '–'}</div>
+        </div>
+      </div>
+    </div>` : ''}
   `;
 
   G("info-panel").classList.add("open");
