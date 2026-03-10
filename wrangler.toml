@@ -5,11 +5,20 @@ compatibility_flags = ["nodejs_compat"]
 
 assets = { directory = "./public", binding = "ASSETS" }
 
-# Custom domain — requires geotransport.be to be on Cloudflare (proxied)
+# Custom domain — requires geotransport.be to be on Cloudflare (orange-cloud proxied)
 [[routes]]
 pattern = "geotransport.be/*"
 zone_name = "geotransport.be"
 
-# Set the API key secret via CLI:
+# ── Secrets (set via CLI, never commit these) ──────────────────────────────────
+#
+# GTFS Realtime key (used by the Worker on every request):
 #   wrangler secret put DL_GTFSRT
-# Then paste your Ocp-Apim-Subscription-Key when prompted.
+#
+# GTFS Static key (used LOCALLY by the build script — NOT needed in the Worker):
+#   set DL_GTFS=your_key   (Windows)
+#   export DL_GTFS=your_key (Unix/Mac)
+#   node scripts/build-static-lookup.js
+#
+# After running the build script, deploy to update static-lookup.json:
+#   wrangler deploy
