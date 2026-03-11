@@ -699,23 +699,17 @@ function panToVehicle(v, zoom) {
   const H         = window.innerHeight;
   const z         = zoom ?? map.getZoom();
 
-  // Centre of the unobstructed visible strip in container pixels
-  const visCX = leftPad + (W - leftPad - rightPad) / 2;
-  const visCY = H / 2;
+  // Step 1: put vehicle exactly at map centre (no animation)
+  map.setView([v.lat, v.lng], z, { animate: false });
 
-  // Project vehicle to pixel space at target zoom
-  const vPx = map.project([v.lat, v.lng], z);
-
-  // We need a map center such that the vehicle lands at (visCX, visCY).
-  // Container point = projectedPoint - projectedCenter + (W/2, H/2)
-  // => projectedCenter = projectedPoint - (visCX, visCY) + (W/2, H/2)
-  const cPx = L.point(
-    vPx.x - visCX + W / 2,
-    vPx.y - visCY + H / 2
-  );
-  const newCenter = map.unproject(cPx, z);
-
-  map.setView(newCenter, z, { animate: true });
+  // Step 2: pan so vehicle lands at the visual centre of the unobstructed area.
+  // After step 1 vehicle is at container (W/2, H/2).
+  // Visual centre is at (leftPad + (W - leftPad - rightPad)/2, H/2).
+  // panBy(x, y): positive x pans viewport right → content moves left → vehicle moves left.
+  // We want vehicle to move right by (visCX - W/2), so pan left: panBy(-(visCX - W/2)).
+  const visCX  = leftPad + (W - leftPad - rightPad) / 2;
+  const offsetX = -(visCX - W / 2);   // negative = pan left = content moves right
+  map.panBy([offsetX, 0], { animate: true });
 }
 
 function select(id){
