@@ -265,15 +265,15 @@ const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11
 
 // ── Static lookup ─────────────────────────────────────────────────────────────
 let SL = null;
-let ST = null;  // stop-times: trip_key → [{s, a}]
+let ST = null;     // stop-times: trip_key → [{s, a}]
+let STOPS = null;  // stop_id → name  (from stops.json)
+let SHAPES = null; // shape_id → [[lat,lon],...]  (from shapes.json)
 
 async function loadStatic() {
   try {
     const r = await fetch('/static-lookup.json', { cache: 'force-cache' });
     if (!r.ok) return;
     SL = await r.json();
-
-    // Refresh everything now that we have real route names + colours
     arrowLayer.setVehicles(Object.values(vData));
     redraw();
     if (activeId && activePopup) showPopup(activeId);
@@ -281,12 +281,27 @@ async function loadStatic() {
 }
 
 async function loadStopTimes() {
-  if (ST) return;   // already loaded
+  if (ST) return;
   try {
     const r = await fetch('/stop-times.json', { cache: 'force-cache' });
-    if (!r.ok) return;
-    ST = await r.json();
+    if (r.ok) ST = await r.json();
   } catch(e) { console.warn('Stop times:', e.message); }
+}
+
+async function loadStops() {
+  if (STOPS) return;
+  try {
+    const r = await fetch('/stops.json', { cache: 'force-cache' });
+    if (r.ok) STOPS = await r.json();
+  } catch(e) { console.warn('Stops:', e.message); }
+}
+
+async function loadShapes() {
+  if (SHAPES) return;
+  try {
+    const r = await fetch('/shapes.json', { cache: 'force-cache' });
+    if (r.ok) SHAPES = await r.json();
+  } catch(e) { console.warn('Shapes:', e.message); }
 }
 
 // lineCode = tripId.split('_')[0]  →  lines[lineCode]
@@ -304,10 +319,11 @@ function getRoute(routeId) {
   if (!SL || !routeId) return null;
   return SL.routes?.[routeId] || null;
 }
-// Stop details by stop_id
+// Stop name by stop_id (from stops.json)
 function getStop(stopId) {
-  if (!SL || !stopId) return null;
-  return SL.stops?.[stopId] || null;
+  if (!STOPS || !stopId) return null;
+  const name = STOPS[stopId];
+  return name ? { name } : null;
 }
 // Stop times for a trip key
 function getTripStops(tripId) {
@@ -453,14 +469,12 @@ let shapePolyline = null;
 
 function drawShape(shapeId) {
   clearShape();
-  if (!SL?.shapes?.[shapeId]) return;
-  const pts = SL.shapes[shapeId];
+  const pts = SHAPES?.[shapeId];
   if (!pts?.length) return;
   shapePolyline = L.polyline(pts, {
     color: '#00d4ff', weight: 3, opacity: 0.55,
-    dashArray: null, interactive: false,
+    interactive: false,
   }).addTo(map);
-  // Ensure arrows render on top
   shapePolyline.bringToBack();
 }
 
@@ -967,8 +981,8 @@ async function renderStopsForVehicle(v) {
   const el = G("stops-list");
   if (!el) return;
 
-  // Ensure stop-times is loaded
-  await loadStopTimes();
+  // Ensure both stops and stop-times are loaded
+  await Promise.all([loadStops(), loadStopTimes()]);
 
   const tripKey = v.tripId?.split('_').slice(0,3).join('_');
   const stops   = getTripStops(v.tripId);
@@ -1125,10 +1139,12 @@ function panToVehicle(v, zoom) {
 function select(id){
   activeId = id;
   const v = vData[id]; if (!v) return;
-  // Draw route shape on map
   const tripInfo = getTrip(v.tripId);
-  if (tripInfo?.shapeId) drawShape(tripInfo.shapeId);
-  // Kick off stop-times lazy load so it's ready when panel opens
+  // Lazy-load shapes then draw; lazy-load stops+stop-times for panel
+  if (tripInfo?.shapeId) {
+    loadShapes().then(() => drawShape(tripInfo.shapeId));
+  }
+  loadStops();
   loadStopTimes();
   panToVehicle(v, Math.max(map.getZoom(), 13));
   arrowLayer._draw();
