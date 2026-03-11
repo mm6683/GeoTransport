@@ -136,8 +136,7 @@
     .sd-sub{font-size:10px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;flex-shrink:0}
     .sd-delay{font-size:10px;font-family:var(--font-mono);font-weight:600;white-space:nowrap;flex-shrink:0}
 
-    /* Filter active state */
-    #tabs.filtered::after{content:'Filter active';position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-family:var(--font-mono);pointer-events:none}
+    /* Filter active indicator — shown in search input, not in tabs */
     #tabs{position:relative}
 
 background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-size:12px;font-family:var(--font-mono);z-index:9999;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:320px}
@@ -625,14 +624,13 @@ function buildDrop() {
 
 function applyFilter(filter) {
   activeFilter = filter;
-  // Rebuild sortedV with filter
   const all = Object.values(vData).sort((a,b) => (b.delay||0)-(a.delay||0));
   sortedV = filter ? all.filter(v => filter.matchIds.has(v.vehicleId)) : all;
   G("bv").textContent = sortedV.length;
-  G("tabs").classList.toggle("filtered", !!filter);
+  // Reset scroll so virtual scroll renders from top
+  G("pv").scrollTop = 0;
   arrowLayer._draw();
   redraw();
-  // Show filter label in input
   if (filter) {
     sinput.value = filter.label;
     sclear.style.display = "block";
