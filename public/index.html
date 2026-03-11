@@ -266,7 +266,7 @@ const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11
 
 // ── Static lookup ─────────────────────────────────────────────────────────────
 let SL = null;
-let ST = null;     // stop-times: trip_key → [{s, a}]
+let ST = {};       // trip_key → [{s, a}]  (populated on demand per trip)
 let STOPS = null;  // stop_id → name  (from stops.json)
 
 async function loadStatic() {
@@ -280,12 +280,16 @@ async function loadStatic() {
   } catch(e) { console.warn('Static lookup:', e.message); }
 }
 
-async function loadStopTimes() {
-  if (ST) return;
+// Fetch stop sequence for a specific trip — tiny file, cached in ST by trip key
+async function loadStopTimes(tripId) {
+  if (!tripId) return;
+  const key = tripId.split('_').slice(0,3).join('_');
+  if (ST[key] !== undefined) return;  // already fetched (even if null)
+  ST[key] = null; // mark as in-progress to avoid duplicate fetches
   try {
-    const r = await fetch('/stop-times.json', { cache: 'force-cache' });
-    if (r.ok) ST = await r.json();
-  } catch(e) { console.warn('Stop times:', e.message); }
+    const r = await fetch(`/stop-times/${key}.json`, { cache: 'force-cache' });
+    if (r.ok) ST[key] = await r.json();
+  } catch(e) { /* no stop data for this trip */ }
 }
 
 async function loadStops() {
@@ -340,8 +344,8 @@ function getStop(stopId) {
 }
 // Stop times for a trip key
 function getTripStops(tripId) {
-  if (!ST || !tripId) return null;
-  return ST[tripId.split('_').slice(0, 3).join('_')] || null;
+  if (!tripId) return null;
+  return ST[tripId.split('_').slice(0,3).join('_')] || null;
 }
 
 // External line number ("1", "302") — never expose internal code
@@ -1005,7 +1009,7 @@ async function renderStopsForVehicle(v) {
   if (!el) return;
 
   // Ensure both stops and stop-times are loaded
-  await Promise.all([loadStops(), loadStopTimes()]);
+  await Promise.all([loadStops(), loadStopTimes(v.tripId)]);
 
   const tripKey = v.tripId?.split('_').slice(0,3).join('_');
   const stops   = getTripStops(v.tripId);
@@ -1165,7 +1169,7 @@ function select(id){
   const tripInfo = getTrip(v.tripId);
   if (tripInfo?.shapeId) showShape(tripInfo.shapeId);
   loadStops();
-  loadStopTimes();
+  loadStopTimes(v.tripId);
   panToVehicle(v, Math.max(map.getZoom(), 13));
   arrowLayer._draw();
   showPopup(id);
