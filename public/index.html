@@ -149,6 +149,12 @@ background:var(--surface);border:1px solid var(--border);border-radius:6px;paddi
 <body>
 <div id="app">
   <aside id="sidebar">
+    <div id="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input id="search-input" type="text" placeholder="Line, route, trip, vehicle, type…" autocomplete="off" />
+      <button id="search-clear" onclick="clearSearch()">✕</button>
+      <div id="search-drop"></div>
+    </div>
     <div id="header">
       <div class="logo-row">
         <div class="logo-hex">
@@ -174,12 +180,6 @@ background:var(--surface);border:1px solid var(--border);border-radius:6px;paddi
       <div class="sc"><div class="sn re" id="sc2">–</div><div class="sl">Canceled</div></div>
       <div class="sc"><div class="sn ye" id="se2">–</div><div class="sl">Early</div></div>
       <div class="sc"><div class="sn di" id="se">–</div><div class="sl">Total</div></div>
-    </div>
-    <div id="search-wrap">
-      <span class="search-icon">⌕</span>
-      <input id="search-input" type="text" placeholder="Line, route, trip, vehicle, type…" autocomplete="off" />
-      <button id="search-clear" onclick="clearSearch()">✕</button>
-      <div id="search-drop"></div>
     </div>
     <div id="tabs">
       <div class="tab av" id="tv" onclick="switchTab('v')">Vehicles <span class="tb" id="bv">0</span></div>
