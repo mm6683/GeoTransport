@@ -18,8 +18,8 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import JSZip from 'jszip';
 
-const __dir       = dirname(fileURLToPath(import.meta.url));
-const outLookup   = resolve(__dir, '../public/static-lookup.json');
+const __dir        = dirname(fileURLToPath(import.meta.url));
+const outLookup    = resolve(__dir, '../public/static-lookup.json');
 const outStopTimes = resolve(__dir, '../public/stop-times.json');
 
 const GTFS_URL = 'https://api.delijn.be/gtfs/static/v3/gtfs_transit.zip';
@@ -35,7 +35,7 @@ if (localPath) {
   if (!API_KEY) { console.error('Set DL_GTFS env var.'); process.exit(1); }
   console.log('Downloading GTFS static zip...');
   const resp = await fetch(GTFS_URL, {
-    headers: { 'Cache-Control':'no-cache', 'Ocp-Apim-Subscription-Key': API_KEY },
+    headers: { 'Cache-Control': 'no-cache', 'Ocp-Apim-Subscription-Key': API_KEY },
   });
   if (!resp.ok) { console.error(`HTTP ${resp.status}`); process.exit(1); }
   const total = Number(resp.headers.get('content-length') || 0);
@@ -50,50 +50,78 @@ if (localPath) {
 
 const zip = await JSZip.loadAsync(zipBuf);
 
-function parseCSV(text) {
-  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  const headers = lines[0].trim().split(',').map(h => h.replace(/^"|"$/g,''));
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim(); if (!line) continue;
+// ── Streaming CSV parser ───────────────────────────────────────────────────────
+// Reads a zip entry as a Buffer and calls onRow(row) for each parsed CSV row.
+// Never builds a giant string — processes ~8KB chunks at a time.
+const decoder = new TextDecoder('utf-8');
+
+async function parseCSVStream(zipEntry, onRow) {
+  const buf = await zipEntry.async('nodebuffer');
+  let headers = null;
+  let remainder = '';
+  const CHUNK = 65536; // 64KB chunks
+
+  for (let offset = 0; offset < buf.length; offset += CHUNK) {
+    const slice = buf.slice(offset, Math.min(offset + CHUNK, buf.length));
+    const text  = remainder + decoder.decode(slice, { stream: offset + CHUNK < buf.length });
+    const lines = text.split('\n');
+    // Last element may be incomplete — carry forward
+    remainder = lines.pop() ?? '';
+
+    for (const rawLine of lines) {
+      const line = rawLine.replace(/\r$/, '').trim();
+      if (!line) continue;
+
+      // Parse fields (handles simple quoting)
+      const vals = []; let cur = '', inQ = false;
+      for (const ch of line + ',') {
+        if (ch === '"') { inQ = !inQ; continue; }
+        if (ch === ',' && !inQ) { vals.push(cur); cur = ''; continue; }
+        cur += ch;
+      }
+
+      if (!headers) {
+        headers = vals.map(h => h.replace(/^\uFEFF/, '')); // strip BOM
+        continue;
+      }
+      const row = {};
+      headers.forEach((h, j) => row[h] = vals[j] ?? '');
+      onRow(row);
+    }
+  }
+
+  // Handle any trailing content
+  if (remainder.trim()) {
+    const line = remainder.replace(/\r$/, '').trim();
     const vals = []; let cur = '', inQ = false;
     for (const ch of line + ',') {
-      if (ch==='"') { inQ=!inQ; continue; }
-      if (ch===',' && !inQ) { vals.push(cur); cur=''; continue; }
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { vals.push(cur); cur = ''; continue; }
       cur += ch;
     }
-    const row = {}; headers.forEach((h,j) => row[h] = vals[j]??'');
-    rows.push(row);
+    if (headers && vals.length >= headers.length) {
+      const row = {};
+      headers.forEach((h, j) => row[h] = vals[j] ?? '');
+      onRow(row);
+    }
   }
-  return rows;
 }
 
-// Convert "HH:MM:SS" to minutes from midnight
 function toMins(t) {
   if (!t) return null;
-  const [h,m] = t.split(':').map(Number);
+  const [h, m] = t.split(':').map(Number);
   return h * 60 + m;
 }
 
 // ── routes.txt ────────────────────────────────────────────────────────────────
 console.log('Parsing routes.txt...');
-const rawRoutes = {};
-for (const r of parseCSV(await zip.file('routes.txt').async('string'))) {
-  rawRoutes[r.route_id] = r;
-}
-
-// lines: lineCode (route_id[:-1]) → merged entry for RT tripId[0] join
-const lines = {};
-// routes: exact per-direction entry
-const routes = {};
-for (const [rid, r] of Object.entries(rawRoutes)) {
+const lines = {}, routes = {};
+await parseCSVStream(zip.file('routes.txt'), r => {
+  const rid = r.route_id;
   routes[rid] = {
-    name:      r.route_short_name,
-    long:      r.route_long_name,
-    color:     r.route_color,
-    textColor: r.route_text_color,
-    url:       r.route_url,
-    type:      r.route_type,
+    name: r.route_short_name, long: r.route_long_name,
+    color: r.route_color, textColor: r.route_text_color,
+    url: r.route_url, type: r.route_type,
   };
   const code = rid.slice(0,-1), dirn = rid.slice(-1);
   if (!lines[code]) {
@@ -104,86 +132,67 @@ for (const [rid, r] of Object.entries(rawRoutes)) {
   }
   lines[code][`dir${dirn}`] = r.route_long_name;
   lines[code][`rid${dirn}`] = rid;
-}
+});
 console.log(`  ${Object.keys(lines).length} lines, ${Object.keys(routes).length} directional routes`);
 
 // ── trips.txt ─────────────────────────────────────────────────────────────────
 console.log('Parsing trips.txt...');
 const trips = {};
-for (const t of parseCSV(await zip.file('trips.txt').async('string'))) {
+await parseCSVStream(zip.file('trips.txt'), t => {
   const key = t.trip_id.split('_').slice(0,3).join('_');
-  if (trips[key]) continue;
+  if (trips[key]) return;
   trips[key] = {
-    headsign: t.trip_headsign,
-    routeId:  t.route_id,
-    dir:      t.direction_id,
-    shapeId:  t.shape_id,     // ← NEW: links to shapes lookup
+    headsign: t.trip_headsign, routeId: t.route_id,
+    dir: t.direction_id, shapeId: t.shape_id,
   };
-}
+});
 console.log(`  ${Object.keys(trips).length} trip prefixes`);
 
 // ── stops.txt ─────────────────────────────────────────────────────────────────
 console.log('Parsing stops.txt...');
 const stops = {};
-for (const s of parseCSV(await zip.file('stops.txt').async('string'))) {
+await parseCSVStream(zip.file('stops.txt'), s => {
   stops[s.stop_id] = {
     name: s.stop_name,
-    lat:  parseFloat(s.stop_lat),
-    lon:  parseFloat(s.stop_lon),
-    code: s.stop_code || s.stop_id,
+    lat:  parseFloat(parseFloat(s.stop_lat).toFixed(5)),
+    lon:  parseFloat(parseFloat(s.stop_lon).toFixed(5)),
     wc:   s.wheelchair_boarding === '1' ? 1 : 0,
   };
-}
+});
 console.log(`  ${Object.keys(stops).length} stops`);
 
 // ── shapes.txt ────────────────────────────────────────────────────────────────
 console.log('Parsing shapes.txt...');
 const shapesRaw = {};
-for (const p of parseCSV(await zip.file('shapes.txt').async('string'))) {
+await parseCSVStream(zip.file('shapes.txt'), p => {
   if (!shapesRaw[p.shape_id]) shapesRaw[p.shape_id] = [];
   shapesRaw[p.shape_id].push([
     parseInt(p.shape_pt_sequence),
     parseFloat(parseFloat(p.shape_pt_lat).toFixed(5)),
     parseFloat(parseFloat(p.shape_pt_lon).toFixed(5)),
   ]);
-}
-// Sort by sequence and strip sequence number, keep [lat, lon] pairs
+});
 const shapes = {};
 for (const [id, pts] of Object.entries(shapesRaw)) {
   shapes[id] = pts.sort((a,b) => a[0]-b[0]).map(p => [p[1], p[2]]);
 }
 console.log(`  ${Object.keys(shapes).length} shapes`);
 
-// ── stop_times.txt → stop-times.json ─────────────────────────────────────────
-// Key: 3-part trip_key (same as trips map)
-// Value: [{s:stop_id, a:minutes_from_midnight}, ...] sorted by stop_sequence
-// First occurrence per trip_key wins (same stop pattern for all trips on same template)
+// ── stop_times.txt ────────────────────────────────────────────────────────────
+// Key: 3-part trip_key. First occurrence per key wins (same stop pattern).
 console.log('Parsing stop_times.txt...');
-const stopTimesRaw = {};   // trip_key → [{seq, stop_id, arr_mins}]
-for (const st of parseCSV(await zip.file('stop_times.txt').async('string'))) {
+const stAccum = {};   // trip_key → { tripId, stops:[] }
+await parseCSVStream(zip.file('stop_times.txt'), st => {
   const key = st.trip_id.split('_').slice(0,3).join('_');
-  if (stopTimesRaw[key]) continue;  // first occurrence wins
-  stopTimesRaw[key] = [];
-  // We'll re-visit this trip when we encounter more rows for it
-  stopTimesRaw[key].__tripId = st.trip_id;
-}
-// Second pass: collect all stops for each recorded trip
-const seen = new Set(Object.values(stopTimesRaw).map(v => v.__tripId));
-// Reset and re-parse properly (two-pass to handle streamed data)
-const stopTimesFull = {};  // tripId → [{seq, sid, a}]
-for (const st of parseCSV(await zip.file('stop_times.txt').async('string'))) {
-  const key = st.trip_id.split('_').slice(0,3).join('_');
-  if (!stopTimesFull[key]) stopTimesFull[key] = { tripId: st.trip_id, stops: [] };
-  if (stopTimesFull[key].tripId !== st.trip_id) continue; // skip other trips with same key
-  stopTimesFull[key].stops.push({
-    seq: parseInt(st.stop_sequence),
-    s:   st.stop_id,
-    a:   toMins(st.arrival_time),
-  });
-}
-
+  if (!stAccum[key]) {
+    stAccum[key] = { tripId: st.trip_id, stops: [] };
+  }
+  // Only collect stops from the first trip_id seen for this key
+  if (stAccum[key].tripId !== st.trip_id) return;
+  stAccum[key].stops.push({ seq: parseInt(st.stop_sequence), s: st.stop_id, a: toMins(st.arrival_time) });
+});
 const stopTimes = {};
-for (const [key, val] of Object.entries(stopTimesFull)) {
+for (const [key, val] of Object.entries(stAccum)) {
   val.stops.sort((a,b) => a.seq - b.seq);
   stopTimes[key] = val.stops.map(({s, a}) => ({s, a}));
 }
@@ -191,28 +200,32 @@ console.log(`  ${Object.keys(stopTimes).length} trip stop sequences`);
 
 // ── agency.txt ────────────────────────────────────────────────────────────────
 const agency = {};
-for (const a of parseCSV(await zip.file('agency.txt').async('string')))
+await parseCSVStream(zip.file('agency.txt'), a => {
   agency[a.agency_id] = { name: a.agency_name, url: a.agency_url, phone: a.agency_phone };
+});
 
 // ── feed_info.txt ─────────────────────────────────────────────────────────────
 let feed = {};
-const fi = parseCSV(await zip.file('feed_info.txt').async('string'))[0] || {};
-feed = { version: fi.feed_version||'', startDate: fi.feed_start_date||'', endDate: fi.feed_end_date||'' };
+await parseCSVStream(zip.file('feed_info.txt'), fi => {
+  if (!feed.version) feed = {
+    version: fi.feed_version || '',
+    startDate: fi.feed_start_date || '',
+    endDate: fi.feed_end_date || '',
+  };
+});
 
 // ── Write static-lookup.json ─────────────────────────────────────────────────
 const lookup = { lines, routes, trips, stops, shapes, agency, feed };
-const outL = JSON.stringify(lookup, null, 0);
+const outL = JSON.stringify(lookup);
 writeFileSync(outLookup, outL);
-const lkbMB = (outL.length / 1048576).toFixed(1);
-console.log(`\n✓ static-lookup.json  ${lkbMB} MB`);
+console.log(`\n✓ static-lookup.json  ${(outL.length/1048576).toFixed(1)} MB`);
 console.log(`  lines=${Object.keys(lines).length}  routes=${Object.keys(routes).length}  trips=${Object.keys(trips).length}`);
 console.log(`  stops=${Object.keys(stops).length}  shapes=${Object.keys(shapes).length}`);
 
 // ── Write stop-times.json ─────────────────────────────────────────────────────
-const outST = JSON.stringify(stopTimes, null, 0);
+const outST = JSON.stringify(stopTimes);
 writeFileSync(outStopTimes, outST);
-const stMB = (outST.length / 1048576).toFixed(1);
-console.log(`✓ stop-times.json     ${stMB} MB`);
+console.log(`✓ stop-times.json     ${(outST.length/1048576).toFixed(1)} MB`);
 console.log(`  trip keys: ${Object.keys(stopTimes).length}`);
 console.log(`\nFeed: ${feed.version} valid ${feed.startDate} → ${feed.endDate}`);
 console.log('\nRun: wrangler deploy');
