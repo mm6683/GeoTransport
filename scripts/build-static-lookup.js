@@ -174,7 +174,10 @@ for (const [id, pts] of Object.entries(shapesRaw)) {
 }
 console.log(`✓ shapes/             ${shapeCount} files in public/shapes/  (deploy only)`);
 
-// ── stop_times.txt → stop-times.json — deploy only ───────────────────────────
+// ── stop_times.txt → public/stop-times/{key}.json — one file per trip key ────
+// Each file is ~1–3KB, fetched on demand when a vehicle's panel is opened.
+const stopTimesDir = resolve(__dir, '../public/stop-times');
+mkdirSync(stopTimesDir, { recursive: true });
 console.log('Parsing stop_times.txt...');
 const stAccum = {};
 await parseCSVStream(zip.file('stop_times.txt'), st => {
@@ -183,14 +186,15 @@ await parseCSVStream(zip.file('stop_times.txt'), st => {
   if (stAccum[key].tripId !== st.trip_id) return;
   stAccum[key].stops.push({ seq: parseInt(st.stop_sequence), s: st.stop_id, a: toMins(st.arrival_time) });
 });
-const stopTimes = {};
+let stCount = 0;
 for (const [key, val] of Object.entries(stAccum)) {
   val.stops.sort((a,b) => a.seq - b.seq);
-  stopTimes[key] = val.stops.map(({s, a}) => ({s, a}));
+  const data = val.stops.map(({s, a}) => ({s, a}));
+  writeFileSync(resolve(stopTimesDir, `${key}.json`), JSON.stringify(data));
+  stCount++;
 }
-const outStopTimes = JSON.stringify(stopTimes);
-writeFileSync(pub('stop-times.json'), outStopTimes);
-console.log(`✓ stop-times.json     ${mb(outStopTimes)}  (deploy only)`);
+console.log(`✓ stop-times/         ${stCount} files in public/stop-times/  (deploy only)`);
+
 
 console.log(`\nFeed: ${feed.version}  valid ${feed.startDate} → ${feed.endDate}`);
 console.log('Run: wrangler deploy');
