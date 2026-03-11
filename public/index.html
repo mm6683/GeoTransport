@@ -139,15 +139,67 @@
     /* Filter active indicator — shown in search input, not in tabs */
     #tabs{position:relative}
 
-background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-size:12px;font-family:var(--font-mono);z-index:9999;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:320px}
+    #toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-size:12px;font-family:var(--font-mono);z-index:9999;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:320px}
     #toast.on{opacity:1;transform:translateY(0)}
     #toast.er{border-color:var(--danger);color:var(--danger)}
     #brand{position:absolute;bottom:28px;left:306px;z-index:50;font-family:var(--font-ui);font-size:11px;font-weight:300;letter-spacing:.3em;text-transform:uppercase;color:rgba(200,218,232,.18);pointer-events:none}
-  </style>
+
+    /* ── Stops section in More Info panel ────────────────────────────────────── */
+    .stop-list{margin-top:4px}
+    .stop-row{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(30,45,61,.35)}
+    .stop-row:last-child{border-bottom:none}
+    .stop-track{display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;padding-top:3px}
+    .stop-dot{width:9px;height:9px;border-radius:50%;background:var(--border);border:2px solid var(--text-dim);flex-shrink:0}
+    .stop-dot.passed{background:rgba(107,136,153,.3);border-color:rgba(107,136,153,.3)}
+    .stop-dot.next{background:var(--accent);border-color:var(--accent);box-shadow:0 0 5px rgba(0,212,255,.6)}
+    .stop-dot.term{background:var(--accent2);border-color:var(--accent2)}
+    .stop-info{flex:1;min-width:0}
+    .stop-name{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .stop-name.passed{color:var(--text-dim);font-weight:400}
+    .stop-times{display:flex;gap:6px;margin-top:2px;font-size:10px;font-family:var(--font-mono);color:var(--text-dim)}
+    .stop-times .adj{color:var(--accent3);font-weight:600}
+    .stop-times .late{color:var(--accent2)}
+    .stop-times .vlate{color:var(--danger)}
+
+    /* ── Mobile FAB ──────────────────────────────────────────────────────────── */
+    #mob-fab{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:350;
+      background:var(--surface);border:1px solid var(--border);border-radius:24px;
+      padding:10px 22px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
+      text-transform:uppercase;color:var(--accent);cursor:pointer;
+      box-shadow:0 4px 20px rgba(0,0,0,.6);transition:background .15s;align-items:center;gap:8px}
+    #mob-fab:hover{background:var(--surface2)}
+
+    /* ── Mobile responsive ───────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      #sidebar{
+        position:fixed;bottom:0;left:0;right:0;top:auto;
+        width:100%;height:68vh;
+        border-right:none;border-top:1px solid var(--border);
+        border-radius:16px 16px 0 0;
+        transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+        z-index:400;
+      }
+      #sidebar.mob-open{transform:translateY(0)}
+      #mob-handle{display:block!important}
+      #info-panel{
+        top:auto;right:0;left:0;bottom:0;
+        width:100%;height:72vh;
+        border-left:none;border-top:1px solid var(--border);
+        border-radius:16px 16px 0 0;
+      }
+      #info-panel.open{transform:translateY(0)}
+      #mob-fab{display:flex}
+      #map{width:100%;height:100%}
+      #brand{display:none}
+      #toast{bottom:80px;right:12px;left:12px;max-width:none}
+    }
+    #mob-handle{display:none;width:40px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 0;flex-shrink:0}
+
 </head>
 <body>
 <div id="app">
   <aside id="sidebar">
+    <div id="mob-handle"></div>
     <div id="search-wrap">
       <span class="search-icon">⌕</span>
       <input id="search-input" type="text" placeholder="Line, route, trip, vehicle, type…" autocomplete="off" />
@@ -189,9 +241,11 @@ background:var(--surface);border:1px solid var(--border);border-radius:6px;paddi
   </aside>
 
   <div id="map"></div>
+  <button id="mob-fab" onclick="toggleSidebar()">☰ Vehicles</button>
   <div id="brand">Belgium · GTFS-RT</div>
 
   <div id="info-panel">
+    <div id="mob-handle"></div>
     <div id="ip-head">
       <div id="ip-badge">–</div>
       <div id="ip-title">–</div>
@@ -211,37 +265,28 @@ const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11
 
 // ── Static lookup ─────────────────────────────────────────────────────────────
 let SL = null;
+let ST = null;  // stop-times: trip_key → [{s, a}]
 
 async function loadStatic() {
   try {
-    const r = await fetch('/static-lookup.json', { cache:'force-cache' });
+    const r = await fetch('/static-lookup.json', { cache: 'force-cache' });
     if (!r.ok) return;
-    const raw = await r.json();
-
-    // Normalise: support both our generated format {lines:{...}} and
-    // the raw static-response format {routes:{"10010":{...}}}
-    if (raw.lines) {
-      SL = raw;  // already our format
-    } else if (raw.routes) {
-      // Convert full route_id keys ("10010") → line code keys ("1001")
-      const lines = {};
-      for (const [rid, r] of Object.entries(raw.routes)) {
-        const code = rid.slice(0, -1), dir = rid.slice(-1);
-        if (!lines[code]) {
-          lines[code] = { name: r.name, color: r.color, textColor: r.textColor, type: r.type, url: r.url };
-        }
-        lines[code][`dir${dir}`] = r.long || '';
-      }
-      SL = { lines, trips: {}, agency: raw.agency || {}, feed: raw.feed || {} };
-    }
+    SL = await r.json();
 
     // Refresh everything now that we have real route names + colours
     arrowLayer.setVehicles(Object.values(vData));
     redraw();
-    // If a popup is open, re-render it with proper info
     if (activeId && activePopup) showPopup(activeId);
-
   } catch(e) { console.warn('Static lookup:', e.message); }
+}
+
+async function loadStopTimes() {
+  if (ST) return;   // already loaded
+  try {
+    const r = await fetch('/stop-times.json', { cache: 'force-cache' });
+    if (!r.ok) return;
+    ST = await r.json();
+  } catch(e) { console.warn('Stop times:', e.message); }
 }
 
 // lineCode = tripId.split('_')[0]  →  lines[lineCode]
@@ -249,7 +294,7 @@ function getLine(tripId) {
   if (!SL || !tripId) return null;
   return SL.lines?.[tripId.split('_')[0]] || null;
 }
-// 3-part key  →  trips[key]  (headsign, routeId, dir, blockId, shapeId)
+// 3-part key  →  trips[key]  (headsign, routeId, dir, shapeId)
 function getTrip(tripId) {
   if (!SL || !tripId) return null;
   return SL.trips?.[tripId.split('_').slice(0, 3).join('_')] || null;
@@ -258,6 +303,16 @@ function getTrip(tripId) {
 function getRoute(routeId) {
   if (!SL || !routeId) return null;
   return SL.routes?.[routeId] || null;
+}
+// Stop details by stop_id
+function getStop(stopId) {
+  if (!SL || !stopId) return null;
+  return SL.stops?.[stopId] || null;
+}
+// Stop times for a trip key
+function getTripStops(tripId) {
+  if (!ST || !tripId) return null;
+  return ST[tripId.split('_').slice(0, 3).join('_')] || null;
 }
 
 // External line number ("1", "302") — never expose internal code
@@ -392,6 +447,41 @@ const ArrowLayer = L.Layer.extend({
 
 const arrowLayer = new ArrowLayer();
 arrowLayer.addTo(map);
+
+// ── Route shape polyline ───────────────────────────────────────────────────────
+let shapePolyline = null;
+
+function drawShape(shapeId) {
+  clearShape();
+  if (!SL?.shapes?.[shapeId]) return;
+  const pts = SL.shapes[shapeId];
+  if (!pts?.length) return;
+  shapePolyline = L.polyline(pts, {
+    color: '#00d4ff', weight: 3, opacity: 0.55,
+    dashArray: null, interactive: false,
+  }).addTo(map);
+  // Ensure arrows render on top
+  shapePolyline.bringToBack();
+}
+
+function clearShape() {
+  if (shapePolyline) { shapePolyline.remove(); shapePolyline = null; }
+}
+
+// ── Mobile sidebar toggle ──────────────────────────────────────────────────────
+function toggleSidebar() {
+  const sb = G("sidebar");
+  const open = sb.classList.toggle("mob-open");
+  G("mob-fab").textContent = open ? "✕ Close" : "☰ Vehicles";
+}
+
+// Close sidebar when a vehicle is selected on mobile
+function closeSidebarMobile() {
+  if (window.innerWidth <= 768) {
+    G("sidebar").classList.remove("mob-open");
+    G("mob-fab").textContent = "☰ Vehicles";
+  }
+}
 
 // Route map clicks through the arrow layer for hit testing
 map.on('click', e => {
@@ -844,6 +934,11 @@ function openPanel(id){
       </div>
     </div>` : ''}
 
+    <div class="ip-section" id="stops-section">
+      <div class="ip-section-title">Stops</div>
+      <div id="stops-list" style="color:var(--text-dim);font-size:11px;font-family:var(--font-mono)">Loading…</div>
+    </div>
+
     ${feed.version ? `<div class="ip-section">
       <div class="ip-section-title">Feed</div>
       <div class="ip-grid">
@@ -860,16 +955,83 @@ function openPanel(id){
   `;
 
   G("info-panel").classList.add("open");
-  // Panel opening shifts the visible centre — re-pan to compensate
-  // Use a short delay so the CSS transition has started and getSize() is still correct
   setTimeout(() => { if (activeId && vData[activeId]) panToVehicle(vData[activeId]); }, 50);
+
+  // Load and render stop sequence (may need to fetch stop-times.json first)
+  renderStopsForVehicle(v);
   redraw();
+}
+
+// Render the stop sequence for the selected vehicle
+async function renderStopsForVehicle(v) {
+  const el = G("stops-list");
+  if (!el) return;
+
+  // Ensure stop-times is loaded
+  await loadStopTimes();
+
+  const tripKey = v.tripId?.split('_').slice(0,3).join('_');
+  const stops   = getTripStops(v.tripId);
+
+  if (!stops?.length) {
+    el.textContent = 'No stop data available';
+    return;
+  }
+
+  // Determine current "position" by finding the first stop whose scheduled
+  // time + delay is in the future (or the first stop if all are past)
+  const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+  const delayMins = Math.round((v.delay || 0) / 60);
+  let nextIdx = stops.findIndex(s => s.a != null && (s.a + delayMins) >= nowMins);
+  if (nextIdx < 0) nextIdx = stops.length; // all passed
+
+  function fmtMins(m) {
+    if (m == null) return '';
+    const h = Math.floor(m / 60) % 24, mn = m % 60;
+    return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`;
+  }
+
+  const rows = stops.map((st, i) => {
+    const stop    = getStop(st.s);
+    const name    = stop?.name || st.s;
+    const isPast  = i < nextIdx;
+    const isNext  = i === nextIdx;
+    const isTerm  = i === stops.length - 1;
+    const dotCls  = isTerm ? 'term' : isNext ? 'next' : isPast ? 'passed' : '';
+    const nameCls = isPast ? 'passed' : '';
+
+    let timesHtml = '';
+    if (st.a != null) {
+      const sched = fmtMins(st.a);
+      const adj   = fmtMins(st.a + delayMins);
+      const late  = delayMins >= 2 ? (delayMins >= 5 ? 'vlate' : 'late') : 'adj';
+      timesHtml = `<span style="color:var(--text-dim)">${sched}</span>`
+        + (delayMins !== 0 ? ` <span class="${isPast ? '' : late}">${adj}</span>` : '');
+    }
+
+    return `<div class="stop-row">
+      <div class="stop-dot ${dotCls}"></div>
+      <div class="stop-info">
+        <div class="stop-name ${nameCls}">${name}</div>
+        ${timesHtml ? `<div class="stop-times">${timesHtml}</div>` : ''}
+      </div>
+    </div>`;
+  });
+
+  el.innerHTML = `<div class="stop-list">${rows.join('')}</div>`;
+
+  // Scroll so the next stop is visible
+  if (nextIdx > 2) {
+    const rowEls = el.querySelectorAll('.stop-row');
+    rowEls[Math.max(0, nextIdx - 1)]?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
 }
 
 function closePanel(){
   G("info-panel").classList.remove("open");
   if (activePopup) { activePopup.remove(); activePopup = null; }
-  activeId=null;
+  activeId = null;
+  clearShape();
   arrowLayer._draw();
   redraw();
 }
@@ -943,32 +1105,35 @@ function process(data){
 // Pan/zoom so the vehicle appears centred in the visible area,
 // accounting for the 290px left sidebar and 320px right panel (when open).
 function panToVehicle(v, zoom) {
-  const panelOpen = G("info-panel").classList.contains("open");
-  const leftPad   = 290;
-  const rightPad  = panelOpen ? 320 : 0;
-  const W         = window.innerWidth;
-  const H         = window.innerHeight;
-  const z         = zoom ?? map.getZoom();
+  const mobile     = window.innerWidth <= 768;
+  const panelOpen  = !mobile && G("info-panel").classList.contains("open");
+  const leftPad    = mobile ? 0 : 290;
+  const rightPad   = panelOpen ? 320 : 0;
+  const W          = window.innerWidth;
+  const H          = window.innerHeight;
+  const z          = zoom ?? map.getZoom();
 
   // Step 1: put vehicle exactly at map centre (no animation)
   map.setView([v.lat, v.lng], z, { animate: false });
 
   // Step 2: pan so vehicle lands at the visual centre of the unobstructed area.
-  // After step 1 vehicle is at container (W/2, H/2).
-  // Visual centre is at (leftPad + (W - leftPad - rightPad)/2, H/2).
-  // panBy(x, y): positive x pans viewport right → content moves left → vehicle moves left.
-  // We want vehicle to move right by (visCX - W/2), so pan left: panBy(-(visCX - W/2)).
-  const visCX  = leftPad + (W - leftPad - rightPad) / 2;
-  const offsetX = -(visCX - W / 2);   // negative = pan left = content moves right
+  const visCX   = leftPad + (W - leftPad - rightPad) / 2;
+  const offsetX = -(visCX - W / 2);
   map.panBy([offsetX, 0], { animate: true });
 }
 
 function select(id){
   activeId = id;
   const v = vData[id]; if (!v) return;
+  // Draw route shape on map
+  const tripInfo = getTrip(v.tripId);
+  if (tripInfo?.shapeId) drawShape(tripInfo.shapeId);
+  // Kick off stop-times lazy load so it's ready when panel opens
+  loadStopTimes();
   panToVehicle(v, Math.max(map.getZoom(), 13));
   arrowLayer._draw();
   showPopup(id);
+  closeSidebarMobile();
   redraw();
 }
 
