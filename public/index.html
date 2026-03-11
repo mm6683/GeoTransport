@@ -627,7 +627,9 @@ function applyFilter(filter) {
   const all = Object.values(vData).sort((a,b) => (b.delay||0)-(a.delay||0));
   sortedV = filter ? all.filter(v => filter.matchIds.has(v.vehicleId)) : all;
   G("bv").textContent = sortedV.length;
-  // Reset scroll so virtual scroll renders from top
+  // Flush virtual scroll so stale rows don't linger
+  const win = G("wv");
+  [...win.children].forEach(ch => { win.removeChild(ch); freeRow(ch); });
   G("pv").scrollTop = 0;
   arrowLayer._draw();
   redraw();
