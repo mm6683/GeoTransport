@@ -155,19 +155,24 @@ const outStops = JSON.stringify(stops);
 writeFileSync(pub('stops.json'), outStops);
 console.log(`✓ stops.json          ${mb(outStops)}  (deploy only)`);
 
-// ── shapes.txt → shapes.json — deploy only ───────────────────────────────────
+// ── shapes.txt → public/shapes/{shapeId}.json — one file per shape ───────────
+// Each file is tiny (~5–20KB), fetched on demand, cached by the browser.
+import { mkdirSync } from 'fs';
 console.log('Parsing shapes.txt...');
 const shapesRaw = {};
 await parseCSVStream(zip.file('shapes.txt'), p => {
   if (!shapesRaw[p.shape_id]) shapesRaw[p.shape_id] = [];
   shapesRaw[p.shape_id].push([parseInt(p.shape_pt_sequence), Math.round(parseFloat(p.shape_pt_lat)*1e5)/1e5, Math.round(parseFloat(p.shape_pt_lon)*1e5)/1e5]);
 });
-const shapes = {};
-for (const [id, pts] of Object.entries(shapesRaw))
-  shapes[id] = pts.sort((a,b) => a[0]-b[0]).map(p => [p[1], p[2]]);
-const outShapes = JSON.stringify(shapes);
-writeFileSync(pub('shapes.json'), outShapes);
-console.log(`✓ shapes.json         ${mb(outShapes)}  (deploy only)`);
+const shapesDir = resolve(__dir, '../public/shapes');
+mkdirSync(shapesDir, { recursive: true });
+let shapeCount = 0;
+for (const [id, pts] of Object.entries(shapesRaw)) {
+  const sorted = pts.sort((a,b) => a[0]-b[0]).map(p => [p[1], p[2]]);
+  writeFileSync(resolve(shapesDir, `${id}.json`), JSON.stringify(sorted));
+  shapeCount++;
+}
+console.log(`✓ shapes/             ${shapeCount} files in public/shapes/  (deploy only)`);
 
 // ── stop_times.txt → stop-times.json — deploy only ───────────────────────────
 console.log('Parsing stop_times.txt...');
