@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install jszip (build script dependency)
+      - name: Install jszip
         run: npm install jszip
 
       - name: Run build script
@@ -29,24 +29,23 @@ jobs:
           DL_GTFS: ${{ secrets.DL_GTFS }}
         run: node scripts/build-static-lookup.js
 
-      - name: Check if static files changed
+      - name: Check if static-lookup.json changed
         id: diff
         run: |
-          git diff --quiet public/static-lookup.json public/stop-times.json \
+          git diff --quiet public/static-lookup.json \
             && echo "changed=false" >> $GITHUB_OUTPUT \
             || echo "changed=true" >> $GITHUB_OUTPUT
 
-      - name: Commit updated files
+      - name: Commit static-lookup.json (small file only)
         if: steps.diff.outputs.changed == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add public/static-lookup.json public/stop-times.json
+          git add public/static-lookup.json
           git commit -m "chore: update GTFS static lookup [skip ci]"
           git push
 
-      - name: Deploy to Cloudflare Workers
-        if: steps.diff.outputs.changed == 'true'
+      - name: Deploy to Cloudflare Workers (includes all large files)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npx wrangler deploy
