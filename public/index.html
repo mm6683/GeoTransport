@@ -267,7 +267,6 @@ const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11
 let SL = null;
 let ST = null;     // stop-times: trip_key → [{s, a}]
 let STOPS = null;  // stop_id → name  (from stops.json)
-let SHAPES = null; // shape_id → [[lat,lon],...]  (from shapes.json)
 
 async function loadStatic() {
   try {
@@ -296,12 +295,25 @@ async function loadStops() {
   } catch(e) { console.warn('Stops:', e.message); }
 }
 
-async function loadShapes() {
-  if (SHAPES) return;
+// Per-shape fetch — each file is tiny, cached after first load
+const shapeCache = {};
+async function fetchShape(shapeId) {
+  if (!shapeId) return null;
+  if (shapeCache[shapeId]) return shapeCache[shapeId];
   try {
-    const r = await fetch('/shapes.json', { cache: 'force-cache' });
-    if (r.ok) SHAPES = await r.json();
-  } catch(e) { console.warn('Shapes:', e.message); }
+    const r = await fetch(`/shapes/${shapeId}.json`, { cache: 'force-cache' });
+    if (!r.ok) return null;
+    shapeCache[shapeId] = await r.json();
+    return shapeCache[shapeId];
+  } catch(e) { return null; }
+}
+
+async function showShape(shapeId) {
+  clearShape();
+  const pts = await fetchShape(shapeId);
+  if (!pts?.length) return;
+  shapePolyline = L.polyline(pts, { color: '#00d4ff', weight: 3, opacity: 0.55, interactive: false }).addTo(map);
+  shapePolyline.bringToBack();
 }
 
 // lineCode = tripId.split('_')[0]  →  lines[lineCode]
@@ -468,14 +480,8 @@ arrowLayer.addTo(map);
 let shapePolyline = null;
 
 function drawShape(shapeId) {
-  clearShape();
-  const pts = SHAPES?.[shapeId];
-  if (!pts?.length) return;
-  shapePolyline = L.polyline(pts, {
-    color: '#00d4ff', weight: 3, opacity: 0.55,
-    interactive: false,
-  }).addTo(map);
-  shapePolyline.bringToBack();
+  // Async wrapper so callers don't need to await
+  showShape(shapeId);
 }
 
 function clearShape() {
@@ -598,15 +604,18 @@ function buildDrop() {
   // ── Line name match (external: "1", "X19", "302") ─────────────────────────
   // One entry per live line name matching the query; each covers ALL directions
   if (SL?.lines) {
-    const lineHits = new Map(); // lineName → {codes, matchIds}
+    const lineHits = new Map(); // lineName → {codes, matchIds, shapeIds}
     for (const [code, l] of Object.entries(SL.lines)) {
       if (!l.name.toLowerCase().includes(q)) continue;
-      if (!lineHits.has(l.name)) lineHits.set(l.name, { codes: [], color: l.color, textColor: l.textColor, matchIds: new Set() });
+      if (!lineHits.has(l.name)) lineHits.set(l.name, { codes: [], color: l.color, textColor: l.textColor, matchIds: new Set(), shapeIds: new Set() });
       const entry = lineHits.get(l.name);
       entry.codes.push(code);
-      // All live vehicles on this line (any direction)
       for (const v of Object.values(vData)) {
-        if (v.tripId?.split('_')[0] === code) entry.matchIds.add(v.vehicleId);
+        if (v.tripId?.split('_')[0] === code) {
+          entry.matchIds.add(v.vehicleId);
+          const sid = getTrip(v.tripId)?.shapeId;
+          if (sid) entry.shapeIds.add(sid);
+        }
       }
     }
     const lineItems = [];
@@ -615,11 +624,13 @@ function buildDrop() {
       const color = entry.color ? '#'+entry.color : '#444';
       const textC = entry.textColor ? '#'+entry.textColor : '#fff';
       const snap = new Set(entry.matchIds);
+      // Only draw shape if all vehicles share a single shape (unambiguous direction)
+      const shapeId = entry.shapeIds.size === 1 ? [...entry.shapeIds][0] : null;
       lineItems.push({
         badge: name, color, textC,
         main: `Line ${name}`, sub: `${snap.size} vehicles`,
         delay: null,
-        apply() { applyFilter({ matchIds: snap, label: `Line ${name}` }); }
+        apply() { applyFilter({ matchIds: snap, label: `Line ${name}`, shapeId }); }
       });
     }
     if (lineItems.length) groups.push({ label: 'Line', items: lineItems.slice(0,6) });
@@ -637,7 +648,7 @@ function buildDrop() {
       const hs   = tripInfo.headsign || '';
       const label = `${name} → ${hs}`;
       if (!label.toLowerCase().includes(q) && !rid?.toLowerCase().includes(q)) continue;
-      if (!routeHits.has(rid)) routeHits.set(rid, { lineName: name, headsign: hs, color: lineInfo.color, textColor: lineInfo.textColor, matchIds: new Set() });
+      if (!routeHits.has(rid)) routeHits.set(rid, { lineName: name, headsign: hs, color: lineInfo.color, textColor: lineInfo.textColor, matchIds: new Set(), shapeId: tripInfo.shapeId || null });
       routeHits.get(rid).matchIds.add(v.vehicleId);
     }
     const routeItems = [];
@@ -650,7 +661,7 @@ function buildDrop() {
         main: `${entry.lineName} → ${entry.headsign}`,
         sub: `${snap.size} vehicles`,
         delay: null,
-        apply() { applyFilter({ matchIds: snap, label: `${entry.lineName} → ${entry.headsign}` }); }
+        apply() { applyFilter({ matchIds: snap, label: `${entry.lineName} → ${entry.headsign}`, shapeId: entry.shapeId }); }
       });
     }
     if (routeItems.length) groups.push({ label: 'Route', items: routeItems.slice(0,6) });
@@ -664,11 +675,12 @@ function buildDrop() {
     const c = markerCol(v.tripId), tc = lineTextColor(v.tripId);
     const d = fmtD(v.delay);
     const snap = new Set([v.vehicleId]);
+    const tripShapeId = getTrip(v.tripId)?.shapeId || null;
     tripItems.push({
       badge: name, color: c, textC: tc,
       main: dest ? `${name} → ${dest}` : v.tripId.slice(0,30),
       sub: v.vehicleId, delayText: d.text, delayCls: d.cls,
-      apply() { applyFilter({ matchIds: snap, label: `Trip ${v.tripId.split('_').slice(0,3).join('_')}` }); select(v.vehicleId); }
+      apply() { applyFilter({ matchIds: snap, label: `Trip ${v.tripId.split('_').slice(0,3).join('_')}`, shapeId: tripShapeId }); select(v.vehicleId); }
     });
   }
   if (tripItems.length) groups.push({ label: 'Trip', items: tripItems.slice(0,4) });
@@ -731,6 +743,15 @@ function applyFilter(filter) {
   const all = Object.values(vData).sort((a,b) => (b.delay||0)-(a.delay||0));
   sortedV = filter ? all.filter(v => filter.matchIds.has(v.vehicleId)) : all;
   G("bv").textContent = sortedV.length;
+
+  // Draw route shape when filter resolves to a single unique shape
+  if (filter?.shapeId) {
+    showShape(filter.shapeId);
+  } else if (!filter || filter.matchIds.size > 1) {
+    // Multiple matches or no filter — clear any single-route shape
+    clearShape();
+  }
+
   // Flush virtual scroll so stale rows don't linger
   const win = G("wv");
   [...win.children].forEach(ch => { win.removeChild(ch); freeRow(ch); });
@@ -747,6 +768,7 @@ function clearSearch() {
   sinput.value = "";
   sclear.style.display = "none";
   closeDrop();
+  clearShape();
   applyFilter(null);
 }
 
@@ -1140,10 +1162,7 @@ function select(id){
   activeId = id;
   const v = vData[id]; if (!v) return;
   const tripInfo = getTrip(v.tripId);
-  // Lazy-load shapes then draw; lazy-load stops+stop-times for panel
-  if (tripInfo?.shapeId) {
-    loadShapes().then(() => drawShape(tripInfo.shapeId));
-  }
+  if (tripInfo?.shapeId) showShape(tripInfo.shapeId);
   loadStops();
   loadStopTimes();
   panToVehicle(v, Math.max(map.getZoom(), 13));
