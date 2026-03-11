@@ -4,5 +4,5 @@ node_modules/
 # Large GTFS-derived files — built by GitHub Action and deployed via wrangler,
 # but never committed to git (exceed GitHub's 100MB file size limit).
 public/stops.json
-public/shapes.json
+public/shapes/
 public/stop-times.json
