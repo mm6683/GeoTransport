@@ -13,8 +13,8 @@
  *   public/shapes.json          large   deployed only (gitignored)
  *     shape_id → [[lat,lon], ...]
  *
- *   public/stop-times.json      large   deployed only (gitignored)
- *     trip_key → [{s, a}, ...]
+ *   public/stop-times/{lineCode}.json  deployed only (gitignored)
+ *     one file per line code (~1024 files), each: { tripKey: [{s,a},...] }
  *
  * Usage:
  *   node scripts/build-static-lookup.js               (downloads from API)
@@ -174,26 +174,39 @@ for (const [id, pts] of Object.entries(shapesRaw)) {
 }
 console.log(`✓ shapes/             ${shapeCount} files in public/shapes/  (deploy only)`);
 
-// ── stop_times.txt → public/stop-times/{key}.json — one file per trip key ────
-// Each file is ~1–3KB, fetched on demand when a vehicle's panel is opened.
+// ── stop_times.txt → public/stop-times/{lineCode}.json ───────────────────────
+// Chunked by line code (first segment of trip key, e.g. "1001").
+// ~1024 files, each containing all trips for that line: { tripKey: [{s,a},...] }
+// Fetched on demand when a vehicle is selected; cached in ST by line code.
 const stopTimesDir = resolve(__dir, '../public/stop-times');
 mkdirSync(stopTimesDir, { recursive: true });
 console.log('Parsing stop_times.txt...');
-const stAccum = {};
+const stByLine = {};  // lineCode → { tripKey → [{s,a}] }
+const stSeen   = {};  // tripKey → first tripId seen (skip duplicates)
 await parseCSVStream(zip.file('stop_times.txt'), st => {
-  const key = st.trip_id.split('_').slice(0,3).join('_');
-  if (!stAccum[key]) stAccum[key] = { tripId: st.trip_id, stops: [] };
-  if (stAccum[key].tripId !== st.trip_id) return;
-  stAccum[key].stops.push({ seq: parseInt(st.stop_sequence), s: st.stop_id, a: toMins(st.arrival_time) });
+  const parts    = st.trip_id.split('_');
+  const lineCode = parts[0];
+  const key      = parts.slice(0,3).join('_');
+  if (!stByLine[lineCode]) stByLine[lineCode] = {};
+  if (!stSeen[key]) {
+    stSeen[key] = st.trip_id;
+    stByLine[lineCode][key] = [];
+  }
+  if (stSeen[key] !== st.trip_id) return;  // skip other trips with same key
+  stByLine[lineCode][key].push({ seq: parseInt(st.stop_sequence), s: st.stop_id, a: toMins(st.arrival_time) });
 });
 let stCount = 0;
-for (const [key, val] of Object.entries(stAccum)) {
-  val.stops.sort((a,b) => a.seq - b.seq);
-  const data = val.stops.map(({s, a}) => ({s, a}));
-  writeFileSync(resolve(stopTimesDir, `${key}.json`), JSON.stringify(data));
+for (const [lineCode, trips] of Object.entries(stByLine)) {
+  // Sort each trip's stops by sequence, strip seq field
+  const out = {};
+  for (const [key, stops] of Object.entries(trips)) {
+    out[key] = stops.sort((a,b) => a.seq - b.seq).map(({s, a}) => ({s, a}));
+  }
+  writeFileSync(resolve(stopTimesDir, `${lineCode}.json`), JSON.stringify(out));
   stCount++;
 }
 console.log(`✓ stop-times/         ${stCount} files in public/stop-times/  (deploy only)`);
+
 
 
 console.log(`\nFeed: ${feed.version}  valid ${feed.startDate} → ${feed.endDate}`);
