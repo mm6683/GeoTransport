@@ -371,6 +371,13 @@ export default {
       return response;
     }
 
-    return env.ASSETS.fetch(request);
+    const asset = await env.ASSETS.fetch(request);
+    const ct = asset.headers.get('Content-Type') || '';
+    if (ct.includes('text/html')) {
+      const h = new Headers(asset.headers);
+      h.set('Cache-Control', 'no-cache');
+      return new Response(asset.body, { status: asset.status, headers: h });
+    }
+    return asset;
   },
 };
