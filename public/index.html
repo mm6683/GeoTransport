@@ -647,6 +647,15 @@ async function restoreFromUrl() {
   const pType    = sp.get('type');
   const pVehicle = sp.get('vehicle');
 
+  if (!pLine && !pRoute && !pTrip && !pType && !pVehicle) return;
+
+  // Wait until static lookup is ready (shapes/stops depend on it)
+  await new Promise(resolve => {
+    if (SL) return resolve();
+    const id = setInterval(() => { if (SL) { clearInterval(id); resolve(); } }, 50);
+    setTimeout(() => { clearInterval(id); resolve(); }, 5000); // safety timeout
+  });
+
   // Apply filter first (vehicle select comes after)
   if (pType) {
     const entry = Object.entries(ROUTE_TYPES).find(([code]) => code === pType);
@@ -655,7 +664,7 @@ async function restoreFromUrl() {
       const matchIds = new Set(Object.values(vData)
         .filter(v => (getLine(v.tripId)?.type || '3') === code)
         .map(v => v.vehicleId));
-      applyFilter({ matchIds, label, urlKey:'type', urlVal:code }, /*skipPush*/true);
+      applyFilter({ matchIds, label, urlKey:'type', urlVal:code }, true);
     }
   } else if (pLine && SL?.lines?.[pLine]) {
     const l = SL.lines[pLine];
@@ -692,10 +701,10 @@ async function restoreFromUrl() {
     }
   }
 
-  // Open vehicle panel
+  // Open vehicle panel directly (URL paste / sidebar click behaviour)
   if (pVehicle) {
     const v = Object.values(vData).find(v => v.vehicleId === pVehicle);
-    if (v) select(v.vehicleId);
+    if (v) { select(v.vehicleId); openPanel(v.vehicleId); }
   }
 }
 
@@ -974,7 +983,7 @@ function renderV(row,v){
 
   const c=markerCol(v.tripId);
   row.className="vr"+(v.vehicleId===activeId?" sel":"");
-  row.onclick=()=>select(v.vehicleId);
+  row.onclick=()=>{ select(v.vehicleId); openPanel(v.vehicleId); };
   row.innerHTML=`
     <div class="badge" style="background:${c}22;color:${c};border:1px solid ${c}44">${name}</div>
     <div class="ri"><div class="rr">${dest}</div><div class="rm">${v.vehicleId}</div></div>
