@@ -304,17 +304,28 @@ async function loadStops() {
   } catch(e) { console.warn('Stops:', e.message); }
 }
 
-// Per-shape fetch — each file is tiny, cached after first load
-const shapeCache = {};
+// shapeChunkCache: lineCode → { shapeId: [[lat,lon],...] }
+const shapeChunkCache = {};
+const shapeChunkLoading = new Set();
+
 async function fetchShape(shapeId) {
   if (!shapeId) return null;
-  if (shapeCache[shapeId]) return shapeCache[shapeId];
-  try {
-    const r = await fetch(`/shapes/${shapeId}.json`, { cache: 'force-cache' });
-    if (!r.ok) return null;
-    shapeCache[shapeId] = await r.json();
-    return shapeCache[shapeId];
-  } catch(e) { return null; }
+  const lineCode = shapeId.slice(0, 4);
+  // Load the chunk for this line if not already cached
+  if (!shapeChunkCache[lineCode] && !shapeChunkLoading.has(lineCode)) {
+    shapeChunkLoading.add(lineCode);
+    try {
+      const r = await fetch(`/shapes/${lineCode}.json`, { cache: 'force-cache' });
+      if (r.ok) shapeChunkCache[lineCode] = await r.json();
+      else shapeChunkCache[lineCode] = {};
+    } catch(e) { shapeChunkCache[lineCode] = {}; }
+    shapeChunkLoading.delete(lineCode);
+  }
+  // Wait if chunk is still loading (another call in flight)
+  while (shapeChunkLoading.has(lineCode)) {
+    await new Promise(r => setTimeout(r, 20));
+  }
+  return shapeChunkCache[lineCode]?.[shapeId] || null;
 }
 
 async function showShape(shapeId) {
