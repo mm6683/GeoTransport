@@ -292,6 +292,11 @@ async function loadStatic() {
     arrowLayer.setVehicles(Object.values(vData));
     redraw();
     if (activeId && activePopup) showPopup(activeId);
+    // Re-trigger shape if a vehicle was selected before static arrived
+    if (activeId && vData[activeId]) {
+      const ti = getTrip(vData[activeId].tripId);
+      if (ti?.shapeId) showShape(ti.shapeId);
+    }
   } catch(e) { console.warn('Static lookup:', e.message); }
 }
 
@@ -302,7 +307,14 @@ const ST_loading = new Set();  // prevent duplicate in-flight fetches
 async function loadStopTimes(tripId) {
   if (!tripId) return;
   const lineCode = tripId.split('_')[0];
-  if (ST[lineCode] !== undefined || ST_loading.has(lineCode)) return;
+  if (ST[lineCode] !== undefined) return;  // already loaded
+  if (ST_loading.has(lineCode)) {
+    // already in-flight — wait for it to finish
+    await new Promise(resolve => {
+      const id = setInterval(() => { if (!ST_loading.has(lineCode)) { clearInterval(id); resolve(); } }, 20);
+    });
+    return;
+  }
   ST_loading.add(lineCode);
   try {
     const r = await fetch(`/stop-times/${lineCode}.json`, { cache: 'force-cache' });
@@ -860,7 +872,7 @@ function buildDrop() {
       badge: name, color: c, textC: tc,
       main: dest ? `${name} → ${dest}` : v.tripId.slice(0,30),
       sub: v.vehicleId, delayText: d.text, delayCls: d.cls,
-      apply() { const tripKey=v.tripId.split('_').slice(0,3).join('_'); applyFilter({ matchIds: snap, label: `Trip ${tripKey}`, shapeId: tripShapeId, urlKey:'trip', urlVal:tripKey }); select(v.vehicleId); }
+      apply() { const tripKey=v.tripId.split('_').slice(0,3).join('_'); applyFilter({ matchIds: snap, label: `Trip ${tripKey}`, shapeId: tripShapeId, urlKey:'trip', urlVal:tripKey }); select(v.vehicleId); openPanel(v.vehicleId); }
     });
   }
   if (tripItems.length) groups.push({ label: 'Trip', items: tripItems.slice(0,4) });
@@ -877,7 +889,7 @@ function buildDrop() {
       badge: name, color: c, textC: tc,
       main: dest ? `${name} → ${dest}` : name,
       sub: v.vehicleId, delayText: d.text, delayCls: d.cls,
-      apply() { applyFilter({ matchIds: snap, label: `Vehicle ${v.vehicleId}` }); select(v.vehicleId); }
+      apply() { applyFilter({ matchIds: snap, label: `Vehicle ${v.vehicleId}` }); select(v.vehicleId); openPanel(v.vehicleId); }
     });
   }
   if (vehItems.length) groups.push({ label: 'Vehicle', items: vehItems.slice(0,4) });
@@ -1177,6 +1189,9 @@ function openPanel(id){
   `;
 
   G("info-panel").classList.add("open");
+  G("ip-body").scrollTop = 0;
+  // Ensure shape is shown (SL might have loaded after select was called)
+  if (tripInfo.shapeId) showShape(tripInfo.shapeId);
   setTimeout(() => { if (activeId && vData[activeId]) panToVehicle(vData[activeId]); }, 50);
 
   // Load and render stop sequence (may need to fetch stop-times.json first)
