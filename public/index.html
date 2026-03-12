@@ -266,7 +266,6 @@ const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11
 
 // ── Static lookup ─────────────────────────────────────────────────────────────
 let SL = null;
-let ST = {};       // trip_key → [{s, a}]  (populated on demand per trip)
 let STOPS = null;  // stop_id → name  (from stops.json)
 
 async function loadStatic() {
@@ -280,16 +279,21 @@ async function loadStatic() {
   } catch(e) { console.warn('Static lookup:', e.message); }
 }
 
-// Fetch stop sequence for a specific trip — tiny file, cached in ST by trip key
+// ST: lineCode → { tripKey → [{s,a}] }  — loaded per line on demand
+const ST = {};
+const ST_loading = new Set();  // prevent duplicate in-flight fetches
+
 async function loadStopTimes(tripId) {
   if (!tripId) return;
-  const key = tripId.split('_').slice(0,3).join('_');
-  if (ST[key] !== undefined) return;  // already fetched (even if null)
-  ST[key] = null; // mark as in-progress to avoid duplicate fetches
+  const lineCode = tripId.split('_')[0];
+  if (ST[lineCode] !== undefined || ST_loading.has(lineCode)) return;
+  ST_loading.add(lineCode);
   try {
-    const r = await fetch(`/stop-times/${key}.json`, { cache: 'force-cache' });
-    if (r.ok) ST[key] = await r.json();
-  } catch(e) { /* no stop data for this trip */ }
+    const r = await fetch(`/stop-times/${lineCode}.json`, { cache: 'force-cache' });
+    if (r.ok) ST[lineCode] = await r.json();
+    else ST[lineCode] = {};
+  } catch(e) { ST[lineCode] = {}; }
+  ST_loading.delete(lineCode);
 }
 
 async function loadStops() {
@@ -345,7 +349,9 @@ function getStop(stopId) {
 // Stop times for a trip key
 function getTripStops(tripId) {
   if (!tripId) return null;
-  return ST[tripId.split('_').slice(0,3).join('_')] || null;
+  const lineCode = tripId.split('_')[0];
+  const key      = tripId.split('_').slice(0,3).join('_');
+  return ST[lineCode]?.[key] || null;
 }
 
 // External line number ("1", "302") — never expose internal code
