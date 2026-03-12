@@ -10,8 +10,8 @@
  *   public/stops.json           ~3 MB   deployed only (gitignored)
  *     stop_id → stop_name
  *
- *   public/shapes.json          large   deployed only (gitignored)
- *     shape_id → [[lat,lon], ...]
+ *   public/shapes/{lineCode}.json   deployed only (gitignored)
+ *     one file per line code (~1024 files), each: { shapeId: [[lat,lon],...] }
  *
  *   public/stop-times/{lineCode}.json  deployed only (gitignored)
  *     one file per line code (~1024 files), each: { tripKey: [{s,a},...] }
@@ -23,7 +23,7 @@
  * Secret: DL_GTFS = Ocp-Apim-Subscription-Key
  */
 
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import JSZip from 'jszip';
@@ -155,21 +155,30 @@ const outStops = JSON.stringify(stops);
 writeFileSync(pub('stops.json'), outStops);
 console.log(`✓ stops.json          ${mb(outStops)}  (deploy only)`);
 
-// ── shapes.txt → public/shapes/{shapeId}.json — one file per shape ───────────
-// Each file is tiny (~5–20KB), fetched on demand, cached by the browser.
-import { mkdirSync } from 'fs';
-console.log('Parsing shapes.txt...');
-const shapesRaw = {};
-await parseCSVStream(zip.file('shapes.txt'), p => {
-  if (!shapesRaw[p.shape_id]) shapesRaw[p.shape_id] = [];
-  shapesRaw[p.shape_id].push([parseInt(p.shape_pt_sequence), Math.round(parseFloat(p.shape_pt_lat)*1e5)/1e5, Math.round(parseFloat(p.shape_pt_lon)*1e5)/1e5]);
-});
+// ── shapes.txt → public/shapes/{lineCode}.json ───────────────────────────────
+// Shape IDs follow the pattern {lineCode}{suffix} e.g. "1001134" → lineCode "1001".
+// ~1024 files, each containing all shapes for that line: { shapeId: [[lat,lon],...] }
 const shapesDir = resolve(__dir, '../public/shapes');
 mkdirSync(shapesDir, { recursive: true });
+console.log('Parsing shapes.txt...');
+const shapesByLine = {};  // lineCode → { shapeId → [[seq,lat,lon]] }
+await parseCSVStream(zip.file('shapes.txt'), p => {
+  const lineCode = p.shape_id.slice(0, 4);  // first 4 chars = line code
+  if (!shapesByLine[lineCode]) shapesByLine[lineCode] = {};
+  if (!shapesByLine[lineCode][p.shape_id]) shapesByLine[lineCode][p.shape_id] = [];
+  shapesByLine[lineCode][p.shape_id].push([
+    parseInt(p.shape_pt_sequence),
+    Math.round(parseFloat(p.shape_pt_lat)*1e5)/1e5,
+    Math.round(parseFloat(p.shape_pt_lon)*1e5)/1e5,
+  ]);
+});
 let shapeCount = 0;
-for (const [id, pts] of Object.entries(shapesRaw)) {
-  const sorted = pts.sort((a,b) => a[0]-b[0]).map(p => [p[1], p[2]]);
-  writeFileSync(resolve(shapesDir, `${id}.json`), JSON.stringify(sorted));
+for (const [lineCode, shapesRaw] of Object.entries(shapesByLine)) {
+  const out = {};
+  for (const [id, pts] of Object.entries(shapesRaw)) {
+    out[id] = pts.sort((a,b) => a[0]-b[0]).map(p => [p[1], p[2]]);
+  }
+  writeFileSync(resolve(shapesDir, `${lineCode}.json`), JSON.stringify(out));
   shapeCount++;
 }
 console.log(`✓ shapes/             ${shapeCount} files in public/shapes/  (deploy only)`);
