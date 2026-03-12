@@ -116,6 +116,8 @@
     .ip-link{color:var(--accent);text-decoration:none;font-size:11px;font-family:var(--font-mono)}
     .ip-link:hover{text-decoration:underline}
     .ip-swatch{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:5px}
+    .ip-share-btn{width:100%;padding:9px;border:1px solid var(--border);background:var(--surface2);color:var(--accent);border-radius:6px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .15s,border-color .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+    .ip-share-btn:hover{background:var(--border);border-color:var(--accent)}
 
     /* Search */
     #search-wrap{padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative}
@@ -617,6 +619,86 @@ function switchTab(t){
   G("pc").className="pane"+(t==="c"?" on":"");
 }
 
+// ── URL state ─────────────────────────────────────────────────────────────────
+// Known param keys — cleared on every push so state is always canonical.
+const URL_KEYS = ['line','route','trip','type','vehicle','agency'];
+
+function pushUrlState(params) {
+  const url = new URL(location.href);
+  URL_KEYS.forEach(k => url.searchParams.delete(k));
+  for (const [k, v] of Object.entries(params || {})) {
+    if (v != null && v !== '') url.searchParams.set(k, String(v));
+  }
+  history.replaceState(null, '', url.toString());
+}
+
+// Collect the current filter params (without vehicle) for merging when opening a panel.
+function filterUrlParams() {
+  if (!activeFilter?.urlKey) return {};
+  return { [activeFilter.urlKey]: activeFilter.urlVal };
+}
+
+// Called once after first data + static are ready.
+async function restoreFromUrl() {
+  const sp = new URLSearchParams(location.search);
+  const pLine    = sp.get('line');
+  const pRoute   = sp.get('route');
+  const pTrip    = sp.get('trip');
+  const pType    = sp.get('type');
+  const pVehicle = sp.get('vehicle');
+
+  // Apply filter first (vehicle select comes after)
+  if (pType) {
+    const entry = Object.entries(ROUTE_TYPES).find(([code]) => code === pType);
+    if (entry) {
+      const [code, label] = entry;
+      const matchIds = new Set(Object.values(vData)
+        .filter(v => (getLine(v.tripId)?.type || '3') === code)
+        .map(v => v.vehicleId));
+      applyFilter({ matchIds, label, urlKey:'type', urlVal:code }, /*skipPush*/true);
+    }
+  } else if (pLine && SL?.lines?.[pLine]) {
+    const l = SL.lines[pLine];
+    const matchIds = new Set(Object.values(vData)
+      .filter(v => v.tripId?.split('_')[0] === pLine).map(v => v.vehicleId));
+    const shapeIds = new Set(Object.values(vData)
+      .filter(v => v.tripId?.split('_')[0] === pLine)
+      .map(v => getTrip(v.tripId)?.shapeId).filter(Boolean));
+    const shapeId = shapeIds.size === 1 ? [...shapeIds][0] : null;
+    const dirs = [l.dir0, l.dir1].filter(Boolean);
+    applyFilter({ matchIds, label: l.name + (dirs.length ? ' · '+dirs.join(' ↔ ') : ''),
+                  shapeId, urlKey:'line', urlVal:pLine }, true);
+  } else if (pRoute) {
+    const matchIds = new Set(); let shapeId=null, lName='', hs='';
+    for (const v of Object.values(vData)) {
+      const ti = getTrip(v.tripId);
+      if (ti?.routeId === pRoute) {
+        matchIds.add(v.vehicleId);
+        if (!shapeId && ti.shapeId) shapeId = ti.shapeId;
+        if (!lName) lName = getLine(v.tripId)?.name || '';
+        if (!hs)    hs    = ti.headsign || '';
+      }
+    }
+    if (matchIds.size) applyFilter({ matchIds, label:`${lName} → ${hs}`,
+      shapeId, urlKey:'route', urlVal:pRoute }, true);
+  } else if (pTrip) {
+    const v = Object.values(vData).find(v =>
+      v.tripId?.split('_').slice(0,3).join('_') === pTrip || v.tripId === pTrip);
+    if (v) {
+      const matchIds = new Set([v.vehicleId]);
+      const tripShapeId = getTrip(v.tripId)?.shapeId || null;
+      applyFilter({ matchIds, label:`Trip ${pTrip}`,
+        shapeId:tripShapeId, urlKey:'trip', urlVal:pTrip }, true);
+    }
+  }
+
+  // Open vehicle panel
+  if (pVehicle) {
+    const v = Object.values(vData).find(v => v.vehicleId === pVehicle);
+    if (v) select(v.vehicleId);
+  }
+}
+
 function startBar(){
   clearInterval(ptimer);pstart=Date.now();
   const bar=G("bar");
@@ -683,7 +765,7 @@ function buildDrop() {
           badge: label[0], color: '#1e2d3d', textColor: '#c8dae8',
           main: label, sub: `${matchIds.size} vehicles`,
           delay: null,
-          apply() { applyFilter({ matchIds, label }); }
+          apply() { applyFilter({ matchIds, label, urlKey:'type', urlVal:code }); }
         });
       }
     }
@@ -719,7 +801,7 @@ function buildDrop() {
         badge: l.name, color, textC,
         main: label, sub: `${snap.size} vehicle${snap.size!==1?'s':''}`,
         delay: null,
-        apply() { applyFilter({ matchIds: snap, label, shapeId }); }
+        apply() { applyFilter({ matchIds: snap, label, shapeId, urlKey:'line', urlVal:code }); }
       });
     }
     if (lineItems.length) groups.push({ label: 'Line', items: lineItems.slice(0,8) });
@@ -750,7 +832,7 @@ function buildDrop() {
         main: `${entry.lineName} → ${entry.headsign}`,
         sub: `${snap.size} vehicles`,
         delay: null,
-        apply() { applyFilter({ matchIds: snap, label: `${entry.lineName} → ${entry.headsign}`, shapeId: entry.shapeId }); }
+        apply() { applyFilter({ matchIds: snap, label: `${entry.lineName} → ${entry.headsign}`, shapeId: entry.shapeId, urlKey:'route', urlVal:rid }); }
       });
     }
     if (routeItems.length) groups.push({ label: 'Route', items: routeItems.slice(0,6) });
@@ -769,7 +851,7 @@ function buildDrop() {
       badge: name, color: c, textC: tc,
       main: dest ? `${name} → ${dest}` : v.tripId.slice(0,30),
       sub: v.vehicleId, delayText: d.text, delayCls: d.cls,
-      apply() { applyFilter({ matchIds: snap, label: `Trip ${v.tripId.split('_').slice(0,3).join('_')}`, shapeId: tripShapeId }); select(v.vehicleId); }
+      apply() { const tripKey=v.tripId.split('_').slice(0,3).join('_'); applyFilter({ matchIds: snap, label: `Trip ${tripKey}`, shapeId: tripShapeId, urlKey:'trip', urlVal:tripKey }); select(v.vehicleId); }
     });
   }
   if (tripItems.length) groups.push({ label: 'Trip', items: tripItems.slice(0,4) });
@@ -827,8 +909,9 @@ function buildDrop() {
   dropHi = -1;
 }
 
-function applyFilter(filter) {
+function applyFilter(filter, skipPush=false) {
   activeFilter = filter;
+  if (!skipPush) pushUrlState(filter ? { [filter.urlKey]: filter.urlVal } : {});
   const all = Object.values(vData).sort((a,b) => (b.delay||0)-(a.delay||0));
   sortedV = filter ? all.filter(v => filter.matchIds.has(v.vehicleId)) : all;
   G("bv").textContent = sortedV.length;
@@ -859,7 +942,7 @@ function clearSearch() {
   closeDrop();
   clearShape();
   stopLayer.clearRouteStops();
-  applyFilter(null);
+  applyFilter(null);  // applyFilter(null) pushes empty URL
 }
 
 // ── Virtual scroll ────────────────────────────────────────────────────────────
@@ -970,12 +1053,22 @@ function openPanel(id){
   const ag   = SL?.agency?.['delijn'] || {};
   const feed = SL?.feed || {};
 
+  // Push URL: merge current filter params + vehicle + agency
+  const agencyId = 'delijn';
+  pushUrlState({ ...filterUrlParams(), vehicle: v.vehicleId, agency: agencyId });
+
   G("ip-badge").textContent      = name;
   G("ip-badge").style.background = color;
   G("ip-badge").style.color      = textC;
   G("ip-title").textContent      = dest;
 
   G("ip-body").innerHTML = `
+    <div style="margin-bottom:16px">
+      <button class="ip-share-btn" onclick="shareVehicleUrl()">
+        <span>⬡</span> Share this vehicle
+      </button>
+    </div>
+
     <div class="ip-section">
       <div class="ip-section-title">Route</div>
       <div class="ip-grid">
@@ -1043,22 +1136,16 @@ function openPanel(id){
     <div class="ip-section">
       <div class="ip-section-title">Vehicle</div>
       <div class="ip-grid">
-        <div class="ip-field ip-full">
+        <div class="ip-field">
           <div class="ip-label">Vehicle ID</div>
           <div class="ip-value">${v.vehicleId}</div>
         </div>
-      </div>
-    </div>
-
-    ${ag.name ? `<div class="ip-section">
-      <div class="ip-section-title">Operator</div>
-      <div class="ip-grid">
-        <div class="ip-field ip-full">
+        <div class="ip-field">
           <div class="ip-label">Agency</div>
-          <div class="ip-value">${ag.name}</div>
+          <div class="ip-value">${ag.name || agencyId}</div>
         </div>
       </div>
-    </div>` : ''}
+    </div>
 
     <div class="ip-section" id="stops-section">
       <div class="ip-section-title">Stops</div>
@@ -1086,6 +1173,17 @@ function openPanel(id){
   // Load and render stop sequence (may need to fetch stop-times.json first)
   renderStopsForVehicle(v);
   redraw();
+}
+
+function shareVehicleUrl() {
+  const url = location.href;
+  if (navigator.share) {
+    navigator.share({ title: document.title, url }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => toast('🔗 Link copied to clipboard'));
+  } else {
+    prompt('Copy this link:', url);
+  }
 }
 
 // Render the stop sequence for the selected vehicle
@@ -1187,6 +1285,7 @@ function closePanel(){
   activeId = null;
   clearShape();
   stopLayer.clearRouteStops();
+  pushUrlState({});
   arrowLayer._draw();
   redraw();
 }
@@ -1295,7 +1394,21 @@ function select(id){
 
 function schedNext(){clearTimeout(rtimer);rtimer=setTimeout(async()=>{await refresh();schedNext()},REFRESH)}
 
-(async()=>{loadStatic();await refresh();schedNext()})();
+let _firstLoad = true;
+async function _init() {
+  loadStatic();
+  await refresh();
+  // After first data + static lookup are in, restore any URL state
+  // Give static a moment to finish if it arrived slightly after refresh
+  if (_firstLoad) {
+    _firstLoad = false;
+    // Static may still be in-flight; wait a tick then restore
+    await new Promise(r => setTimeout(r, 200));
+    await restoreFromUrl();
+  }
+  schedNext();
+}
+_init();
 </script>
 </body>
 </html>
