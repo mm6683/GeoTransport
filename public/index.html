@@ -193,6 +193,18 @@
       #brand{display:none}
       #toast{bottom:80px;right:12px;left:12px;max-width:none}
     }
+    /* ── Stop markers on map ─────────────────────────────────────────────────── */
+    .stop-mk{pointer-events:auto!important}
+    .stop-tip{background:var(--surface)!important;border:1px solid var(--border)!important;color:var(--text)!important;font-family:var(--font-mono)!important;font-size:11px!important;padding:4px 8px!important;border-radius:4px!important;box-shadow:0 2px 8px rgba(0,0,0,.4)!important;white-space:nowrap}
+
+    /* ── Mobile close buttons ────────────────────────────────────────────────── */
+    .mob-close-btn{display:none;position:absolute;top:14px;right:14px;z-index:10;
+      background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);
+      width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer;
+      align-items:center;justify-content:center;line-height:1;padding:0}
+    .mob-close-btn:hover{border-color:var(--text);color:var(--text)}
+    @media(max-width:768px){.mob-close-btn{display:flex}}
+
     #mob-handle{display:none;width:40px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 0;flex-shrink:0}
 
   </style>
@@ -201,6 +213,7 @@
 <div id="app">
   <aside id="sidebar">
     <div id="mob-handle"></div>
+    <button class="mob-close-btn" onclick="closeSidebarMobile()" title="Close">✕</button>
     <div id="search-wrap">
       <span class="search-icon">⌕</span>
       <input id="search-input" type="text" placeholder="Line, route, trip, vehicle, type…" autocomplete="off" />
@@ -247,6 +260,7 @@
 
   <div id="info-panel">
     <div id="mob-handle"></div>
+    <button class="mob-close-btn" onclick="closePanel()" title="Close">✕</button>
     <div id="ip-head">
       <div id="ip-badge">–</div>
       <div id="ip-title">–</div>
@@ -328,12 +342,15 @@ async function fetchShape(shapeId) {
   return shapeChunkCache[lineCode]?.[shapeId] || null;
 }
 
-async function showShape(shapeId) {
+async function showShape(shapeId, fitBounds = false) {
   clearShape();
   const pts = await fetchShape(shapeId);
   if (!pts?.length) return;
   shapePolyline = L.polyline(pts, { color: '#00d4ff', weight: 3, opacity: 0.55, interactive: false }).addTo(map);
   shapePolyline.bringToBack();
+  if (fitBounds) {
+    map.fitBounds(shapePolyline.getBounds(), { padding: [40, 40], maxZoom: 14, animate: true });
+  }
 }
 
 // lineCode = tripId.split('_')[0]  →  lines[lineCode]
@@ -354,8 +371,9 @@ function getRoute(routeId) {
 // Stop name by stop_id (from stops.json)
 function getStop(stopId) {
   if (!STOPS || !stopId) return null;
-  const name = STOPS[stopId];
-  return name ? { name } : null;
+  const s = STOPS[stopId];
+  if (!s) return null;
+  return { name: s.n, lat: s.a, lon: s.o };
 }
 // Stop times for a trip key
 function getTripStops(tripId) {
@@ -498,7 +516,58 @@ const ArrowLayer = L.Layer.extend({
 const arrowLayer = new ArrowLayer();
 arrowLayer.addTo(map);
 
-// ── Route shape polyline ───────────────────────────────────────────────────────
+// ── Stop marker layer ─────────────────────────────────────────────────────────
+// Shows stops along the active route. Status: start|passed|current|upcoming|terminal
+// Other stops dimmed when a filter is active.
+const StopLayer = L.Layer.extend({
+  onAdd(map) { this._map = map; map.on('moveend zoomend', this._draw, this); this._draw(); },
+  onRemove(map) { map.off('moveend zoomend', this._draw, this); this._markers?.forEach(m => m.remove()); this._markers = []; },
+  _markers: [],
+  _routeStops: [],  // [{lat, lon, status}]  status: 'start'|'passed'|'current'|'upcoming'|'terminal'
+
+  setRouteStops(stops) {
+    this._routeStops = stops;
+    this._draw();
+  },
+
+  clearRouteStops() {
+    this._routeStops = [];
+    this._draw();
+  },
+
+  _draw() {
+    if (!this._map) return;
+    // Remove existing markers
+    this._markers.forEach(m => m.remove());
+    this._markers = [];
+    if (!this._routeStops.length) return;
+
+    const styles = {
+      start:    { color: '#a8ff3e', fill: '#a8ff3e', r: 7, weight: 2, opacity: 1 },
+      passed:   { color: '#3a5060', fill: '#1e2d3d', r: 4, weight: 1, opacity: 0.5 },
+      current:  { color: '#00d4ff', fill: '#00d4ff', r: 9, weight: 3, opacity: 1 },
+      upcoming: { color: '#c8dae8', fill: '#141b23', r: 5, weight: 2, opacity: 0.9 },
+      terminal: { color: '#ff6b35', fill: '#ff6b35', r: 7, weight: 2, opacity: 1 },
+    };
+
+    for (const stop of this._routeStops) {
+      const s = styles[stop.status] || styles.upcoming;
+      const m = L.circleMarker([stop.lat, stop.lon], {
+        radius: s.r, color: s.color, fillColor: s.fill,
+        weight: s.weight, opacity: s.opacity, fillOpacity: s.opacity * 0.85,
+        className: 'stop-mk',
+        interactive: false,
+      }).addTo(this._map);
+      if (stop.name) m.bindTooltip(stop.name, { permanent: false, direction: 'top', className: 'stop-tip' });
+      this._markers.push(m);
+    }
+  }
+});
+
+const stopLayer = new StopLayer();
+stopLayer.addTo(map);
+
+
 let shapePolyline = null;
 
 function drawShape(shapeId) {
@@ -519,10 +588,8 @@ function toggleSidebar() {
 
 // Close sidebar when a vehicle is selected on mobile
 function closeSidebarMobile() {
-  if (window.innerWidth <= 768) {
-    G("sidebar").classList.remove("mob-open");
-    G("mob-fab").textContent = "☰ Vehicles";
-  }
+  G("sidebar").classList.remove("mob-open");
+  G("mob-fab").textContent = "☰ Vehicles";
 }
 
 // Route map clicks through the arrow layer for hit testing
@@ -624,38 +691,38 @@ function buildDrop() {
   if (typeMatches.length) groups.push({ label: 'Type', items: typeMatches });
 
   // ── Line name match (external: "1", "X19", "302") ─────────────────────────
-  // One entry per live line name matching the query; each covers ALL directions
+  // One entry per internal line code — so "X19 Neerpelt-Hasselt" and
+  // "X19 Antwerpen-Rumst" show as separate entries even though both are "X19".
   if (SL?.lines) {
-    const lineHits = new Map(); // lineName → {codes, matchIds, shapeIds}
+    const lineItems = [];
     for (const [code, l] of Object.entries(SL.lines)) {
       if (!l.name.toLowerCase().includes(q)) continue;
-      if (!lineHits.has(l.name)) lineHits.set(l.name, { codes: [], color: l.color, textColor: l.textColor, matchIds: new Set(), shapeIds: new Set() });
-      const entry = lineHits.get(l.name);
-      entry.codes.push(code);
+      const matchIds = new Set();
+      const shapeIds = new Set();
       for (const v of Object.values(vData)) {
         if (v.tripId?.split('_')[0] === code) {
-          entry.matchIds.add(v.vehicleId);
+          matchIds.add(v.vehicleId);
           const sid = getTrip(v.tripId)?.shapeId;
-          if (sid) entry.shapeIds.add(sid);
+          if (sid) shapeIds.add(sid);
         }
       }
-    }
-    const lineItems = [];
-    for (const [name, entry] of lineHits) {
-      if (!entry.matchIds.size) continue;
-      const color = entry.color ? '#'+entry.color : '#444';
-      const textC = entry.textColor ? '#'+entry.textColor : '#fff';
-      const snap = new Set(entry.matchIds);
-      // Only draw shape if all vehicles share a single shape (unambiguous direction)
-      const shapeId = entry.shapeIds.size === 1 ? [...entry.shapeIds][0] : null;
+      if (!matchIds.size) continue;
+      const color  = l.color ? '#'+l.color : '#444';
+      const textC  = l.textColor ? '#'+l.textColor : '#fff';
+      const snap   = new Set(matchIds);
+      const shapeId = shapeIds.size === 1 ? [...shapeIds][0] : null;
+      // Build route description from dir0/dir1
+      const dirs = [l.dir0, l.dir1].filter(Boolean);
+      const routeDesc = dirs.length ? dirs.join(' ↔ ') : '';
+      const label = `${l.name}${routeDesc ? ' · ' + routeDesc : ''}`;
       lineItems.push({
-        badge: name, color, textC,
-        main: `Line ${name}`, sub: `${snap.size} vehicles`,
+        badge: l.name, color, textC,
+        main: label, sub: `${snap.size} vehicle${snap.size!==1?'s':''}`,
         delay: null,
-        apply() { applyFilter({ matchIds: snap, label: `Line ${name}`, shapeId }); }
+        apply() { applyFilter({ matchIds: snap, label, shapeId }); }
       });
     }
-    if (lineItems.length) groups.push({ label: 'Line', items: lineItems.slice(0,6) });
+    if (lineItems.length) groups.push({ label: 'Line', items: lineItems.slice(0,8) });
   }
 
   // ── Route ID match (per-direction: "X19 → Neerpelt") ──────────────────────
@@ -766,12 +833,12 @@ function applyFilter(filter) {
   sortedV = filter ? all.filter(v => filter.matchIds.has(v.vehicleId)) : all;
   G("bv").textContent = sortedV.length;
 
-  // Draw route shape when filter resolves to a single unique shape
+  // Draw route shape + fit map when filter resolves to a single unique shape
   if (filter?.shapeId) {
-    showShape(filter.shapeId);
+    showShape(filter.shapeId, true /* fitBounds */);
   } else if (!filter || filter.matchIds.size > 1) {
-    // Multiple matches or no filter — clear any single-route shape
     clearShape();
+    stopLayer.clearRouteStops();
   }
 
   // Flush virtual scroll so stale rows don't linger
@@ -791,6 +858,7 @@ function clearSearch() {
   sclear.style.display = "none";
   closeDrop();
   clearShape();
+  stopLayer.clearRouteStops();
   applyFilter(null);
 }
 
@@ -1085,11 +1153,40 @@ async function renderStopsForVehicle(v) {
   }
 }
 
+// Build stop marker array for a vehicle's route and hand to stopLayer
+async function renderStopMarkers(v) {
+  if (!v?.tripId) return;
+  await loadStops();
+  await loadStopTimes(v.tripId);
+  const seq = getTripStops(v.tripId);
+  if (!seq?.length) return;
+
+  const nowMins  = new Date().getHours() * 60 + new Date().getMinutes();
+  const delayMins = Math.round((v.delay || 0) / 60);
+  let nextIdx = seq.findIndex(s => s.a != null && (s.a + delayMins) >= nowMins);
+  if (nextIdx < 0) nextIdx = seq.length;
+
+  const markers = seq.map((st, i) => {
+    const stop = getStop(st.s);
+    if (!stop) return null;
+    let status;
+    if (i === 0)                  status = 'start';
+    else if (i === seq.length-1)  status = 'terminal';
+    else if (i < nextIdx)         status = 'passed';
+    else if (i === nextIdx)       status = 'current';
+    else                          status = 'upcoming';
+    return { lat: stop.lat, lon: stop.lon, name: stop.name, status };
+  }).filter(Boolean);
+
+  stopLayer.setRouteStops(markers);
+}
+
 function closePanel(){
   G("info-panel").classList.remove("open");
   if (activePopup) { activePopup.remove(); activePopup = null; }
   activeId = null;
   clearShape();
+  stopLayer.clearRouteStops();
   arrowLayer._draw();
   redraw();
 }
@@ -1152,11 +1249,13 @@ function process(data){
 
   const all = Object.values(vData).sort((a,b)=>(b.delay||0)-(a.delay||0));
   sortedV = activeFilter ? all.filter(v => activeFilter.matchIds.has(v.vehicleId)) : all;
-  sortedC=[...canceled].sort((a,b)=>a.tripId.localeCompare(b.tripId));
-  G("bv").textContent=sortedV.length;
-  G("bc").textContent=canceled.length;
-  G("bc").style.background=canceled.length>0?"rgba(255,59,92,.2)":"";
-  G("bc").style.color=canceled.length>0?"var(--danger)":"";
+  // Canceled: also filter by active filter when set
+  const allC = [...canceled].sort((a,b)=>a.tripId.localeCompare(b.tripId));
+  sortedC = activeFilter ? allC.filter(c => activeFilter.matchIds.has(c.vehicleId||c.tripId)) : allC;
+  G("bv").textContent = sortedV.length;
+  G("bc").textContent = sortedC.length;
+  G("bc").style.background = sortedC.length > 0 ? "rgba(255,59,92,.2)" : "";
+  G("bc").style.color = sortedC.length > 0 ? "var(--danger)" : "";
   redraw();
 }
 
@@ -1185,11 +1284,11 @@ function select(id){
   const v = vData[id]; if (!v) return;
   const tripInfo = getTrip(v.tripId);
   if (tripInfo?.shapeId) showShape(tripInfo.shapeId);
-  loadStops();
-  loadStopTimes(v.tripId);
+  loadStops().then(() => loadStopTimes(v.tripId).then(() => renderStopMarkers(v)));
   panToVehicle(v, Math.max(map.getZoom(), 13));
   arrowLayer._draw();
   showPopup(id);
+  openPanel(id);
   closeSidebarMobile();
   redraw();
 }
