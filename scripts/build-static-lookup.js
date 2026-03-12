@@ -150,7 +150,13 @@ console.log(`\n✓ static-lookup.json  ${mb(outLookup)}  (committed to git)`);
 // ── stops.txt → stops.json — deploy only ─────────────────────────────────────
 console.log('Parsing stops.txt...');
 const stops = {};
-await parseCSVStream(zip.file('stops.txt'), s => { stops[s.stop_id] = s.stop_name; });
+await parseCSVStream(zip.file('stops.txt'), s => {
+  stops[s.stop_id] = {
+    n: s.stop_name,
+    a: Math.round(parseFloat(s.stop_lat)*1e5)/1e5,
+    o: Math.round(parseFloat(s.stop_lon)*1e5)/1e5,
+  };
+});
 const outStops = JSON.stringify(stops);
 writeFileSync(pub('stops.json'), outStops);
 console.log(`✓ stops.json          ${mb(outStops)}  (deploy only)`);
