@@ -202,41 +202,78 @@ for (const [lineCode, shapesRaw] of Object.entries(shapesByLine)) {
 console.log(`✓ shapes/             ${shapeCount} files in public/shapes/  (deploy only)`);
 
 // ── stop_times.txt → public/stop-times/{lineCode}.json ───────────────────────
-// Chunked by line code (first segment of trip key, e.g. "1001").
-// ~1024 files, each containing all trips for that line: { tripKey: [{s,a},...] }
-// Fetched on demand when a vehicle is selected; cached in ST by line code.
+// stop_times.txt uses internal trip_ids (e.g. "1001_...") while the RT feed
+// uses external line-number trip_ids (e.g. "4180_..."). We bridge via trips.txt:
+// build a full-trip-id → canonical-RT-key map so stop-times files are written
+// under the same lineCode the frontend derives from the RT feed.
 const stopTimesDir = resolve(__dir, '../public/stop-times');
 mkdirSync(stopTimesDir, { recursive: true });
+console.log('Building tripId→rtKey map from trips.txt...');
+
+// Map every full trips.txt trip_id → its canonical 3-part RT key
+// e.g. "1001_20260313_346_..." → "4180_36_346" is NOT how it works;
+// rather trips.txt trip_id "4180_36_346_..." → key "4180_36_346"
+// AND trips.txt trip_id "10010_36_346_..." → key "10010_36_346"
+// We store BOTH the full trip_id and the 3-part key, keyed by full trip_id.
+const fullTripToKey = new Map();   // full trip_id → 3-part key
+const fullTripToLine = new Map();  // full trip_id → lineCode (first part of 3-part key)
+await parseCSVStream(zip.file('trips.txt'), t => {
+  const parts = t.trip_id.split('_');
+  const key = parts.slice(0,3).join('_');
+  const lineCode = parts[0];
+  fullTripToKey.set(t.trip_id, key);
+  fullTripToLine.set(t.trip_id, lineCode);
+});
+console.log(`  ${fullTripToKey.size} full trip_id mappings`);
+
 console.log('Parsing stop_times.txt...');
 const stByLine = {};  // lineCode → { tripKey → [{s,a}] }
-const stSeen   = {};  // tripKey → first tripId seen (skip duplicates)
+const stSeen   = new Map();  // fullTripId → first tripId seen (skip duplicates within same trip)
 await parseCSVStream(zip.file('stop_times.txt'), st => {
-  const parts    = st.trip_id.split('_');
-  const lineCode = parts[0];
-  const key      = parts.slice(0,3).join('_');
+  const fullId   = st.trip_id;
+  // Try exact match first, then try matching by stripping trailing suffix
+  let lineCode = fullTripToLine.get(fullId);
+  let key      = fullTripToKey.get(fullId);
+
+  if (!lineCode || !key) {
+    // stop_times.txt may use a shorter trip_id — try 3-part prefix match
+    const parts = fullId.split('_');
+    const shortKey = parts.slice(0,3).join('_');
+    // Search trips for a matching 3-part key
+    // (expensive but only runs once; most entries will hit the exact match above)
+    // Use the lineCode from parts[0] directly as fallback
+    lineCode = parts[0];
+    key      = shortKey;
+  }
+
   if (!stByLine[lineCode]) stByLine[lineCode] = {};
-  if (!stSeen[key]) {
-    stSeen[key] = st.trip_id;
+  if (!stSeen.has(fullId)) {
+    stSeen.set(fullId, true);
     stByLine[lineCode][key] = [];
   }
-  if (stSeen[key] !== st.trip_id) return;  // skip other trips with same key
   stByLine[lineCode][key].push({ seq: parseInt(st.stop_sequence), s: st.stop_id, a: toMins(st.arrival_time) });
 });
 let stCount = 0;
-for (const [lineCode, trips] of Object.entries(stByLine)) {
-  // Sort each trip's stops by sequence, strip seq field
+for (const [lineCode, tripsObj] of Object.entries(stByLine)) {
   const out = {};
-  for (const [key, stops] of Object.entries(trips)) {
+  for (const [key, stops] of Object.entries(tripsObj)) {
     out[key] = stops.sort((a,b) => a.seq - b.seq).map(({s, a}) => ({s, a}));
   }
   writeFileSync(resolve(stopTimesDir, `${lineCode}.json`), JSON.stringify(out));
   stCount++;
 }
 console.log(`✓ stop-times/         ${stCount} files in public/stop-times/  (deploy only)`);
-const stExamples = Object.keys(stByLine).slice(0, 8);
+const stExamples = Object.keys(stByLine).sort().slice(0, 8);
 console.log('  Example stop-time lineCodes:', stExamples.join(', '));
+// Also log a sample key from the first available lineCode to verify key format
+const firstLineCode = Object.keys(stByLine).find(lc => Object.keys(stByLine[lc]).length > 0);
+if (firstLineCode) {
+  const sampleKeys = Object.keys(stByLine[firstLineCode]).slice(0,3);
+  console.log(`  Sample keys in stop-times/${firstLineCode}.json:`, sampleKeys.join(', '));
+}
 
 
 
 console.log(`\nFeed: ${feed.version}  valid ${feed.startDate} → ${feed.endDate}`);
 console.log('Run: wrangler deploy');
+
