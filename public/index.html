@@ -292,11 +292,6 @@ async function loadStatic() {
     arrowLayer.setVehicles(Object.values(vData));
     redraw();
     if (activeId && activePopup) showPopup(activeId);
-    // Re-trigger shape if a vehicle was selected before static arrived
-    if (activeId && vData[activeId]) {
-      const ti = getTrip(vData[activeId].tripId);
-      if (ti?.shapeId) showShape(ti.shapeId);
-    }
   } catch(e) { console.warn('Static lookup:', e.message); }
 }
 
@@ -339,17 +334,17 @@ const shapeChunkLoading = new Set();
 async function fetchShape(shapeId) {
   if (!shapeId) return null;
   const lineCode = shapeId.slice(0, 4);
-  // Load the chunk for this line if not already cached
   if (!shapeChunkCache[lineCode] && !shapeChunkLoading.has(lineCode)) {
     shapeChunkLoading.add(lineCode);
     try {
       const r = await fetch(`/shapes/${lineCode}.json`, { cache: 'force-cache' });
-      if (r.ok) shapeChunkCache[lineCode] = await r.json();
-      else shapeChunkCache[lineCode] = {};
-    } catch(e) { shapeChunkCache[lineCode] = {}; }
-    shapeChunkLoading.delete(lineCode);
+      shapeChunkCache[lineCode] = r.ok ? await r.json() : {};
+    } catch(e) {
+      shapeChunkCache[lineCode] = {};
+    } finally {
+      shapeChunkLoading.delete(lineCode);
+    }
   }
-  // Wait if chunk is still loading (another call in flight)
   while (shapeChunkLoading.has(lineCode)) {
     await new Promise(r => setTimeout(r, 20));
   }
@@ -1044,16 +1039,17 @@ function showPopup(id){
     .openOn(map);
 }
 
-// ── More Info panel ───────────────────────────────────────────────────────────
+// Incremented on every openPanel call — lets async renders bail if stale
+let _renderToken = 0;
 function openPanel(id){
   const v = vData[id]; if (!v) return;
   activeId = id;
+  const token = ++_renderToken;
 
   const lineInfo  = getLine(v.tripId)  || {};
   const tripInfo  = getTrip(v.tripId)  || {};
   const routeInfo = getRoute(tripInfo.routeId || v.routeId) || {};
 
-  // Prefer exact per-direction route data; fall back to line-level data
   const name      = routeInfo.name      || lineInfo.name      || '–';
   const dest      = tripInfo.headsign   || '–';
   const color     = '#' + (routeInfo.color     || lineInfo.color     || '444');
@@ -1066,15 +1062,12 @@ function openPanel(id){
   const lineCode  = v.tripId?.split('_')[0]                   || '–';
   const d         = fmtD(v.delay);
 
-  // Both terminals for context (line level)
   const t0 = lineInfo.dir0 || '', t1 = lineInfo.dir1 || '';
   const terminals = (t0 && t1) ? `${t0} ↔ ${t1}` : (t0 || t1 || '–');
 
-  // Agency
   const ag   = SL?.agency?.['delijn'] || {};
   const feed = SL?.feed || {};
 
-  // Push URL: merge current filter params + vehicle + agency
   const agencyId = 'delijn';
   pushUrlState({ ...filterUrlParams(), vehicle: v.vehicleId, agency: agencyId });
 
@@ -1190,12 +1183,29 @@ function openPanel(id){
 
   G("info-panel").classList.add("open");
   G("ip-body").scrollTop = 0;
-  // Ensure shape is shown (SL might have loaded after select was called)
-  if (tripInfo.shapeId) showShape(tripInfo.shapeId);
-  setTimeout(() => { if (activeId && vData[activeId]) panToVehicle(vData[activeId]); }, 50);
 
-  // Load and render stop sequence (may need to fetch stop-times.json first)
-  renderStopsForVehicle(v);
+  // Pan + zoom to vehicle (panel is now open so rightPad is 320)
+  panToVehicle(v, Math.max(map.getZoom(), 13));
+
+  // All async work in one place, guarded by token so stale renders are discarded
+  (async () => {
+    // Shape — needs SL, which restoreFromUrl already waited for
+    clearShape();
+    stopLayer.clearRouteStops();
+    if (tripInfo.shapeId) await showShape(tripInfo.shapeId);
+    if (token !== _renderToken) return;
+
+    // Stop markers on map
+    await loadStops();
+    if (token !== _renderToken) return;
+    await loadStopTimes(v.tripId);
+    if (token !== _renderToken) return;
+    await renderStopMarkers(v, token);
+
+    // Stop list in panel
+    if (token === _renderToken) await renderStopsForVehicle(v, token);
+  })();
+
   redraw();
 }
 
@@ -1211,20 +1221,15 @@ function shareVehicleUrl() {
 }
 
 // Render the stop sequence for the selected vehicle
-async function renderStopsForVehicle(v) {
+async function renderStopsForVehicle(v, token) {
   const el = G("stops-list");
   if (!el) return;
-
-  // Ensure both stops and stop-times are loaded
+  // stops + stop-times already loaded by caller, but ensure defensively
   await Promise.all([loadStops(), loadStopTimes(v.tripId)]);
+  if (token !== _renderToken) return;  // stale — another vehicle was selected
 
-  const tripKey = v.tripId?.split('_').slice(0,3).join('_');
-  const stops   = getTripStops(v.tripId);
-
-  if (!stops?.length) {
-    el.textContent = 'No stop data available';
-    return;
-  }
+  const stops = getTripStops(v.tripId);
+  if (!stops?.length) { el.textContent = 'No stop data available'; return; }
 
   // Determine current "position" by finding the first stop whose scheduled
   // time + delay is in the future (or the first stop if all are past)
@@ -1276,12 +1281,12 @@ async function renderStopsForVehicle(v) {
 }
 
 // Build stop marker array for a vehicle's route and hand to stopLayer
-async function renderStopMarkers(v) {
+async function renderStopMarkers(v, token) {
   if (!v?.tripId) return;
-  await loadStops();
-  await loadStopTimes(v.tripId);
+  // stops + stop-times already loaded by caller
   const seq = getTripStops(v.tripId);
   if (!seq?.length) return;
+  if (token !== _renderToken) return;
 
   const nowMins  = new Date().getHours() * 60 + new Date().getMinutes();
   const delayMins = Math.round((v.delay || 0) / 60);
@@ -1405,10 +1410,6 @@ function panToVehicle(v, zoom) {
 function select(id){
   activeId = id;
   const v = vData[id]; if (!v) return;
-  const tripInfo = getTrip(v.tripId);
-  if (tripInfo?.shapeId) showShape(tripInfo.shapeId);
-  loadStops().then(() => loadStopTimes(v.tripId).then(() => renderStopMarkers(v)));
-  panToVehicle(v, Math.max(map.getZoom(), 13));
   arrowLayer._draw();
   showPopup(id);
   closeSidebarMobile();
