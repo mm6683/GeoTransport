@@ -162,19 +162,19 @@ writeFileSync(pub('stops.json'), outStops);
 console.log(`✓ stops.json          ${mb(outStops)}  (deploy only)`);
 
 // ── shapes.txt → public/shapes/{lineCode}.json ───────────────────────────────
-// Chunked by trip lineCode (first segment of trip_id, e.g. "4480"),
-// NOT by shape_id prefix (which varies and doesn't match lineCode for all lines).
-// We derive the shapeId→lineCode mapping from trips.txt (already parsed above).
+// Chunked by trip lineCode (first segment of trip_id, e.g. "4480").
+// We derive shapeId→lineCode by scanning trips.txt again (the trips object
+// only keeps the first trip per 3-part key, missing later shapeIds).
 const shapesDir = resolve(__dir, '../public/shapes');
 mkdirSync(shapesDir, { recursive: true });
-console.log('Parsing shapes.txt...');
-
-// Build shapeId → lineCode from trips
+console.log('Building shapeId→lineCode map from trips.txt...');
 const shapeToLineCode = {};  // shapeId → lineCode
-for (const [key, t] of Object.entries(trips)) {
-  if (t.shapeId) shapeToLineCode[t.shapeId] = key.split('_')[0];
-}
+await parseCSVStream(zip.file('trips.txt'), t => {
+  if (t.shape_id) shapeToLineCode[t.shape_id] = t.trip_id.split('_')[0];
+});
+console.log(`  ${Object.keys(shapeToLineCode).length} shape→lineCode mappings`);
 
+console.log('Parsing shapes.txt...');
 const shapesByLine = {};  // lineCode → { shapeId → [[seq,lat,lon]] }
 await parseCSVStream(zip.file('shapes.txt'), p => {
   const lineCode = shapeToLineCode[p.shape_id];
