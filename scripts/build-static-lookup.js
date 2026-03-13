@@ -173,6 +173,9 @@ await parseCSVStream(zip.file('trips.txt'), t => {
   if (t.shape_id) shapeToLineCode[t.shape_id] = t.trip_id.split('_')[0];
 });
 console.log(`  ${Object.keys(shapeToLineCode).length} shape→lineCode mappings`);
+// Show a few examples so we can verify the lineCode format
+const exampleEntries = Object.entries(shapeToLineCode).slice(0, 5);
+console.log('  Examples:', exampleEntries.map(([s,l]) => `${s} → ${l}`).join(', '));
 
 console.log('Parsing shapes.txt...');
 const shapesByLine = {};  // lineCode → { shapeId → [[seq,lat,lon]] }
@@ -230,6 +233,8 @@ for (const [lineCode, trips] of Object.entries(stByLine)) {
   stCount++;
 }
 console.log(`✓ stop-times/         ${stCount} files in public/stop-times/  (deploy only)`);
+const stExamples = Object.keys(stByLine).slice(0, 8);
+console.log('  Example stop-time lineCodes:', stExamples.join(', '));
 
 
 
