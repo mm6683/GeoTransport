@@ -316,7 +316,7 @@ async function loadStopTimes(tripId) {
     if (r.ok) ST[lineCode] = await r.json();
     else ST[lineCode] = {};
   } catch(e) { ST[lineCode] = {}; }
-  ST_loading.delete(lineCode);
+  finally { ST_loading.delete(lineCode); }
 }
 
 async function loadStops() {
@@ -331,9 +331,8 @@ async function loadStops() {
 const shapeChunkCache = {};
 const shapeChunkLoading = new Set();
 
-async function fetchShape(shapeId) {
-  if (!shapeId) return null;
-  const lineCode = shapeId.slice(0, 4);
+async function fetchShape(shapeId, lineCode) {
+  if (!shapeId || !lineCode) return null;
   if (!shapeChunkCache[lineCode] && !shapeChunkLoading.has(lineCode)) {
     shapeChunkLoading.add(lineCode);
     try {
@@ -351,11 +350,14 @@ async function fetchShape(shapeId) {
   return shapeChunkCache[lineCode]?.[shapeId] || null;
 }
 
-async function showShape(shapeId, fitBounds = false) {
+async function showShape(shapeId, lineCode, fitBounds = false) {
   clearShape();
-  const pts = await fetchShape(shapeId);
+  const pts = await fetchShape(shapeId, lineCode);
   if (!pts?.length) return;
-  shapePolyline = L.polyline(pts, { color: '#00d4ff', weight: 3, opacity: 0.55, interactive: false }).addTo(map);
+  // Filter out any points with invalid coords before handing to Leaflet
+  const valid = pts.filter(p => p[0] != null && p[1] != null && !isNaN(p[0]) && !isNaN(p[1]));
+  if (!valid.length) return;
+  shapePolyline = L.polyline(valid, { color: '#00d4ff', weight: 3, opacity: 0.55, interactive: false }).addTo(map);
   shapePolyline.bringToBack();
   if (fitBounds) {
     map.fitBounds(shapePolyline.getBounds(), { padding: [40, 40], maxZoom: 14, animate: true });
@@ -934,7 +936,10 @@ function applyFilter(filter, skipPush=false) {
 
   // Draw route shape + fit map when filter resolves to a single unique shape
   if (filter?.shapeId) {
-    showShape(filter.shapeId, true /* fitBounds */);
+    // Derive lineCode from the first matching vehicle's tripId
+    const anyV = filter.matchIds.size ? Object.values(vData).find(v => filter.matchIds.has(v.vehicleId)) : null;
+    const lc = anyV ? anyV.tripId?.split('_')[0] : null;
+    if (lc) showShape(filter.shapeId, lc, true /* fitBounds */);
   } else if (!filter || filter.matchIds.size > 1) {
     clearShape();
     stopLayer.clearRouteStops();
@@ -1187,23 +1192,22 @@ function openPanel(id){
   // Pan + zoom to vehicle (panel is now open so rightPad is 320)
   panToVehicle(v, Math.max(map.getZoom(), 13));
 
-  // All async work in one place, guarded by token so stale renders are discarded
-  (async () => {
-    // Shape — needs SL, which restoreFromUrl already waited for
+  // All async work in one place, guarded so stale renders are discarded
+  const _vid = v.vehicleId;
+  const _lineCode = v.tripId?.split('_')[0];
+  ;(async () => {
     clearShape();
     stopLayer.clearRouteStops();
-    if (tripInfo.shapeId) await showShape(tripInfo.shapeId);
-    if (token !== _renderToken) return;
+    if (tripInfo.shapeId) await showShape(tripInfo.shapeId, _lineCode);
+    if (activeId !== _vid) return;
 
-    // Stop markers on map
     await loadStops();
-    if (token !== _renderToken) return;
+    if (activeId !== _vid) return;
     await loadStopTimes(v.tripId);
-    if (token !== _renderToken) return;
+    if (activeId !== _vid) return;
     await renderStopMarkers(v, token);
 
-    // Stop list in panel
-    if (token === _renderToken) await renderStopsForVehicle(v, token);
+    if (activeId === _vid) await renderStopsForVehicle(v, token);
   })();
 
   redraw();
@@ -1224,12 +1228,12 @@ function shareVehicleUrl() {
 async function renderStopsForVehicle(v, token) {
   const el = G("stops-list");
   if (!el) return;
-  // stops + stop-times already loaded by caller, but ensure defensively
-  await Promise.all([loadStops(), loadStopTimes(v.tripId)]);
-  if (token !== _renderToken) return;  // stale — another vehicle was selected
+  try {
+    await Promise.all([loadStops(), loadStopTimes(v.tripId)]);
+    if (activeId !== v.vehicleId) return;  // vehicle was deselected while loading
 
-  const stops = getTripStops(v.tripId);
-  if (!stops?.length) { el.textContent = 'No stop data available'; return; }
+    const stops = getTripStops(v.tripId);
+    if (!stops?.length) { el.textContent = 'No stop data available'; return; }
 
   // Determine current "position" by finding the first stop whose scheduled
   // time + delay is in the future (or the first stop if all are past)
@@ -1278,15 +1282,19 @@ async function renderStopsForVehicle(v, token) {
     const rowEls = el.querySelectorAll('.stop-row');
     rowEls[Math.max(0, nextIdx - 1)]?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
+  } catch(e) {
+    console.warn('renderStopsForVehicle:', e);
+    const el2 = G("stops-list");
+    if (el2 && activeId === v.vehicleId) el2.textContent = 'Error loading stops';
+  }
 }
 
 // Build stop marker array for a vehicle's route and hand to stopLayer
 async function renderStopMarkers(v, token) {
   if (!v?.tripId) return;
-  // stops + stop-times already loaded by caller
   const seq = getTripStops(v.tripId);
   if (!seq?.length) return;
-  if (token !== _renderToken) return;
+  if (activeId !== v.vehicleId) return;
 
   const nowMins  = new Date().getHours() * 60 + new Date().getMinutes();
   const delayMins = Math.round((v.delay || 0) / 60);
@@ -1295,7 +1303,8 @@ async function renderStopMarkers(v, token) {
 
   const markers = seq.map((st, i) => {
     const stop = getStop(st.s);
-    if (!stop) return null;
+    // Guard against missing or NaN coordinates
+    if (!stop || !isFinite(stop.lat) || !isFinite(stop.lon)) return null;
     let status;
     if (i === 0)                  status = 'start';
     else if (i === seq.length-1)  status = 'terminal';
