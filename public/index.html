@@ -1192,22 +1192,33 @@ function openPanel(id){
   // Pan + zoom to vehicle (panel is now open so rightPad is 320)
   panToVehicle(v, Math.max(map.getZoom(), 13));
 
-  // All async work in one place, guarded so stale renders are discarded
+  // All async work in one place — shape failure must not abort stop loading
   const _vid = v.vehicleId;
   const _lineCode = v.tripId?.split('_')[0];
   ;(async () => {
     clearShape();
     stopLayer.clearRouteStops();
-    if (tripInfo.shapeId) await showShape(tripInfo.shapeId, _lineCode);
+
+    // Shape — isolated so a Leaflet error can't abort the stop loading below
+    if (tripInfo.shapeId) {
+      try { await showShape(tripInfo.shapeId, _lineCode); }
+      catch(e) { console.warn('showShape failed:', e.message); }
+    }
     if (activeId !== _vid) return;
 
-    await loadStops();
-    if (activeId !== _vid) return;
-    await loadStopTimes(v.tripId);
-    if (activeId !== _vid) return;
-    await renderStopMarkers(v, token);
-
-    if (activeId === _vid) await renderStopsForVehicle(v, token);
+    // Stops
+    try {
+      await loadStops();
+      if (activeId !== _vid) return;
+      await loadStopTimes(v.tripId);
+      if (activeId !== _vid) return;
+      await renderStopMarkers(v);
+      if (activeId === _vid) await renderStopsForVehicle(v);
+    } catch(e) {
+      console.warn('stop loading failed:', e.message);
+      const el = G("stops-list");
+      if (el && activeId === _vid) el.textContent = 'Error loading stops';
+    }
   })();
 
   redraw();
@@ -1225,7 +1236,7 @@ function shareVehicleUrl() {
 }
 
 // Render the stop sequence for the selected vehicle
-async function renderStopsForVehicle(v, token) {
+async function renderStopsForVehicle(v) {
   const el = G("stops-list");
   if (!el) return;
   try {
@@ -1290,7 +1301,7 @@ async function renderStopsForVehicle(v, token) {
 }
 
 // Build stop marker array for a vehicle's route and hand to stopLayer
-async function renderStopMarkers(v, token) {
+async function renderStopMarkers(v) {
   if (!v?.tripId) return;
   const seq = getTripStops(v.tripId);
   if (!seq?.length) return;
