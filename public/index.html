@@ -302,9 +302,8 @@ const ST_loading = new Set();  // prevent duplicate in-flight fetches
 async function loadStopTimes(tripId) {
   if (!tripId) return;
   const lineCode = tripId.split('_')[0];
-  if (ST[lineCode] !== undefined) return;  // already loaded
+  if (ST[lineCode] !== undefined) return;
   if (ST_loading.has(lineCode)) {
-    // already in-flight — wait for it to finish
     await new Promise(resolve => {
       const id = setInterval(() => { if (!ST_loading.has(lineCode)) { clearInterval(id); resolve(); } }, 20);
     });
@@ -313,10 +312,28 @@ async function loadStopTimes(tripId) {
   ST_loading.add(lineCode);
   try {
     const r = await fetch(`/stop-times/${lineCode}.json`, { cache: 'force-cache' });
-    if (r.ok) ST[lineCode] = await r.json();
-    else ST[lineCode] = {};
+    if (r.ok) {
+      ST[lineCode] = await r.json();
+      const keys = Object.keys(ST[lineCode]);
+      console.log(`[GT] stop-times/${lineCode}.json loaded, ${keys.length} keys, first 3:`, keys.slice(0,3));
+    } else {
+      console.warn(`[GT] stop-times/${lineCode}.json → HTTP ${r.status}`);
+      ST[lineCode] = {};
+    }
   } catch(e) { ST[lineCode] = {}; }
   finally { ST_loading.delete(lineCode); }
+}
+
+function getTripStops(tripId) {
+  if (!tripId) return null;
+  const lineCode = tripId.split('_')[0];
+  const key      = tripId.split('_').slice(0,3).join('_');
+  const result   = ST[lineCode]?.[key] || null;
+  if (ST[lineCode] && !result) {
+    const available = Object.keys(ST[lineCode] || {}).slice(0,3);
+    console.warn(`[GT] getTripStops miss — looked up "${key}", available sample:`, available);
+  }
+  return result;
 }
 
 async function loadStops() {
@@ -386,13 +403,7 @@ function getStop(stopId) {
   if (!s) return null;
   return { name: s.n, lat: s.a, lon: s.o };
 }
-// Stop times for a trip key
-function getTripStops(tripId) {
-  if (!tripId) return null;
-  const lineCode = tripId.split('_')[0];
-  const key      = tripId.split('_').slice(0,3).join('_');
-  return ST[lineCode]?.[key] || null;
-}
+// Stop times for a trip key — defined above near loadStopTimes
 
 // External line number ("1", "302") — never expose internal code
 function lineName(tripId)  { return getLine(tripId)?.name || '…'; }
