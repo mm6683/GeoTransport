@@ -32,20 +32,20 @@ jobs:
           DL_GTFS: ${{ secrets.DL_GTFS }}
         run: node scripts/build-static-lookup.js
 
-      - name: Check if static-lookup.json changed
+      - name: Check if static files changed
         id: diff
         run: |
-          git diff --quiet public/static-lookup.json \
+          git diff --quiet public/static-lookup.json public/stops.json \
             && echo "changed=false" >> $GITHUB_OUTPUT \
             || echo "changed=true" >> $GITHUB_OUTPUT
 
-      - name: Commit static-lookup.json (small file only)
+      - name: Commit static files (small enough for git)
         if: steps.diff.outputs.changed == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add public/static-lookup.json
-          git commit -m "chore: update GTFS static lookup [skip ci]"
+          git add public/static-lookup.json public/stops.json
+          git commit -m "chore: update GTFS static files [skip ci]"
           git push
 
       - name: Deploy to Cloudflare Workers (includes all large files)
