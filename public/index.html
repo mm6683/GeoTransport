@@ -282,7 +282,8 @@ const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11
 
 // ── Static lookup ─────────────────────────────────────────────────────────────
 let SL = null;
-let STOPS = null;  // stop_id → name  (from stops.json)
+let STOPS = null;  // stop_id → {n, a, o}  (from stops.json)
+let STOPS_tried = false;  // prevent repeated 404 fetches
 
 async function loadStatic() {
   try {
@@ -291,7 +292,16 @@ async function loadStatic() {
     SL = await r.json();
     arrowLayer.setVehicles(Object.values(vData));
     redraw();
-    if (activeId && activePopup) showPopup(activeId);
+    // If a panel is already open, re-populate everything now that SL is ready
+    if (activeId && vData[activeId]) {
+      const v = vData[activeId];
+      const ti = getTrip(v.tripId);
+      const lc = v.tripId?.split('_')[0];
+      // Re-show shape now that we have the trip lookup
+      if (ti?.shapeId && lc) showShape(ti.shapeId, lc).catch(() => {});
+      // Refresh popup with correct line name/colour
+      if (activePopup) showPopup(activeId);
+    }
   } catch(e) { console.warn('Static lookup:', e.message); }
 }
 
@@ -314,8 +324,6 @@ async function loadStopTimes(tripId) {
     const r = await fetch(`/stop-times/${lineCode}.json`, { cache: 'force-cache' });
     if (r.ok) {
       ST[lineCode] = await r.json();
-      const keys = Object.keys(ST[lineCode]);
-      console.log(`[GT] stop-times/${lineCode}.json loaded, ${keys.length} keys, first 3:`, keys.slice(0,3));
     } else {
       console.warn(`[GT] stop-times/${lineCode}.json → HTTP ${r.status}`);
       ST[lineCode] = {};
@@ -337,11 +345,17 @@ function getTripStops(tripId) {
 }
 
 async function loadStops() {
-  if (STOPS) return;
+  if (STOPS_tried) return;
+  STOPS_tried = true;
   try {
     const r = await fetch('/stops.json', { cache: 'force-cache' });
-    if (r.ok) STOPS = await r.json();
-  } catch(e) { console.warn('Stops:', e.message); }
+    if (r.ok) {
+      STOPS = await r.json();
+    } else {
+      STOPS = {};
+      if (r.status !== 404) console.warn('Stops: HTTP', r.status);
+    }
+  } catch(e) { STOPS = {}; console.warn('Stops:', e.message); }
 }
 
 // shapeChunkCache: lineCode → { shapeId: [[lat,lon],...] }
@@ -349,22 +363,25 @@ const shapeChunkCache = {};
 const shapeChunkLoading = new Set();
 
 async function fetchShape(shapeId, lineCode) {
-  if (!shapeId || !lineCode) return null;
-  if (!shapeChunkCache[lineCode] && !shapeChunkLoading.has(lineCode)) {
-    shapeChunkLoading.add(lineCode);
+  if (!shapeId) return null;
+  // lineCode is the first segment of tripId. If missing, fall back to first 4 chars of shapeId
+  const lc = lineCode || shapeId.slice(0, 4);
+  if (!lc) return null;
+  if (!shapeChunkCache[lc] && !shapeChunkLoading.has(lc)) {
+    shapeChunkLoading.add(lc);
     try {
-      const r = await fetch(`/shapes/${lineCode}.json`, { cache: 'force-cache' });
-      shapeChunkCache[lineCode] = r.ok ? await r.json() : {};
+      const r = await fetch(`/shapes/${lc}.json`, { cache: 'force-cache' });
+      shapeChunkCache[lc] = r.ok ? await r.json() : {};
     } catch(e) {
-      shapeChunkCache[lineCode] = {};
+      shapeChunkCache[lc] = {};
     } finally {
-      shapeChunkLoading.delete(lineCode);
+      shapeChunkLoading.delete(lc);
     }
   }
-  while (shapeChunkLoading.has(lineCode)) {
+  while (shapeChunkLoading.has(lc)) {
     await new Promise(r => setTimeout(r, 20));
   }
-  return shapeChunkCache[lineCode]?.[shapeId] || null;
+  return shapeChunkCache[lc]?.[shapeId] || null;
 }
 
 async function showShape(shapeId, lineCode, fitBounds = false) {
@@ -592,9 +609,16 @@ stopLayer.addTo(map);
 
 let shapePolyline = null;
 
-function drawShape(shapeId) {
+function drawShape(shapeId, lineCode) {
   // Async wrapper so callers don't need to await
-  showShape(shapeId);
+  if (!lineCode && shapeId) {
+    // Derive lineCode from any vehicle whose trip has this shapeId
+    for (const v of Object.values(vData)) {
+      const ti = getTrip(v.tripId);
+      if (ti?.shapeId === shapeId) { lineCode = v.tripId?.split('_')[0]; break; }
+    }
+  }
+  showShape(shapeId, lineCode);
 }
 
 function clearShape() {
@@ -947,10 +971,10 @@ function applyFilter(filter, skipPush=false) {
 
   // Draw route shape + fit map when filter resolves to a single unique shape
   if (filter?.shapeId) {
-    // Derive lineCode from the first matching vehicle's tripId
+    // fetchShape will derive lineCode from first 4 chars of shapeId if needed
     const anyV = filter.matchIds.size ? Object.values(vData).find(v => filter.matchIds.has(v.vehicleId)) : null;
-    const lc = anyV ? anyV.tripId?.split('_')[0] : null;
-    if (lc) showShape(filter.shapeId, lc, true /* fitBounds */);
+    const lc = anyV?.tripId?.split('_')[0] || null;
+    showShape(filter.shapeId, lc, true /* fitBounds */);
   } else if (!filter || filter.matchIds.size > 1) {
     clearShape();
     stopLayer.clearRouteStops();
@@ -1206,7 +1230,6 @@ function openPanel(id){
   // All async work in one place — shape failure must not abort stop loading
   const _vid = v.vehicleId;
   const _lineCode = v.tripId?.split('_')[0];
-  console.log('[GT] openPanel', { vehicleId: v.vehicleId, tripId: v.tripId, lineCode: _lineCode, shapeId: tripInfo.shapeId, routeId: v.routeId });
   ;(async () => {
     clearShape();
     stopLayer.clearRouteStops();
