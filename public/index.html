@@ -371,7 +371,14 @@ async function fetchShape(shapeId, lineCode) {
     shapeChunkLoading.add(lc);
     try {
       const r = await fetch(`/shapes/${lc}.json`, { cache: 'force-cache' });
-      shapeChunkCache[lc] = r.ok ? await r.json() : {};
+      if (r.ok) {
+        shapeChunkCache[lc] = await r.json();
+        const keys = Object.keys(shapeChunkCache[lc]);
+        console.log(`[GT] shapes/${lc}.json loaded, ${keys.length} shapes, looking for "${shapeId}", found: ${!!shapeChunkCache[lc][shapeId]}`);
+      } else {
+        console.warn(`[GT] shapes/${lc}.json → HTTP ${r.status}`);
+        shapeChunkCache[lc] = {};
+      }
     } catch(e) {
       shapeChunkCache[lc] = {};
     } finally {
@@ -1230,6 +1237,8 @@ function openPanel(id){
   // All async work in one place — shape failure must not abort stop loading
   const _vid = v.vehicleId;
   const _lineCode = v.tripId?.split('_')[0];
+  const _tripKey = v.tripId?.split('_').slice(0,3).join('_');
+  console.log('[GT] shape lookup', { tripKey: _tripKey, lineCode: _lineCode, shapeId: tripInfo.shapeId, SL_loaded: !!SL });
   ;(async () => {
     clearShape();
     stopLayer.clearRouteStops();
