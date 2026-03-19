@@ -2,6 +2,6 @@ node_modules/
 .wrangler/
 
 # Large GTFS-derived files — built by GitHub Action, deployed via wrangler, never committed to git.
-public/stops.json
+# stops.json is committed (small enough at ~3MB, needed for manual wrangler deploys).
 public/shapes/
 public/stop-times/
