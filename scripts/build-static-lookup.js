@@ -7,7 +7,7 @@
  *   public/static-lookup.json   ~1 MB   committed to git
  *     lines, routes, trips (with shapeId), agency, feed
  *
- *   public/stops.json           ~3 MB   deployed only (gitignored)
+ *   public/stops.json           ~3 MB   committed to git (needed for manual deploys)
  *     stop_id → stop_name
  *
  *   public/shapes/{lineCode}.json   deployed only (gitignored)
@@ -126,7 +126,12 @@ console.log('Parsing trips.txt...');
 const trips = {};
 await parseCSVStream(zip.file('trips.txt'), t => {
   const key = t.trip_id.split('_').slice(0,3).join('_');
-  if (!trips[key]) trips[key] = { headsign: t.trip_headsign, routeId: t.route_id, dir: t.direction_id, shapeId: t.shape_id };
+  if (!trips[key]) {
+    trips[key] = { headsign: t.trip_headsign, routeId: t.route_id, dir: t.direction_id, shapeId: t.shape_id || null };
+  } else if (!trips[key].shapeId && t.shape_id) {
+    // First occurrence had no shape_id — grab it from a later row for the same key
+    trips[key].shapeId = t.shape_id;
+  }
 });
 console.log(`  ${Object.keys(trips).length} trip prefixes`);
 
@@ -276,4 +281,3 @@ if (firstLineCode) {
 
 console.log(`\nFeed: ${feed.version}  valid ${feed.startDate} → ${feed.endDate}`);
 console.log('Run: wrangler deploy');
-
