@@ -6,7 +6,8 @@ on:
   workflow_dispatch:         # Manual trigger from GitHub UI
   push:
     branches:
-      - main                 # Run on every push to main (ensures static files are always deployed)
+      - main
+      - error-logging        # ← also run on this branch
 
 jobs:
   build-and-deploy:
@@ -47,6 +48,19 @@ jobs:
           git add public/static-lookup.json public/stops.json
           git commit -m "chore: update GTFS static files [skip ci]"
           git push
+
+      - name: Verify assets exist before deploy
+        run: |
+          echo "=== public/ root ==="
+          ls public/
+          echo "=== shapes/ count ==="
+          ls public/shapes/ | wc -l
+          echo "=== stop-times/ count ==="
+          ls public/stop-times/ | wc -l
+          echo "=== static-lookup.json size ==="
+          du -sh public/static-lookup.json
+          echo "=== stops.json size ==="
+          du -sh public/stops.json
 
       - name: Deploy to Cloudflare Workers (includes all large files)
         env:
