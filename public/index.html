@@ -194,6 +194,8 @@
       #map{width:100%;height:100%}
       #brand{display:none}
       #toast{bottom:80px;right:12px;left:12px;max-width:none}
+      /* On mobile, shift locate button above the FAB */
+      #locate-btn{bottom:80px}
     }
     /* ── Stop markers on map ─────────────────────────────────────────────────── */
     .stop-mk{pointer-events:auto!important}
@@ -209,6 +211,39 @@
 
     #mob-handle{display:none;width:40px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 0;flex-shrink:0}
 
+    /* ── Locate button ───────────────────────────────────────────────────────── */
+    #locate-btn{
+      position:absolute;right:10px;bottom:96px;z-index:400;
+      width:34px;height:34px;
+      background:var(--surface);border:1px solid var(--border);border-radius:8px;
+      color:var(--text-dim);font-size:18px;line-height:1;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 2px 8px rgba(0,0,0,.5);transition:background .15s,border-color .15s,color .15s;
+    }
+    #locate-btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
+    #locate-btn.locating{color:var(--accent);animation:loc-spin 1.4s linear infinite}
+    #locate-btn.located{border-color:var(--accent3);color:var(--accent3)}
+    @keyframes loc-spin{to{transform:rotate(360deg)}}
+
+    /* ── User location dot (DivIcon) ─────────────────────────────────────────── */
+    .user-loc-wrap{position:relative;width:20px;height:20px}
+    .user-loc-ring{
+      position:absolute;inset:-6px;border-radius:50%;
+      background:rgba(0,212,255,.25);
+      animation:loc-pulse 2.2s ease-out infinite;
+      pointer-events:none;
+    }
+    .user-loc-dot{
+      position:absolute;inset:0;border-radius:50%;
+      background:#00d4ff;border:2px solid #fff;
+      box-shadow:0 0 10px rgba(0,212,255,.9);
+      pointer-events:none;
+    }
+    @keyframes loc-pulse{
+      0%  {transform:scale(1);opacity:.7}
+      60% {transform:scale(2.6);opacity:0}
+      100%{transform:scale(1);opacity:0}
+    }
   </style>
 </head>
 <body>
@@ -257,6 +292,10 @@
   </aside>
 
   <div id="map"></div>
+
+  <!-- Locate me button — sits above Leaflet zoom controls -->
+  <button id="locate-btn" onclick="goToMyLocation()" title="Go to my location">◎</button>
+
   <button id="mob-fab" onclick="toggleSidebar()">☰ Vehicles</button>
   <div id="brand">Belgium · GTFS-RT</div>
 
@@ -279,6 +318,114 @@ const TILE = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 const ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
 const IH_V = 52, IH_C = 46;
 const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11':'Trolleybus'};
+
+// ── User geolocation ──────────────────────────────────────────────────────────
+let _userLat = null, _userLng = null;
+let _userMarker = null, _userCircle = null;
+let _userWatcher = null;
+let _locatedOnce = false;  // true after first successful fix → don't re-zoom on updates
+
+const _locBtn = () => document.getElementById('locate-btn');
+
+function _updateUserMarker(lat, lng, accuracy) {
+  _userLat = lat; _userLng = lng;
+
+  // Accuracy circle
+  if (_userCircle) _userCircle.remove();
+  if (accuracy > 0 && accuracy < 50000) {
+    _userCircle = L.circle([lat, lng], {
+      radius: accuracy,
+      color: '#00d4ff',
+      fillColor: '#00d4ff',
+      fillOpacity: 0.06,
+      weight: 1,
+      dashArray: '4 4',
+      interactive: false,
+    }).addTo(map);
+    _userCircle.bringToBack();
+  }
+
+  // Pulsing dot via DivIcon
+  if (_userMarker) _userMarker.remove();
+  const icon = L.divIcon({
+    className: '',
+    html: '<div class="user-loc-wrap"><div class="user-loc-ring"></div><div class="user-loc-dot"></div></div>',
+    iconSize:   [20, 20],
+    iconAnchor: [10, 10],
+  });
+  _userMarker = L.marker([lat, lng], { icon, interactive: false, zIndexOffset: 800 }).addTo(map);
+
+  // Update button state
+  const btn = _locBtn();
+  if (btn) { btn.classList.remove('locating'); btn.classList.add('located'); }
+}
+
+function _onGeoSuccess(pos) {
+  const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+  _updateUserMarker(lat, lng, accuracy);
+
+  if (!_locatedOnce) {
+    _locatedOnce = true;
+    // Zoom in on first fix — but only if the user hasn't already moved the map
+    // (if a URL state with a vehicle was loaded, don't override it)
+    const sp = new URLSearchParams(location.search);
+    const hasUrlState = sp.has('vehicle') || sp.has('line') || sp.has('route') || sp.has('trip');
+    if (!hasUrlState) {
+      map.setView([lat, lng], 14, { animate: true });
+    }
+  }
+}
+
+function _onGeoError(err) {
+  const btn = _locBtn();
+  if (btn) { btn.classList.remove('locating', 'located'); }
+  // Only show a toast for explicit button presses (not silent background init)
+  if (_geoExplicit) {
+    const msg = err.code === 1
+      ? 'Location permission denied'
+      : err.code === 2
+        ? 'Position unavailable'
+        : 'Location request timed out';
+    toast('⚠ ' + msg, true);
+  }
+  _geoExplicit = false;
+}
+
+let _geoExplicit = false;  // tracks whether the current request was user-initiated
+
+function initGeolocation() {
+  if (!navigator.geolocation) return;
+  _geoExplicit = false;
+  // One-shot first fix to trigger zoom-on-load
+  navigator.geolocation.getCurrentPosition(_onGeoSuccess, _onGeoError, {
+    enableHighAccuracy: false,  // coarse is fine for initial zoom
+    timeout: 10000,
+    maximumAge: 60000,
+  });
+  // Watch for ongoing updates (higher accuracy)
+  _userWatcher = navigator.geolocation.watchPosition(_onGeoSuccess, () => {}, {
+    enableHighAccuracy: true,
+    timeout: 15000,
+    maximumAge: 10000,
+  });
+}
+
+function goToMyLocation() {
+  if (!navigator.geolocation) { toast('⚠ Geolocation not supported by your browser', true); return; }
+  const btn = _locBtn();
+  if (btn) { btn.classList.add('locating'); btn.classList.remove('located'); }
+  _geoExplicit = true;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+      _updateUserMarker(lat, lng, accuracy);
+      map.setView([lat, lng], Math.max(map.getZoom(), 15), { animate: true });
+      _geoExplicit = false;
+    },
+    err => _onGeoError(err),
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+  );
+}
 
 // ── Static lookup ─────────────────────────────────────────────────────────────
 let SL = null;
@@ -427,7 +574,6 @@ function getStop(stopId) {
   if (!s) return null;
   return { name: s.n, lat: s.a, lon: s.o };
 }
-// Stop times for a trip key — defined above near loadStopTimes
 
 // External line number ("1", "302") — never expose internal code
 function lineName(tripId)  { return getLine(tripId)?.name || '…'; }
@@ -1484,6 +1630,10 @@ function schedNext(){clearTimeout(rtimer);rtimer=setTimeout(async()=>{await refr
 
 let _firstLoad = true;
 async function _init() {
+  // Start geolocation immediately — permission prompt appears right away.
+  // The first GPS fix will zoom the map once data has loaded.
+  initGeolocation();
+
   loadStatic();
   await refresh();
   // After first data + static lookup are in, restore any URL state
