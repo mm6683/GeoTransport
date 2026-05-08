@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - error-logging        # ← also run on this branch
+      - user-location        # ← also run on this branch
 
 jobs:
   build-and-deploy:
