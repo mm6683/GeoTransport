@@ -74,7 +74,7 @@
     /* Bearing arrow markers */
     .arrow-marker{position:relative;display:flex;align-items:center;justify-content:center}
 
-    /* Popup */
+    /* Popup — shared by vehicle popups and stop popups */
     .leaflet-popup-content-wrapper{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:10px!important;box-shadow:0 4px 24px rgba(0,0,0,.5)!important;color:var(--text)!important;font-family:var(--font-ui)!important;padding:0!important}
     .leaflet-popup-tip-container{display:none!important}
     .leaflet-popup-content{margin:0!important}
@@ -87,6 +87,18 @@
     .mp-btn:hover{background:rgba(0,212,255,.18)}
     .mp-link{display:block;font-size:10px;font-family:var(--font-mono);color:var(--text-dim);text-decoration:none;margin-bottom:8px;}
     .mp-link:hover{color:var(--accent)}
+
+    /* Stop popup */
+    .sp-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
+    .sp-id{font-size:10px;font-family:var(--font-mono);color:var(--text-dim);margin-bottom:10px}
+    .sp-section-label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:5px}
+    .sp-lines{line-height:2;margin-bottom:12px}
+    .sp-approach-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(30,45,61,.35)}
+    .sp-approach-row:last-child{border-bottom:none}
+    .sp-approach-badge{padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--font-mono);flex-shrink:0}
+    .sp-approach-dest{flex:1;font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .sp-approach-eta{font-size:11px;font-family:var(--font-mono);font-weight:600;flex-shrink:0}
+    .sp-none{color:var(--text-dim);font-size:11px;font-family:var(--font-mono);padding:4px 0}
 
     .leaflet-control-attribution{background:rgba(8,12,16,.8)!important;color:#4a6070!important;font-size:10px!important}
     .leaflet-control-attribution a{color:var(--accent)!important}
@@ -138,7 +150,6 @@
     .sd-sub{font-size:10px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;flex-shrink:0}
     .sd-delay{font-size:10px;font-family:var(--font-mono);font-weight:600;white-space:nowrap;flex-shrink:0}
 
-    /* Filter active indicator — shown in search input, not in tabs */
     #tabs{position:relative}
 
     #toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-size:12px;font-family:var(--font-mono);z-index:9999;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:320px}
@@ -194,10 +205,8 @@
       #map{width:100%;height:100%}
       #brand{display:none}
       #toast{bottom:80px;right:12px;left:12px;max-width:none}
-      /* On mobile, shift locate button above the FAB */
-      #locate-btn{bottom:80px}
     }
-    /* ── Stop markers on map ─────────────────────────────────────────────────── */
+    /* ── Stop markers on map (StopLayer — selected vehicle route) ────────────── */
     .stop-mk{pointer-events:auto!important}
     .stop-tip{background:var(--surface)!important;border:1px solid var(--border)!important;color:var(--text)!important;font-family:var(--font-mono)!important;font-size:11px!important;padding:4px 8px!important;border-radius:4px!important;box-shadow:0 2px 8px rgba(0,0,0,.4)!important;white-space:nowrap}
 
@@ -211,39 +220,17 @@
 
     #mob-handle{display:none;width:40px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 0;flex-shrink:0}
 
-    /* ── Locate button ───────────────────────────────────────────────────────── */
-    #locate-btn{
-      position:absolute;right:10px;bottom:96px;z-index:400;
-      width:34px;height:34px;
-      background:var(--surface);border:1px solid var(--border);border-radius:8px;
-      color:var(--text-dim);font-size:18px;line-height:1;cursor:pointer;
-      display:flex;align-items:center;justify-content:center;
-      box-shadow:0 2px 8px rgba(0,0,0,.5);transition:background .15s,border-color .15s,color .15s;
+    /* ── Zoom hint (shown when stops aren't visible yet) ─────────────────────── */
+    #zoom-hint{
+      position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
+      background:rgba(8,12,16,.88);border:1px solid var(--border);
+      border-radius:20px;padding:6px 14px;font-family:var(--font-mono);
+      font-size:10px;letter-spacing:.1em;color:var(--text-dim);
+      z-index:50;pointer-events:none;
+      opacity:0;transition:opacity .3s;
+      white-space:nowrap;
     }
-    #locate-btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
-    #locate-btn.locating{color:var(--accent);animation:loc-spin 1.4s linear infinite}
-    #locate-btn.located{border-color:var(--accent3);color:var(--accent3)}
-    @keyframes loc-spin{to{transform:rotate(360deg)}}
-
-    /* ── User location dot (DivIcon) ─────────────────────────────────────────── */
-    .user-loc-wrap{position:relative;width:20px;height:20px}
-    .user-loc-ring{
-      position:absolute;inset:-6px;border-radius:50%;
-      background:rgba(0,212,255,.25);
-      animation:loc-pulse 2.2s ease-out infinite;
-      pointer-events:none;
-    }
-    .user-loc-dot{
-      position:absolute;inset:0;border-radius:50%;
-      background:#00d4ff;border:2px solid #fff;
-      box-shadow:0 0 10px rgba(0,212,255,.9);
-      pointer-events:none;
-    }
-    @keyframes loc-pulse{
-      0%  {transform:scale(1);opacity:.7}
-      60% {transform:scale(2.6);opacity:0}
-      100%{transform:scale(1);opacity:0}
-    }
+    #zoom-hint.on{opacity:1}
   </style>
 </head>
 <body>
@@ -253,7 +240,7 @@
     <button class="mob-close-btn" onclick="closeSidebarMobile()" title="Close">✕</button>
     <div id="search-wrap">
       <span class="search-icon">⌕</span>
-      <input id="search-input" type="text" placeholder="Line, route, trip, vehicle, type…" autocomplete="off" />
+      <input id="search-input" type="text" placeholder="Line, stop, route, trip, vehicle…" autocomplete="off" />
       <button id="search-clear" onclick="clearSearch()">✕</button>
       <div id="search-drop"></div>
     </div>
@@ -292,12 +279,9 @@
   </aside>
 
   <div id="map"></div>
-
-  <!-- Locate me button — sits above Leaflet zoom controls -->
-  <button id="locate-btn" onclick="goToMyLocation()" title="Go to my location">◎</button>
-
   <button id="mob-fab" onclick="toggleSidebar()">☰ Vehicles</button>
   <div id="brand">Belgium · GTFS-RT</div>
+  <div id="zoom-hint">Zoom in to see stops</div>
 
   <div id="info-panel">
     <div id="mob-handle"></div>
@@ -319,118 +303,12 @@ const ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &
 const IH_V = 52, IH_C = 46;
 const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11':'Trolleybus'};
 
-// ── User geolocation ──────────────────────────────────────────────────────────
-let _userLat = null, _userLng = null;
-let _userMarker = null, _userCircle = null;
-let _userWatcher = null;
-let _locatedOnce = false;  // true after first successful fix → don't re-zoom on updates
-
-const _locBtn = () => document.getElementById('locate-btn');
-
-function _updateUserMarker(lat, lng, accuracy) {
-  _userLat = lat; _userLng = lng;
-
-  // Accuracy circle
-  if (_userCircle) _userCircle.remove();
-  if (accuracy > 0 && accuracy < 50000) {
-    _userCircle = L.circle([lat, lng], {
-      radius: accuracy,
-      color: '#00d4ff',
-      fillColor: '#00d4ff',
-      fillOpacity: 0.06,
-      weight: 1,
-      dashArray: '4 4',
-      interactive: false,
-    }).addTo(map);
-    _userCircle.bringToBack();
-  }
-
-  // Pulsing dot via DivIcon
-  if (_userMarker) _userMarker.remove();
-  const icon = L.divIcon({
-    className: '',
-    html: '<div class="user-loc-wrap"><div class="user-loc-ring"></div><div class="user-loc-dot"></div></div>',
-    iconSize:   [20, 20],
-    iconAnchor: [10, 10],
-  });
-  _userMarker = L.marker([lat, lng], { icon, interactive: false, zIndexOffset: 800 }).addTo(map);
-
-  // Update button state
-  const btn = _locBtn();
-  if (btn) { btn.classList.remove('locating'); btn.classList.add('located'); }
-}
-
-function _onGeoSuccess(pos) {
-  const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-  _updateUserMarker(lat, lng, accuracy);
-
-  if (!_locatedOnce) {
-    _locatedOnce = true;
-    // Zoom in on first fix — but only if the user hasn't already moved the map
-    // (if a URL state with a vehicle was loaded, don't override it)
-    const sp = new URLSearchParams(location.search);
-    const hasUrlState = sp.has('vehicle') || sp.has('line') || sp.has('route') || sp.has('trip');
-    if (!hasUrlState) {
-      map.setView([lat, lng], 14, { animate: true });
-    }
-  }
-}
-
-function _onGeoError(err) {
-  const btn = _locBtn();
-  if (btn) { btn.classList.remove('locating', 'located'); }
-  // Only show a toast for explicit button presses (not silent background init)
-  if (_geoExplicit) {
-    const msg = err.code === 1
-      ? 'Location permission denied'
-      : err.code === 2
-        ? 'Position unavailable'
-        : 'Location request timed out';
-    toast('⚠ ' + msg, true);
-  }
-  _geoExplicit = false;
-}
-
-let _geoExplicit = false;  // tracks whether the current request was user-initiated
-
-function initGeolocation() {
-  if (!navigator.geolocation) return;
-  _geoExplicit = false;
-  // One-shot first fix to trigger zoom-on-load
-  navigator.geolocation.getCurrentPosition(_onGeoSuccess, _onGeoError, {
-    enableHighAccuracy: false,  // coarse is fine for initial zoom
-    timeout: 10000,
-    maximumAge: 60000,
-  });
-  // Watch for ongoing updates (higher accuracy)
-  _userWatcher = navigator.geolocation.watchPosition(_onGeoSuccess, () => {}, {
-    enableHighAccuracy: true,
-    timeout: 15000,
-    maximumAge: 10000,
-  });
-}
-
-function goToMyLocation() {
-  if (!navigator.geolocation) { toast('⚠ Geolocation not supported by your browser', true); return; }
-  const btn = _locBtn();
-  if (btn) { btn.classList.add('locating'); btn.classList.remove('located'); }
-  _geoExplicit = true;
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-      _updateUserMarker(lat, lng, accuracy);
-      map.setView([lat, lng], Math.max(map.getZoom(), 15), { animate: true });
-      _geoExplicit = false;
-    },
-    err => _onGeoError(err),
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
-  );
-}
-
 // ── Static lookup ─────────────────────────────────────────────────────────────
 let SL = null;
-let STOPS = null;  // stop_id → {n, a, o}  (from stops.json)
-let STOPS_tried = false;  // prevent repeated 404 fetches
+let STOPS = null;
+let STOPS_tried = false;
+let STOP_INDEX = null;       // stop_id → [lineCode, ...]
+let STOP_INDEX_tried = false;
 
 async function loadStatic() {
   try {
@@ -439,22 +317,48 @@ async function loadStatic() {
     SL = await r.json();
     arrowLayer.setVehicles(Object.values(vData));
     redraw();
-    // If a panel is already open, re-populate everything now that SL is ready
     if (activeId && vData[activeId]) {
       const v = vData[activeId];
       const ti = getTrip(v.tripId);
       const lc = v.tripId?.split('_')[0];
-      // Re-show shape now that we have the trip lookup
       if (ti?.shapeId && lc) showShape(ti.shapeId, lc).catch(() => {});
-      // Refresh popup with correct line name/colour
       if (activePopup) showPopup(activeId);
     }
   } catch(e) { console.warn('Static lookup:', e.message); }
 }
 
+async function loadStops() {
+  if (STOPS_tried) return;
+  STOPS_tried = true;
+  try {
+    const r = await fetch('/stops.json', { cache: 'force-cache' });
+    if (r.ok) {
+      STOPS = await r.json();
+      allStopsLayer._draw(); // render now that data is available
+    } else {
+      STOPS = {};
+      if (r.status !== 404) console.warn('Stops: HTTP', r.status);
+    }
+  } catch(e) { STOPS = {}; console.warn('Stops:', e.message); }
+}
+
+async function loadStopIndex() {
+  if (STOP_INDEX_tried) return;
+  STOP_INDEX_tried = true;
+  try {
+    const r = await fetch('/stop-index.json', { cache: 'force-cache' });
+    if (r.ok) {
+      STOP_INDEX = await r.json();
+    } else {
+      STOP_INDEX = {};
+      if (r.status !== 404) console.warn('Stop-index: HTTP', r.status);
+    }
+  } catch(e) { STOP_INDEX = {}; console.warn('Stop-index:', e.message); }
+}
+
 // ST: lineCode → { tripKey → [{s,a}] }  — loaded per line on demand
 const ST = {};
-const ST_loading = new Set();  // prevent duplicate in-flight fetches
+const ST_loading = new Set();
 
 async function loadStopTimes(tripId) {
   if (!tripId) return;
@@ -471,6 +375,8 @@ async function loadStopTimes(tripId) {
     const r = await fetch(`/stop-times/${lineCode}.json`, { cache: 'force-cache' });
     if (r.ok) {
       ST[lineCode] = await r.json();
+      // Refresh stop highlighting now that we have new stop-times data
+      if (activeFilter) allStopsLayer.setRouteFilter(getFilterStopIds());
     } else {
       console.warn(`[GT] stop-times/${lineCode}.json → HTTP ${r.status}`);
       ST[lineCode] = {};
@@ -491,27 +397,11 @@ function getTripStops(tripId) {
   return result;
 }
 
-async function loadStops() {
-  if (STOPS_tried) return;
-  STOPS_tried = true;
-  try {
-    const r = await fetch('/stops.json', { cache: 'force-cache' });
-    if (r.ok) {
-      STOPS = await r.json();
-    } else {
-      STOPS = {};
-      if (r.status !== 404) console.warn('Stops: HTTP', r.status);
-    }
-  } catch(e) { STOPS = {}; console.warn('Stops:', e.message); }
-}
-
-// shapeChunkCache: lineCode → { shapeId: [[lat,lon],...] }
 const shapeChunkCache = {};
 const shapeChunkLoading = new Set();
 
 async function fetchShape(shapeId, lineCode) {
   if (!shapeId) return null;
-  // lineCode is the first segment of tripId. If missing, fall back to first 4 chars of shapeId
   const lc = lineCode || shapeId.slice(0, 4);
   if (!lc) return null;
   if (!shapeChunkCache[lc] && !shapeChunkLoading.has(lc)) {
@@ -520,8 +410,6 @@ async function fetchShape(shapeId, lineCode) {
       const r = await fetch(`/shapes/${lc}.json`, { cache: 'force-cache' });
       if (r.ok) {
         shapeChunkCache[lc] = await r.json();
-        const keys = Object.keys(shapeChunkCache[lc]);
-        console.log(`[GT] shapes/${lc}.json loaded, ${keys.length} shapes, looking for "${shapeId}", found: ${!!shapeChunkCache[lc][shapeId]}`);
       } else {
         console.warn(`[GT] shapes/${lc}.json → HTTP ${r.status}`);
         shapeChunkCache[lc] = {};
@@ -542,7 +430,6 @@ async function showShape(shapeId, lineCode, fitBounds = false) {
   clearShape();
   const pts = await fetchShape(shapeId, lineCode);
   if (!pts?.length) return;
-  // Filter out any points with invalid coords before handing to Leaflet
   const valid = pts.filter(p => p[0] != null && p[1] != null && !isNaN(p[0]) && !isNaN(p[1]));
   if (!valid.length) return;
   shapePolyline = L.polyline(valid, { color: '#00d4ff', weight: 3, opacity: 0.55, interactive: false }).addTo(map);
@@ -552,46 +439,18 @@ async function showShape(shapeId, lineCode, fitBounds = false) {
   }
 }
 
-// lineCode = tripId.split('_')[0]  →  lines[lineCode]
-function getLine(tripId) {
-  if (!SL || !tripId) return null;
-  return SL.lines?.[tripId.split('_')[0]] || null;
-}
-// 3-part key  →  trips[key]  (headsign, routeId, dir, shapeId)
-function getTrip(tripId) {
-  if (!SL || !tripId) return null;
-  return SL.trips?.[tripId.split('_').slice(0, 3).join('_')] || null;
-}
-// Exact per-direction route (routeId e.g. "10011")  →  routes[routeId]
-function getRoute(routeId) {
-  if (!SL || !routeId) return null;
-  return SL.routes?.[routeId] || null;
-}
-// Stop name by stop_id (from stops.json)
-function getStop(stopId) {
-  if (!STOPS || !stopId) return null;
-  const s = STOPS[stopId];
-  if (!s) return null;
-  return { name: s.n, lat: s.a, lon: s.o };
-}
+function getLine(tripId)  { if (!SL || !tripId) return null; return SL.lines?.[tripId.split('_')[0]] || null; }
+function getTrip(tripId)  { if (!SL || !tripId) return null; return SL.trips?.[tripId.split('_').slice(0, 3).join('_')] || null; }
+function getRoute(routeId){ if (!SL || !routeId) return null; return SL.routes?.[routeId] || null; }
+function getStop(stopId)  { if (!STOPS || !stopId) return null; const s = STOPS[stopId]; if (!s) return null; return { name: s.n, lat: s.a, lon: s.o }; }
 
-// External line number ("1", "302") — never expose internal code
-function lineName(tripId)  { return getLine(tripId)?.name || '…'; }
-function lineDest(tripId)  { return getTrip(tripId)?.headsign || ''; }
-function lineType(tripId)  { return getLine(tripId)?.type || '3'; }
+function lineName(tripId)      { return getLine(tripId)?.name || '…'; }
+function lineDest(tripId)      { return getTrip(tripId)?.headsign || ''; }
+function lineType(tripId)      { return getLine(tripId)?.type || '3'; }
 function lineTypeLabel(tripId) { return ROUTE_TYPES[lineType(tripId)] || 'Bus'; }
+function lineColor(tripId)     { const c = getLine(tripId)?.color; return c ? '#' + c : null; }
+function lineTextColor(tripId) { const c = getLine(tripId)?.textColor; return c ? '#' + c : '#ffffff'; }
 
-
-function lineColor(tripId) {
-  const c = getLine(tripId)?.color;
-  return c ? '#' + c : null;
-}
-function lineTextColor(tripId) {
-  const c = getLine(tripId)?.textColor;
-  return c ? '#' + c : '#ffffff';
-}
-
-// Fallback palette used before static loads (keyed on internal code, not shown to user)
 const PAL = ["#00d4ff","#ff6b35","#a8ff3e","#ff3b88","#ffcc00","#c77dff","#06ffa5","#ff9f43","#48dbfb","#ff6b6b"];
 function palCol(k) {
   let h = 0; for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) & 0xffffffff;
@@ -609,15 +468,181 @@ function fmtB(d) {
   if (d==null) return '–';
   return ["N","NE","E","SE","S","SW","W","NW"][Math.round(d/45)%8]+` ${Math.round(d)}°`;
 }
+function fmtMins(m) {
+  if (m == null) return '';
+  const h = Math.floor(m / 60) % 24, mn = m % 60;
+  return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`;
+}
+
+// ── Filter stop IDs ───────────────────────────────────────────────────────────
+// Returns a Set<stopId> of stops that belong to the active filter's route(s),
+// or null if we can't determine that (no filter, type filter, or ST not loaded).
+// Used by AllStopsLayer to dim irrelevant stops.
+function getFilterStopIds() {
+  if (!activeFilter) return null;
+  if (!activeFilter.urlKey || activeFilter.urlKey === 'type') return null;
+
+  const ids = new Set();
+  let found = false;
+
+  if (activeFilter.urlKey === 'line') {
+    const lc = activeFilter.urlVal;
+    if (ST[lc]) {
+      found = true;
+      for (const seq of Object.values(ST[lc])) for (const {s} of seq) ids.add(s);
+    }
+  } else {
+    // route / trip / vehicle filter — union across all matching vehicles' loaded ST
+    for (const v of Object.values(vData)) {
+      if (!activeFilter.matchIds?.has(v.vehicleId)) continue;
+      const lc = v.tripId?.split('_')[0];
+      if (!lc || !ST[lc]) continue;
+      found = true;
+      for (const seq of Object.values(ST[lc])) for (const {s} of seq) ids.add(s);
+    }
+  }
+
+  return found ? ids : null; // null = don't know yet → don't dim
+}
+
+// ── Approaching vehicles for a stop ──────────────────────────────────────────
+// Scans live vehicles in vData whose loaded stop-times include this stop
+// within the next 90 minutes. Only works for lines whose ST is already cached.
+function getApproachingVehicles(stopId) {
+  const results = [];
+  const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+  for (const v of Object.values(vData)) {
+    const seq = getTripStops(v.tripId);
+    if (!seq) continue;
+    const idx = seq.findIndex(s => s.s === stopId);
+    if (idx < 0) continue;
+    const delayMins = Math.round((v.delay || 0) / 60);
+    const st = seq[idx];
+    if (st.a == null) continue;
+    const adjusted = st.a + delayMins;
+    const eta = adjusted - nowMins;
+    if (eta < -3 || eta > 90) continue; // ignore if already passed or too far ahead
+    results.push({ vehicleId: v.vehicleId, tripId: v.tripId, delay: v.delay, scheduled: st.a, adjusted, eta });
+  }
+  return results.sort((a, b) => a.eta - b.eta);
+}
 
 // ── Map ───────────────────────────────────────────────────────────────────────
 const map = L.map("map", {center:[51.0,4.3],zoom:9,preferCanvas:true});
 L.tileLayer(TILE,{attribution:ATTR,subdomains:"abcd",maxZoom:19}).addTo(map);
-// (click handling is done inside ArrowLayer above)
+
+// ── All-stops canvas layer ────────────────────────────────────────────────────
+// Renders every De Lijn stop as a small dot at zoom ≥ 14.
+// At lower zooms the layer clears itself — no visual noise.
+// When a line/route/trip filter is active AND the relevant stop-times file is
+// loaded, stops not on that route are dimmed like vehicles are dimmed.
+const AllStopsLayer = L.Layer.extend({
+  initialize() {
+    this._activeStopId = null;   // currently-clicked stop
+    this._routeStopIds = null;   // Set<stopId> for active filter, or null
+  },
+
+  onAdd(map) {
+    this._map = map;
+    this._canvas = L.DomUtil.create('canvas', 'leaflet-layer');
+    map.getPanes().overlayPane.appendChild(this._canvas);
+    this._ctx = this._canvas.getContext('2d');
+    map.on('moveend zoomend resize', this._reset, this);
+    this._reset();
+  },
+
+  onRemove(map) {
+    this._canvas.remove();
+    map.off('moveend zoomend resize', this._reset, this);
+  },
+
+  setActiveStop(id) { this._activeStopId = id; this._draw(); },
+  setRouteFilter(ids) { this._routeStopIds = ids; this._draw(); },
+
+  _reset() {
+    const size = this._map.getSize();
+    this._canvas.width  = size.x;
+    this._canvas.height = size.y;
+    L.DomUtil.setPosition(this._canvas, this._map.containerPointToLayerPoint([0, 0]));
+    this._draw();
+  },
+
+  _draw() {
+    const ctx = this._ctx, m = this._map;
+    if (!ctx || !m) return;
+    ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+    if (!STOPS || m.getZoom() < 14) return;
+
+    const b   = m.getBounds();
+    const sw  = b.getSouth(), ne = b.getNorth(), ww = b.getWest(), ew = b.getEast();
+    const z   = m.getZoom();
+    const r   = z >= 16 ? 4 : z >= 15 ? 3 : 2.5;
+    const rId = this._routeStopIds; // null = no filter; Set = filter active
+
+    // Bucket into three groups so we can batch-fill each style in one path.
+    const normalPts = [], dimPts = [], activePts = [];
+
+    for (const [sid, s] of Object.entries(STOPS)) {
+      const la = s.a, lo = s.o;
+      if (la < sw || la > ne || lo < ww || lo > ew) continue;
+      const pt = m.latLngToContainerPoint([la, lo]);
+      if (sid === this._activeStopId)       activePts.push(pt);
+      else if (rId && !rId.has(sid))        dimPts.push(pt);
+      else                                  normalPts.push(pt);
+    }
+
+    // Dimmed stops — barely visible
+    if (dimPts.length) {
+      ctx.beginPath();
+      for (const p of dimPts) { ctx.moveTo(p.x + r, p.y); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); }
+      ctx.fillStyle = 'rgba(200,218,232,0.08)';
+      ctx.fill();
+    }
+
+    // Normal stops — subtle grey circles
+    if (normalPts.length) {
+      ctx.beginPath();
+      for (const p of normalPts) { ctx.moveTo(p.x + r, p.y); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); }
+      ctx.fillStyle   = 'rgba(200,218,232,0.42)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.32)';
+      ctx.lineWidth   = 0.8;
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Active (clicked) stop — bright accent with white ring
+    if (activePts.length) {
+      const ra = r + 3;
+      ctx.beginPath();
+      for (const p of activePts) { ctx.moveTo(p.x + ra, p.y); ctx.arc(p.x, p.y, ra, 0, Math.PI * 2); }
+      ctx.fillStyle   = '#00d4ff';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth   = 2;
+      ctx.fill();
+      ctx.stroke();
+    }
+  },
+
+  // Hit-test: returns stopId of the closest stop within 12px, or null.
+  getStopAt(containerPoint) {
+    if (!STOPS || !this._map || this._map.getZoom() < 14) return null;
+    const b  = this._map.getBounds();
+    const sw = b.getSouth(), ne = b.getNorth(), ww = b.getWest(), ew = b.getEast();
+    let best = null, bestD = 12;
+    for (const [sid, s] of Object.entries(STOPS)) {
+      if (s.a < sw || s.a > ne || s.o < ww || s.o > ew) continue;
+      const pt = this._map.latLngToContainerPoint([s.a, s.o]);
+      const d  = Math.hypot(containerPoint.x - pt.x, containerPoint.y - pt.y);
+      if (d < bestD) { bestD = d; best = sid; }
+    }
+    return best;
+  },
+});
+
+const allStopsLayer = new AllStopsLayer();
+allStopsLayer.addTo(map); // added BEFORE arrowLayer so vehicles render on top
 
 // ── Custom canvas arrow layer ─────────────────────────────────────────────────
-// Draws all vehicles on a single <canvas> — zero DOM nodes per vehicle.
-// Bearing arrows when bearing is available, circles otherwise.
 const ArrowLayer = L.Layer.extend({
   initialize() { this._vehicles = []; },
 
@@ -645,7 +670,6 @@ const ArrowLayer = L.Layer.extend({
     const size = this._map.getSize();
     this._canvas.width  = size.x;
     this._canvas.height = size.y;
-    // Position canvas over the map pane
     const topLeft = this._map.containerPointToLayerPoint([0,0]);
     L.DomUtil.setPosition(this._canvas, topLeft);
     this._draw();
@@ -694,7 +718,6 @@ const ArrowLayer = L.Layer.extend({
     }
   },
 
-  // Hit test: returns vehicleId of the vehicle clicked, or null
   getVehicleAt(containerPoint) {
     for (const v of this._vehicles) {
       const pt = this._map.latLngToContainerPoint([v.lat, v.lng]);
@@ -708,38 +731,28 @@ const ArrowLayer = L.Layer.extend({
 const arrowLayer = new ArrowLayer();
 arrowLayer.addTo(map);
 
-// ── Stop marker layer ─────────────────────────────────────────────────────────
-// Shows stops along the active route. Status: start|passed|current|upcoming|terminal
-// Other stops dimmed when a filter is active.
+// ── Stop marker layer (route stops for selected vehicle) ──────────────────────
 const StopLayer = L.Layer.extend({
   onAdd(map) { this._map = map; map.on('moveend zoomend', this._draw, this); this._draw(); },
   onRemove(map) { map.off('moveend zoomend', this._draw, this); this._markers?.forEach(m => m.remove()); this._markers = []; },
   _markers: [],
-  _routeStops: [],  // [{lat, lon, status}]  status: 'start'|'passed'|'current'|'upcoming'|'terminal'
+  _routeStops: [],
 
-  setRouteStops(stops) {
-    this._routeStops = stops;
-    this._draw();
-  },
-
-  clearRouteStops() {
-    this._routeStops = [];
-    this._draw();
-  },
+  setRouteStops(stops) { this._routeStops = stops; this._draw(); },
+  clearRouteStops()    { this._routeStops = []; this._draw(); },
 
   _draw() {
     if (!this._map) return;
-    // Remove existing markers
     this._markers.forEach(m => m.remove());
     this._markers = [];
     if (!this._routeStops.length) return;
 
     const styles = {
-      start:    { color: '#a8ff3e', fill: '#a8ff3e', r: 7, weight: 2, opacity: 1 },
-      passed:   { color: '#3a5060', fill: '#1e2d3d', r: 4, weight: 1, opacity: 0.5 },
-      current:  { color: '#00d4ff', fill: '#00d4ff', r: 9, weight: 3, opacity: 1 },
-      upcoming: { color: '#c8dae8', fill: '#141b23', r: 5, weight: 2, opacity: 0.9 },
-      terminal: { color: '#ff6b35', fill: '#ff6b35', r: 7, weight: 2, opacity: 1 },
+      start:    { color: '#a8ff3e', fill: '#a8ff3e', r: 7,  weight: 2, opacity: 1   },
+      passed:   { color: '#3a5060', fill: '#1e2d3d', r: 4,  weight: 1, opacity: 0.5 },
+      current:  { color: '#00d4ff', fill: '#00d4ff', r: 9,  weight: 3, opacity: 1   },
+      upcoming: { color: '#c8dae8', fill: '#141b23', r: 5,  weight: 2, opacity: 0.9 },
+      terminal: { color: '#ff6b35', fill: '#ff6b35', r: 7,  weight: 2, opacity: 1   },
     };
 
     for (const stop of this._routeStops) {
@@ -759,50 +772,71 @@ const StopLayer = L.Layer.extend({
 const stopLayer = new StopLayer();
 stopLayer.addTo(map);
 
-
 let shapePolyline = null;
-
-function drawShape(shapeId, lineCode) {
-  // Async wrapper so callers don't need to await
-  if (!lineCode && shapeId) {
-    // Derive lineCode from any vehicle whose trip has this shapeId
-    for (const v of Object.values(vData)) {
-      const ti = getTrip(v.tripId);
-      if (ti?.shapeId === shapeId) { lineCode = v.tripId?.split('_')[0]; break; }
-    }
-  }
-  showShape(shapeId, lineCode);
-}
 
 function clearShape() {
   if (shapePolyline) { shapePolyline.remove(); shapePolyline = null; }
 }
 
-// ── Mobile sidebar toggle ──────────────────────────────────────────────────────
+// ── Mobile sidebar ────────────────────────────────────────────────────────────
 function toggleSidebar() {
   const sb = G("sidebar");
   const open = sb.classList.toggle("mob-open");
   G("mob-fab").textContent = open ? "✕ Close" : "☰ Vehicles";
 }
-
-// Close sidebar when a vehicle is selected on mobile
 function closeSidebarMobile() {
   G("sidebar").classList.remove("mob-open");
   G("mob-fab").textContent = "☰ Vehicles";
 }
 
-// Route map clicks through the arrow layer for hit testing
+// ── Zoom hint ─────────────────────────────────────────────────────────────────
+let _hintTimer = null;
+function showZoomHint() {
+  const el = G('zoom-hint');
+  el.classList.add('on');
+  clearTimeout(_hintTimer);
+  _hintTimer = setTimeout(() => el.classList.remove('on'), 2500);
+}
+
+// ── Map click — vehicles take priority over stops ─────────────────────────────
 map.on('click', e => {
-  const hit = arrowLayer.getVehicleAt(e.containerPoint);
-  if (hit) { L.DomEvent.stopPropagation(e); select(hit); }
-  else closePanel();
+  const vehicleHit = arrowLayer.getVehicleAt(e.containerPoint);
+  if (vehicleHit) {
+    L.DomEvent.stopPropagation(e);
+    select(vehicleHit);
+    return;
+  }
+
+  // Stop hit — only active at zoom ≥ 14 (AllStopsLayer handles the guard)
+  const stopHit = allStopsLayer.getStopAt(e.containerPoint);
+  if (stopHit) {
+    L.DomEvent.stopPropagation(e);
+    selectStop(stopHit);
+    return;
+  }
+
+  // Clicked empty map: close everything
+  closePanel();
+  closeStopPopup();
+});
+
+// Zoom-change: show hint when crossing threshold downward, load data upward
+map.on('zoomend', () => {
+  const z = map.getZoom();
+  if (z === 13) showZoomHint(); // just went below the stop-display threshold
+  if (z >= 14) {
+    if (!STOPS_tried)      loadStops();
+    if (!STOP_INDEX_tried) loadStopIndex();
+  }
 });
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const vData = {};  // vehicleId → vehicle obj (no DOM markers needed)
+const vData = {};
 let sortedV=[], sortedC=[], activeId=null, activeTab="v";
-let activeFilter = null; // null = no filter; {matchIds: Set, label: string}
+let activeFilter = null;
 let rtimer=null, ptimer=null, pstart=null;
+let activeStopId   = null;   // currently-selected stop (for AllStopsLayer highlight)
+let activeStopPopup = null;  // Leaflet popup for the selected stop
 
 const G = id => document.getElementById(id);
 let ttimer=null;
@@ -817,9 +851,7 @@ function switchTab(t){
 }
 
 // ── URL state ─────────────────────────────────────────────────────────────────
-// Known param keys — cleared on every push so state is always canonical.
 const URL_KEYS = ['line','route','trip','type','vehicle','agency'];
-
 function pushUrlState(params) {
   const url = new URL(location.href);
   URL_KEYS.forEach(k => url.searchParams.delete(k));
@@ -828,77 +860,57 @@ function pushUrlState(params) {
   }
   history.replaceState(null, '', url.toString());
 }
-
-// Collect the current filter params (without vehicle) for merging when opening a panel.
 function filterUrlParams() {
   if (!activeFilter?.urlKey) return {};
   return { [activeFilter.urlKey]: activeFilter.urlVal };
 }
 
-// Called once after first data + static are ready.
 async function restoreFromUrl() {
   const sp = new URLSearchParams(location.search);
-  const pLine    = sp.get('line');
-  const pRoute   = sp.get('route');
-  const pTrip    = sp.get('trip');
-  const pType    = sp.get('type');
-  const pVehicle = sp.get('vehicle');
-
+  const pLine=sp.get('line'), pRoute=sp.get('route'), pTrip=sp.get('trip'),
+        pType=sp.get('type'), pVehicle=sp.get('vehicle');
   if (!pLine && !pRoute && !pTrip && !pType && !pVehicle) return;
 
-  // Wait until static lookup is ready (shapes/stops depend on it)
   await new Promise(resolve => {
     if (SL) return resolve();
     const id = setInterval(() => { if (SL) { clearInterval(id); resolve(); } }, 50);
-    setTimeout(() => { clearInterval(id); resolve(); }, 5000); // safety timeout
+    setTimeout(() => { clearInterval(id); resolve(); }, 5000);
   });
 
-  // Apply filter first (vehicle select comes after)
   if (pType) {
     const entry = Object.entries(ROUTE_TYPES).find(([code]) => code === pType);
     if (entry) {
       const [code, label] = entry;
       const matchIds = new Set(Object.values(vData)
-        .filter(v => (getLine(v.tripId)?.type || '3') === code)
-        .map(v => v.vehicleId));
+        .filter(v => (getLine(v.tripId)?.type || '3') === code).map(v => v.vehicleId));
       applyFilter({ matchIds, label, urlKey:'type', urlVal:code }, true);
     }
   } else if (pLine && SL?.lines?.[pLine]) {
     const l = SL.lines[pLine];
-    const matchIds = new Set(Object.values(vData)
-      .filter(v => v.tripId?.split('_')[0] === pLine).map(v => v.vehicleId));
-    const shapeIds = new Set(Object.values(vData)
-      .filter(v => v.tripId?.split('_')[0] === pLine)
-      .map(v => getTrip(v.tripId)?.shapeId).filter(Boolean));
+    const matchIds = new Set(Object.values(vData).filter(v => v.tripId?.split('_')[0] === pLine).map(v => v.vehicleId));
+    const shapeIds = new Set(Object.values(vData).filter(v => v.tripId?.split('_')[0] === pLine).map(v => getTrip(v.tripId)?.shapeId).filter(Boolean));
     const shapeId = shapeIds.size === 1 ? [...shapeIds][0] : null;
     const dirs = [l.dir0, l.dir1].filter(Boolean);
-    applyFilter({ matchIds, label: l.name + (dirs.length ? ' · '+dirs.join(' ↔ ') : ''),
-                  shapeId, urlKey:'line', urlVal:pLine }, true);
+    applyFilter({ matchIds, label: l.name + (dirs.length ? ' · '+dirs.join(' ↔ ') : ''), shapeId, urlKey:'line', urlVal:pLine }, true);
   } else if (pRoute) {
     const matchIds = new Set(); let shapeId=null, lName='', hs='';
     for (const v of Object.values(vData)) {
       const ti = getTrip(v.tripId);
-      if (ti?.routeId === pRoute) {
-        matchIds.add(v.vehicleId);
-        if (!shapeId && ti.shapeId) shapeId = ti.shapeId;
-        if (!lName) lName = getLine(v.tripId)?.name || '';
-        if (!hs)    hs    = ti.headsign || '';
-      }
+      if (ti?.routeId !== pRoute) continue;
+      matchIds.add(v.vehicleId);
+      if (!shapeId && ti.shapeId) shapeId = ti.shapeId;
+      if (!lName) lName = getLine(v.tripId)?.name || '';
+      if (!hs)    hs    = ti.headsign || '';
     }
-    if (matchIds.size) applyFilter({ matchIds, label:`${lName} → ${hs}`,
-      shapeId, urlKey:'route', urlVal:pRoute }, true);
+    if (matchIds.size) applyFilter({ matchIds, label:`${lName} → ${hs}`, shapeId, urlKey:'route', urlVal:pRoute }, true);
   } else if (pTrip) {
-    const v = Object.values(vData).find(v =>
-      v.tripId?.split('_').slice(0,3).join('_') === pTrip || v.tripId === pTrip);
+    const v = Object.values(vData).find(v => v.tripId?.split('_').slice(0,3).join('_') === pTrip || v.tripId === pTrip);
     if (v) {
       const matchIds = new Set([v.vehicleId]);
-      const tripShapeId = getTrip(v.tripId)?.shapeId || null;
-      applyFilter({ matchIds, label:`Trip ${pTrip}`,
-        shapeId:tripShapeId, urlKey:'trip', urlVal:pTrip }, true);
+      applyFilter({ matchIds, label:`Trip ${pTrip}`, shapeId:getTrip(v.tripId)?.shapeId||null, urlKey:'trip', urlVal:pTrip }, true);
     }
   }
 
-  // Open vehicle panel directly (URL paste / sidebar click behaviour)
   if (pVehicle) {
     const v = Object.values(vData).find(v => v.vehicleId === pVehicle);
     if (v) { select(v.vehicleId); openPanel(v.vehicleId); }
@@ -931,7 +943,6 @@ document.addEventListener("click", e => {
 });
 
 function closeDrop() { sdrop.classList.remove("on"); dropHi = -1; }
-
 function moveDrop(dir) {
   const els = sdrop.querySelectorAll(".sd-item");
   if (!els.length) return;
@@ -946,41 +957,34 @@ function buildDrop() {
   sclear.style.display = q ? "block" : "none";
   if (!q) { closeDrop(); return; }
 
-  const groups = [];   // [{label, items:[{badge,color,textColor,main,sub,delay,apply}]}]
+  const groups = [];
   const agencyName = SL?.agency?.['delijn']?.name || 'De Lijn';
 
-  // ── Agency match ───────────────────────────────────────────────────────────
+  // ── Agency ─────────────────────────────────────────────────────────────────
   if (agencyName.toLowerCase().includes(q)) {
     groups.push({ label: 'Agency', items: [{
-      badge: 'ALL', color: '#1e2d3d', textColor: '#c8dae8',
+      badge: 'ALL', color: '#1e2d3d', textC: '#c8dae8',
       main: agencyName, sub: `${Object.keys(vData).length} vehicles`,
-      delay: null,
-      apply() { applyFilter(null); }    // agency = show all
+      apply() { applyFilter(null); }
     }]});
   }
 
-  // ── Vehicle type match ─────────────────────────────────────────────────────
+  // ── Vehicle type ───────────────────────────────────────────────────────────
   const typeMatches = [];
   for (const [code, label] of Object.entries(ROUTE_TYPES)) {
-    if (label.toLowerCase().includes(q)) {
-      const matchIds = new Set(Object.values(vData)
-        .filter(v => (getLine(v.tripId)?.type || '3') === code)
-        .map(v => v.vehicleId));
-      if (matchIds.size > 0) {
-        typeMatches.push({
-          badge: label[0], color: '#1e2d3d', textColor: '#c8dae8',
-          main: label, sub: `${matchIds.size} vehicles`,
-          delay: null,
-          apply() { applyFilter({ matchIds, label, urlKey:'type', urlVal:code }); }
-        });
-      }
+    if (!label.toLowerCase().includes(q)) continue;
+    const matchIds = new Set(Object.values(vData).filter(v => (getLine(v.tripId)?.type || '3') === code).map(v => v.vehicleId));
+    if (matchIds.size > 0) {
+      typeMatches.push({
+        badge: label[0], color: '#1e2d3d', textC: '#c8dae8',
+        main: label, sub: `${matchIds.size} vehicles`,
+        apply() { applyFilter({ matchIds, label, urlKey:'type', urlVal:code }); }
+      });
     }
   }
   if (typeMatches.length) groups.push({ label: 'Type', items: typeMatches });
 
-  // ── Line name match (external: "1", "X19", "302") ─────────────────────────
-  // One entry per internal line code — so "X19 Neerpelt-Hasselt" and
-  // "X19 Antwerpen-Rumst" show as separate entries even though both are "X19".
+  // ── Line ───────────────────────────────────────────────────────────────────
   if (SL?.lines) {
     const lineItems = [];
     for (const [code, l] of Object.entries(SL.lines)) {
@@ -988,63 +992,57 @@ function buildDrop() {
       const matchIds = new Set();
       const shapeIds = new Set();
       for (const v of Object.values(vData)) {
-        if (v.tripId?.split('_')[0] === code) {
-          matchIds.add(v.vehicleId);
-          const sid = getTrip(v.tripId)?.shapeId;
-          if (sid) shapeIds.add(sid);
-        }
+        if (v.tripId?.split('_')[0] !== code) continue;
+        matchIds.add(v.vehicleId);
+        const sid = getTrip(v.tripId)?.shapeId;
+        if (sid) shapeIds.add(sid);
       }
       if (!matchIds.size) continue;
-      const color  = l.color ? '#'+l.color : '#444';
+      const color  = l.color  ? '#'+l.color  : '#444';
       const textC  = l.textColor ? '#'+l.textColor : '#fff';
       const snap   = new Set(matchIds);
       const shapeId = shapeIds.size === 1 ? [...shapeIds][0] : null;
-      // Build route description from dir0/dir1
-      const dirs = [l.dir0, l.dir1].filter(Boolean);
-      const routeDesc = dirs.length ? dirs.join(' ↔ ') : '';
-      const label = `${l.name}${routeDesc ? ' · ' + routeDesc : ''}`;
+      const dirs    = [l.dir0, l.dir1].filter(Boolean);
+      const label   = `${l.name}${dirs.length ? ' · '+dirs.join(' ↔ ') : ''}`;
       lineItems.push({
         badge: l.name, color, textC,
         main: label, sub: `${snap.size} vehicle${snap.size!==1?'s':''}`,
-        delay: null,
         apply() { applyFilter({ matchIds: snap, label, shapeId, urlKey:'line', urlVal:code }); }
       });
     }
     if (lineItems.length) groups.push({ label: 'Line', items: lineItems.slice(0,8) });
   }
 
-  // ── Route ID match (per-direction: "X19 → Neerpelt") ──────────────────────
+  // ── Route ──────────────────────────────────────────────────────────────────
   if (SL?.trips) {
-    const routeHits = new Map(); // routeId → {lineName, headsign, matchIds}
+    const routeHits = new Map();
     for (const v of Object.values(vData)) {
-      const tripInfo = getTrip(v.tripId);
-      const lineInfo = getLine(v.tripId) || {};
-      if (!tripInfo) continue;
-      const rid = tripInfo.routeId;
-      const name = lineInfo.name || '';
-      const hs   = tripInfo.headsign || '';
+      const ti = getTrip(v.tripId);
+      const li = getLine(v.tripId) || {};
+      if (!ti) continue;
+      const rid   = ti.routeId;
+      const name  = li.name || '';
+      const hs    = ti.headsign || '';
       const label = `${name} → ${hs}`;
       if (!label.toLowerCase().includes(q) && !rid?.toLowerCase().includes(q)) continue;
-      if (!routeHits.has(rid)) routeHits.set(rid, { lineName: name, headsign: hs, color: lineInfo.color, textColor: lineInfo.textColor, matchIds: new Set(), shapeId: tripInfo.shapeId || null });
+      if (!routeHits.has(rid)) routeHits.set(rid, { lineName: name, headsign: hs, color: li.color, textColor: li.textColor, matchIds: new Set(), shapeId: ti.shapeId || null });
       routeHits.get(rid).matchIds.add(v.vehicleId);
     }
     const routeItems = [];
     for (const [rid, entry] of routeHits) {
-      const color = entry.color ? '#'+entry.color : '#444';
+      const color = entry.color  ? '#'+entry.color  : '#444';
       const textC = entry.textColor ? '#'+entry.textColor : '#fff';
-      const snap = new Set(entry.matchIds);
+      const snap  = new Set(entry.matchIds);
       routeItems.push({
         badge: entry.lineName, color, textC,
-        main: `${entry.lineName} → ${entry.headsign}`,
-        sub: `${snap.size} vehicles`,
-        delay: null,
+        main: `${entry.lineName} → ${entry.headsign}`, sub: `${snap.size} vehicles`,
         apply() { applyFilter({ matchIds: snap, label: `${entry.lineName} → ${entry.headsign}`, shapeId: entry.shapeId, urlKey:'route', urlVal:rid }); }
       });
     }
     if (routeItems.length) groups.push({ label: 'Route', items: routeItems.slice(0,6) });
   }
 
-  // ── Trip ID match ──────────────────────────────────────────────────────────
+  // ── Trip ───────────────────────────────────────────────────────────────────
   const tripItems = [];
   for (const v of Object.values(vData)) {
     if (!v.tripId?.toLowerCase().includes(q)) continue;
@@ -1062,7 +1060,7 @@ function buildDrop() {
   }
   if (tripItems.length) groups.push({ label: 'Trip', items: tripItems.slice(0,4) });
 
-  // ── Vehicle ID match ───────────────────────────────────────────────────────
+  // ── Vehicle ────────────────────────────────────────────────────────────────
   const vehItems = [];
   for (const v of Object.values(vData)) {
     if (!v.vehicleId?.toLowerCase().includes(q)) continue;
@@ -1079,7 +1077,30 @@ function buildDrop() {
   }
   if (vehItems.length) groups.push({ label: 'Vehicle', items: vehItems.slice(0,4) });
 
-  // ── Render dropdown ────────────────────────────────────────────────────────
+  // ── Stop (by name or ID) ───────────────────────────────────────────────────
+  if (STOPS) {
+    const stopItems = [];
+    for (const [sid, s] of Object.entries(STOPS)) {
+      if (!s.n?.toLowerCase().includes(q) && !sid.includes(q)) continue;
+      const snapSid = sid, snapS = s;
+      stopItems.push({
+        badge: '⬡', color: '#6b8899', textC: '#c8dae8',
+        main: s.n, sub: `Stop ${sid}`,
+        apply() {
+          closeDrop();
+          sinput.value = '';
+          sclear.style.display = 'none';
+          // Fly to the stop then select it
+          map.flyTo([snapS.a, snapS.o], Math.max(map.getZoom(), 17), { animate: true, duration: 0.8 });
+          setTimeout(() => selectStop(snapSid), 850);
+        }
+      });
+      if (stopItems.length >= 6) break;
+    }
+    if (stopItems.length) groups.push({ label: 'Stop', items: stopItems });
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   dropItems = [];
   if (!groups.length) {
     sdrop.innerHTML = `<div style="padding:12px 14px;font-size:11px;color:var(--text-dim);font-family:var(--font-mono)">No results</div>`;
@@ -1106,7 +1127,7 @@ function buildDrop() {
   sdrop.innerHTML = html;
   sdrop.querySelectorAll(".sd-item").forEach(el => {
     el.addEventListener("mousedown", e => {
-      e.preventDefault(); // prevent blur
+      e.preventDefault();
       dropItems[+el.dataset.i]?.apply();
       closeDrop();
     });
@@ -1122,21 +1143,23 @@ function applyFilter(filter, skipPush=false) {
   sortedV = filter ? all.filter(v => filter.matchIds.has(v.vehicleId)) : all;
   G("bv").textContent = sortedV.length;
 
-  // Draw route shape + fit map when filter resolves to a single unique shape
   if (filter?.shapeId) {
-    // fetchShape will derive lineCode from first 4 chars of shapeId if needed
     const anyV = filter.matchIds.size ? Object.values(vData).find(v => filter.matchIds.has(v.vehicleId)) : null;
     const lc = anyV?.tripId?.split('_')[0] || null;
-    showShape(filter.shapeId, lc, true /* fitBounds */);
+    showShape(filter.shapeId, lc, true);
   } else if (!filter || filter.matchIds.size > 1) {
     clearShape();
     stopLayer.clearRouteStops();
   }
 
-  // Flush virtual scroll so stale rows don't linger
+  // Flush virtual scroll
   const win = G("wv");
   [...win.children].forEach(ch => { win.removeChild(ch); freeRow(ch); });
   G("pv").scrollTop = 0;
+
+  // Update stop layer dimming
+  allStopsLayer.setRouteFilter(filter ? getFilterStopIds() : null);
+
   arrowLayer._draw();
   redraw();
   if (filter) {
@@ -1151,7 +1174,87 @@ function clearSearch() {
   closeDrop();
   clearShape();
   stopLayer.clearRouteStops();
-  applyFilter(null);  // applyFilter(null) pushes empty URL
+  applyFilter(null);
+}
+
+// ── Stop popup ────────────────────────────────────────────────────────────────
+
+function closeStopPopup() {
+  if (activeStopPopup) { activeStopPopup.remove(); activeStopPopup = null; }
+  if (activeStopId)    { allStopsLayer.setActiveStop(null); activeStopId = null; }
+}
+
+function showStopPopup(stopId) {
+  const s = STOPS?.[stopId];
+  if (!s) return;
+  if (activeStopPopup) { activeStopPopup.remove(); activeStopPopup = null; }
+
+  const lineCodes  = STOP_INDEX?.[stopId] || [];
+  const approaches = getApproachingVehicles(stopId);
+
+  // Lines badge strip
+  const linesHtml = lineCodes.length
+    ? lineCodes.slice(0, 18).map(lc => {
+        const l = SL?.lines?.[lc];
+        if (!l) return '';
+        const c  = l.color     ? '#' + l.color     : '#6b8899';
+        const tc = l.textColor ? '#' + l.textColor : '#ffffff';
+        return `<span class="sp-approach-badge" style="background:${c}22;color:${c};border:1px solid ${c}44;margin:2px">${l.name}</span>`;
+      }).filter(Boolean).join('')
+    : `<span class="sp-none">–</span>`;
+
+  // Approaching vehicles list
+  const approachHtml = approaches.length
+    ? approaches.slice(0, 6).map(a => {
+        const name  = lineName(a.tripId);
+        const dest  = lineDest(a.tripId) || '–';
+        const color = markerCol(a.tripId);
+        const tc    = lineTextColor(a.tripId);
+        const etaStr = a.eta <= 0
+          ? `<span style="color:var(--accent3);font-weight:700">Now</span>`
+          : `<span style="color:var(--text)">${a.eta}m</span>`;
+        return `<div class="sp-approach-row">
+          <span class="sp-approach-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${name}</span>
+          <span class="sp-approach-dest">→ ${dest}</span>
+          ${etaStr}
+        </div>`;
+      }).join('')
+    : `<div class="sp-none">No live vehicles in next 90 min</div>`;
+
+  activeStopPopup = L.popup({ maxWidth: 300, minWidth: 260, closeButton: false })
+    .setLatLng([s.a, s.o])
+    .setContent(`<div class="mp">
+      <div class="sp-name">${s.n}</div>
+      <div class="sp-id">Stop ID: ${stopId}</div>
+      ${lineCodes.length ? `<div class="sp-section-label">Lines served</div>
+      <div class="sp-lines">${linesHtml}</div>` : ''}
+      <div class="sp-section-label">Approaching</div>
+      ${approachHtml}
+    </div>`)
+    .openOn(map);
+}
+
+async function selectStop(stopId) {
+  // Close vehicle panel if open (two interactions don't coexist)
+  if (G('info-panel').classList.contains('open')) closePanel();
+  closeStopPopup();
+
+  activeStopId = stopId;
+  allStopsLayer.setActiveStop(stopId);
+
+  if (!STOPS?.[stopId]) return;
+
+  // Show popup immediately with what we already have
+  showStopPopup(stopId);
+
+  // Load stop-times for lines serving this stop so we can populate approaches.
+  // Limit to 8 concurrent fetches to avoid hammering the API.
+  const lines = STOP_INDEX?.[stopId] || [];
+  if (lines.length) {
+    await Promise.all(lines.slice(0, 8).map(lc => loadStopTimes(lc)));
+    // Refresh popup if this stop is still selected
+    if (activeStopId === stopId) showStopPopup(stopId);
+  }
 }
 
 // ── Virtual scroll ────────────────────────────────────────────────────────────
@@ -1180,7 +1283,6 @@ function drawList(paneId,spacerId,winId,items,rowH,renderFn){
 function renderV(row,v){
   const d=fmtD(v.delay);
   const name=lineName(v.tripId), dest=lineDest(v.tripId)||v.vehicleId;
-
   const c=markerCol(v.tripId);
   row.className="vr"+(v.vehicleId===activeId?" sel":"");
   row.onclick=()=>{ select(v.vehicleId); openPanel(v.vehicleId); };
@@ -1191,7 +1293,6 @@ function renderV(row,v){
 }
 
 function renderC(row,c){
-  const col=markerCol(c.tripId);
   row.className="vr cr";
   row.innerHTML=`
     <div class="badge" style="background:rgba(255,59,92,.1);color:var(--danger);border:1px solid rgba(255,59,92,.3)">${lineName(c.tripId)}</div>
@@ -1207,7 +1308,7 @@ function redraw(){
 G("pv").addEventListener("scroll",()=>drawList("pv","sv2","wv",sortedV,IH_V,renderV),{passive:true});
 G("pc").addEventListener("scroll",()=>drawList("pc","sc3","wc",sortedC,IH_C,renderC),{passive:true});
 
-// ── Popup ─────────────────────────────────────────────────────────────────────
+// ── Vehicle popup ─────────────────────────────────────────────────────────────
 let activePopup = null;
 function showPopup(id){
   const v=vData[id]; if(!v) return;
@@ -1232,10 +1333,10 @@ function showPopup(id){
     .openOn(map);
 }
 
-// Incremented on every openPanel call — lets async renders bail if stale
 let _renderToken = 0;
 function openPanel(id){
   const v = vData[id]; if (!v) return;
+  closeStopPopup(); // stop popup and vehicle panel are mutually exclusive
   activeId = id;
   const token = ++_renderToken;
 
@@ -1261,8 +1362,7 @@ function openPanel(id){
   const ag   = SL?.agency?.['delijn'] || {};
   const feed = SL?.feed || {};
 
-  const agencyId = 'delijn';
-  pushUrlState({ ...filterUrlParams(), vehicle: v.vehicleId, agency: agencyId });
+  pushUrlState({ ...filterUrlParams(), vehicle: v.vehicleId, agency: 'delijn' });
 
   G("ip-badge").textContent      = name;
   G("ip-badge").style.background = color;
@@ -1349,7 +1449,7 @@ function openPanel(id){
         </div>
         <div class="ip-field">
           <div class="ip-label">Agency</div>
-          <div class="ip-value">${ag.name || agencyId}</div>
+          <div class="ip-value">${ag.name || 'De Lijn'}</div>
         </div>
       </div>
     </div>
@@ -1377,26 +1477,20 @@ function openPanel(id){
   G("info-panel").classList.add("open");
   G("ip-body").scrollTop = 0;
 
-  // Pan + zoom to vehicle (panel is now open so rightPad is 320)
   panToVehicle(v, Math.max(map.getZoom(), 13));
 
-  // All async work in one place — shape failure must not abort stop loading
   const _vid = v.vehicleId;
-  const _lineCode = v.tripId?.split('_')[0];
-  const _tripKey = v.tripId?.split('_').slice(0,3).join('_');
-  console.log('[GT] shape lookup', { tripKey: _tripKey, lineCode: _lineCode, shapeId: tripInfo.shapeId, SL_loaded: !!SL });
+  const _lc  = v.tripId?.split('_')[0];
   ;(async () => {
     clearShape();
     stopLayer.clearRouteStops();
 
-    // Shape — isolated so a Leaflet error can't abort the stop loading below
     if (tripInfo.shapeId) {
-      try { await showShape(tripInfo.shapeId, _lineCode); }
+      try { await showShape(tripInfo.shapeId, _lc); }
       catch(e) { console.warn('showShape failed:', e.message); }
     }
     if (activeId !== _vid) return;
 
-    // Stops
     try {
       await loadStops();
       if (activeId !== _vid) return;
@@ -1425,64 +1519,54 @@ function shareVehicleUrl() {
   }
 }
 
-// Render the stop sequence for the selected vehicle
 async function renderStopsForVehicle(v) {
   const el = G("stops-list");
   if (!el) return;
   try {
     await Promise.all([loadStops(), loadStopTimes(v.tripId)]);
-    if (activeId !== v.vehicleId) return;  // vehicle was deselected while loading
+    if (activeId !== v.vehicleId) return;
 
     const stops = getTripStops(v.tripId);
     if (!stops?.length) { el.textContent = 'No stop data available'; return; }
 
-  // Determine current "position" by finding the first stop whose scheduled
-  // time + delay is in the future (or the first stop if all are past)
-  const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
-  const delayMins = Math.round((v.delay || 0) / 60);
-  let nextIdx = stops.findIndex(s => s.a != null && (s.a + delayMins) >= nowMins);
-  if (nextIdx < 0) nextIdx = stops.length; // all passed
+    const nowMins   = new Date().getHours() * 60 + new Date().getMinutes();
+    const delayMins = Math.round((v.delay || 0) / 60);
+    let nextIdx = stops.findIndex(s => s.a != null && (s.a + delayMins) >= nowMins);
+    if (nextIdx < 0) nextIdx = stops.length;
 
-  function fmtMins(m) {
-    if (m == null) return '';
-    const h = Math.floor(m / 60) % 24, mn = m % 60;
-    return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`;
-  }
+    const rows = stops.map((st, i) => {
+      const stop    = getStop(st.s);
+      const name    = stop?.name || st.s;
+      const isPast  = i < nextIdx;
+      const isNext  = i === nextIdx;
+      const isTerm  = i === stops.length - 1;
+      const dotCls  = isTerm ? 'term' : isNext ? 'next' : isPast ? 'passed' : '';
+      const nameCls = isPast ? 'passed' : '';
 
-  const rows = stops.map((st, i) => {
-    const stop    = getStop(st.s);
-    const name    = stop?.name || st.s;
-    const isPast  = i < nextIdx;
-    const isNext  = i === nextIdx;
-    const isTerm  = i === stops.length - 1;
-    const dotCls  = isTerm ? 'term' : isNext ? 'next' : isPast ? 'passed' : '';
-    const nameCls = isPast ? 'passed' : '';
+      let timesHtml = '';
+      if (st.a != null) {
+        const sched = fmtMins(st.a);
+        const adj   = fmtMins(st.a + delayMins);
+        const late  = delayMins >= 2 ? (delayMins >= 5 ? 'vlate' : 'late') : 'adj';
+        timesHtml = `<span style="color:var(--text-dim)">${sched}</span>`
+          + (delayMins !== 0 ? ` <span class="${isPast ? '' : late}">${adj}</span>` : '');
+      }
 
-    let timesHtml = '';
-    if (st.a != null) {
-      const sched = fmtMins(st.a);
-      const adj   = fmtMins(st.a + delayMins);
-      const late  = delayMins >= 2 ? (delayMins >= 5 ? 'vlate' : 'late') : 'adj';
-      timesHtml = `<span style="color:var(--text-dim)">${sched}</span>`
-        + (delayMins !== 0 ? ` <span class="${isPast ? '' : late}">${adj}</span>` : '');
+      return `<div class="stop-row">
+        <div class="stop-dot ${dotCls}"></div>
+        <div class="stop-info">
+          <div class="stop-name ${nameCls}">${name}</div>
+          ${timesHtml ? `<div class="stop-times">${timesHtml}</div>` : ''}
+        </div>
+      </div>`;
+    });
+
+    el.innerHTML = `<div class="stop-list">${rows.join('')}</div>`;
+
+    if (nextIdx > 2) {
+      const rowEls = el.querySelectorAll('.stop-row');
+      rowEls[Math.max(0, nextIdx - 1)]?.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }
-
-    return `<div class="stop-row">
-      <div class="stop-dot ${dotCls}"></div>
-      <div class="stop-info">
-        <div class="stop-name ${nameCls}">${name}</div>
-        ${timesHtml ? `<div class="stop-times">${timesHtml}</div>` : ''}
-      </div>
-    </div>`;
-  });
-
-  el.innerHTML = `<div class="stop-list">${rows.join('')}</div>`;
-
-  // Scroll so the next stop is visible
-  if (nextIdx > 2) {
-    const rowEls = el.querySelectorAll('.stop-row');
-    rowEls[Math.max(0, nextIdx - 1)]?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  }
   } catch(e) {
     console.warn('renderStopsForVehicle:', e);
     const el2 = G("stops-list");
@@ -1490,28 +1574,26 @@ async function renderStopsForVehicle(v) {
   }
 }
 
-// Build stop marker array for a vehicle's route and hand to stopLayer
 async function renderStopMarkers(v) {
   if (!v?.tripId) return;
   const seq = getTripStops(v.tripId);
   if (!seq?.length) return;
   if (activeId !== v.vehicleId) return;
 
-  const nowMins  = new Date().getHours() * 60 + new Date().getMinutes();
+  const nowMins   = new Date().getHours() * 60 + new Date().getMinutes();
   const delayMins = Math.round((v.delay || 0) / 60);
   let nextIdx = seq.findIndex(s => s.a != null && (s.a + delayMins) >= nowMins);
   if (nextIdx < 0) nextIdx = seq.length;
 
   const markers = seq.map((st, i) => {
     const stop = getStop(st.s);
-    // Guard against missing or NaN coordinates
     if (!stop || !isFinite(stop.lat) || !isFinite(stop.lon)) return null;
     let status;
-    if (i === 0)                  status = 'start';
-    else if (i === seq.length-1)  status = 'terminal';
-    else if (i < nextIdx)         status = 'passed';
-    else if (i === nextIdx)       status = 'current';
-    else                          status = 'upcoming';
+    if (i === 0)               status = 'start';
+    else if (i === seq.length-1) status = 'terminal';
+    else if (i < nextIdx)      status = 'passed';
+    else if (i === nextIdx)    status = 'current';
+    else                       status = 'upcoming';
     return { lat: stop.lat, lon: stop.lon, name: stop.name, status };
   }).filter(Boolean);
 
@@ -1557,22 +1639,18 @@ function process(data){
     if(delay!=null&&Math.abs(delay)<60)onTime++;
     else if(delay!=null&&delay>=60)delayed++;
     if(delay!=null&&delay<-30)early++;
-
     vData[id]={vehicleId:id,tripId:v.tripId,routeId:v.routeId,lat:v.lat,lng:v.lng,bearing:v.bearing,delay,c};
   }
 
-  // Remove stale vehicles
   for (const id of Object.keys(vData)) {
     if (!seen.has(id)) {
-      if (id === activeId) closePanel(); // vehicle disappeared
+      if (id === activeId) closePanel();
       delete vData[id];
     }
   }
 
-  // Single canvas redraw — all vehicles in one pass
   arrowLayer.setVehicles(Object.values(vData));
 
-  // Keep selected vehicle centred as it moves
   if (activeId && vData[activeId]) {
     panToVehicle(vData[activeId]);
     if (activePopup) activePopup.setLatLng([vData[activeId].lat, vData[activeId].lng]);
@@ -1587,7 +1665,6 @@ function process(data){
 
   const all = Object.values(vData).sort((a,b)=>(b.delay||0)-(a.delay||0));
   sortedV = activeFilter ? all.filter(v => activeFilter.matchIds.has(v.vehicleId)) : all;
-  // Canceled: also filter by active filter when set
   const allC = [...canceled].sort((a,b)=>a.tripId.localeCompare(b.tripId));
   sortedC = activeFilter ? allC.filter(c => activeFilter.matchIds.has(c.vehicleId||c.tripId)) : allC;
   G("bv").textContent = sortedV.length;
@@ -1597,21 +1674,14 @@ function process(data){
   redraw();
 }
 
-// Pan/zoom so the vehicle appears centred in the visible area,
-// accounting for the 290px left sidebar and 320px right panel (when open).
 function panToVehicle(v, zoom) {
-  const mobile     = window.innerWidth <= 768;
-  const panelOpen  = !mobile && G("info-panel").classList.contains("open");
-  const leftPad    = mobile ? 0 : 290;
-  const rightPad   = panelOpen ? 320 : 0;
-  const W          = window.innerWidth;
-  const H          = window.innerHeight;
-  const z          = zoom ?? map.getZoom();
-
-  // Step 1: put vehicle exactly at map centre (no animation)
+  const mobile    = window.innerWidth <= 768;
+  const panelOpen = !mobile && G("info-panel").classList.contains("open");
+  const leftPad   = mobile ? 0 : 290;
+  const rightPad  = panelOpen ? 320 : 0;
+  const W = window.innerWidth, H = window.innerHeight;
+  const z = zoom ?? map.getZoom();
   map.setView([v.lat, v.lng], z, { animate: false });
-
-  // Step 2: pan so vehicle lands at the visual centre of the unobstructed area.
   const visCX   = leftPad + (W - leftPad - rightPad) / 2;
   const offsetX = -(visCX - W / 2);
   map.panBy([offsetX, 0], { animate: true });
@@ -1619,6 +1689,7 @@ function panToVehicle(v, zoom) {
 
 function select(id){
   activeId = id;
+  closeStopPopup(); // selecting a vehicle dismisses any open stop popup
   const v = vData[id]; if (!v) return;
   arrowLayer._draw();
   showPopup(id);
@@ -1630,17 +1701,18 @@ function schedNext(){clearTimeout(rtimer);rtimer=setTimeout(async()=>{await refr
 
 let _firstLoad = true;
 async function _init() {
-  // Start geolocation immediately — permission prompt appears right away.
-  // The first GPS fix will zoom the map once data has loaded.
-  initGeolocation();
-
+  // Kick off static data fetches immediately — they run in parallel with refresh
   loadStatic();
+  loadStopIndex();
+  // Pre-load stops + stop-index if already zoomed in enough at startup
+  if (map.getZoom() >= 14) {
+    loadStops();
+  }
+
   await refresh();
-  // After first data + static lookup are in, restore any URL state
-  // Give static a moment to finish if it arrived slightly after refresh
+
   if (_firstLoad) {
     _firstLoad = false;
-    // Static may still be in-flight; wait a tick then restore
     await new Promise(r => setTimeout(r, 200));
     await restoreFromUrl();
   }
