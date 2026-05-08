@@ -8,7 +8,11 @@
  *     lines, routes, trips (with shapeId), agency, feed
  *
  *   public/stops.json           ~3 MB   committed to git (needed for manual deploys)
- *     stop_id → stop_name
+ *     stop_id → { n, a, o }
+ *
+ *   public/stop-index.json      ~700 KB  committed to git
+ *     stop_id → [lineCode, ...]   reverse index so the frontend can answer
+ *     "which lines serve stop X?" without loading all stop-times files
  *
  *   public/shapes/{lineCode}.json   deployed only (gitignored)
  *     one file per line code (~1024 files), each: { shapeId: [[lat,lon],...] }
@@ -129,7 +133,6 @@ await parseCSVStream(zip.file('trips.txt'), t => {
   if (!trips[key]) {
     trips[key] = { headsign: t.trip_headsign, routeId: t.route_id, dir: t.direction_id, shapeId: t.shape_id || null };
   } else if (!trips[key].shapeId && t.shape_id) {
-    // First occurrence had no shape_id — grab it from a later row for the same key
     trips[key].shapeId = t.shape_id;
   }
 });
@@ -152,7 +155,7 @@ const outLookup = JSON.stringify({ lines, routes, trips, agency, feed });
 writeFileSync(pub('static-lookup.json'), outLookup);
 console.log(`\n✓ static-lookup.json  ${mb(outLookup)}  (committed to git)`);
 
-// ── stops.txt → stops.json — deploy only ─────────────────────────────────────
+// ── stops.txt → stops.json — committed to git ────────────────────────────────
 console.log('Parsing stops.txt...');
 const stops = {};
 await parseCSVStream(zip.file('stops.txt'), s => {
@@ -164,29 +167,25 @@ await parseCSVStream(zip.file('stops.txt'), s => {
 });
 const outStops = JSON.stringify(stops);
 writeFileSync(pub('stops.json'), outStops);
-console.log(`✓ stops.json          ${mb(outStops)}  (deploy only)`);
+console.log(`✓ stops.json          ${mb(outStops)}  (committed to git)`);
 
 // ── shapes.txt → public/shapes/{lineCode}.json ───────────────────────────────
-// Chunked by trip lineCode (first segment of trip_id, e.g. "4480").
-// We derive shapeId→lineCode by scanning trips.txt again (the trips object
-// only keeps the first trip per 3-part key, missing later shapeIds).
 const shapesDir = resolve(__dir, '../public/shapes');
 mkdirSync(shapesDir, { recursive: true });
 console.log('Building shapeId→lineCode map from trips.txt...');
-const shapeToLineCode = {};  // shapeId → lineCode
+const shapeToLineCode = {};
 await parseCSVStream(zip.file('trips.txt'), t => {
   if (t.shape_id) shapeToLineCode[t.shape_id] = t.trip_id.split('_')[0];
 });
 console.log(`  ${Object.keys(shapeToLineCode).length} shape→lineCode mappings`);
-// Show a few examples so we can verify the lineCode format
 const exampleEntries = Object.entries(shapeToLineCode).slice(0, 5);
 console.log('  Examples:', exampleEntries.map(([s,l]) => `${s} → ${l}`).join(', '));
 
 console.log('Parsing shapes.txt...');
-const shapesByLine = {};  // lineCode → { shapeId → [[seq,lat,lon]] }
+const shapesByLine = {};
 await parseCSVStream(zip.file('shapes.txt'), p => {
   const lineCode = shapeToLineCode[p.shape_id];
-  if (!lineCode) return;  // shape not referenced by any trip — skip
+  if (!lineCode) return;
   if (!shapesByLine[lineCode]) shapesByLine[lineCode] = {};
   if (!shapesByLine[lineCode][p.shape_id]) shapesByLine[lineCode][p.shape_id] = [];
   shapesByLine[lineCode][p.shape_id].push([
@@ -207,21 +206,12 @@ for (const [lineCode, shapesRaw] of Object.entries(shapesByLine)) {
 console.log(`✓ shapes/             ${shapeCount} files in public/shapes/  (deploy only)`);
 
 // ── stop_times.txt → public/stop-times/{lineCode}.json ───────────────────────
-// stop_times.txt uses internal trip_ids (e.g. "1001_...") while the RT feed
-// uses external line-number trip_ids (e.g. "4180_..."). We bridge via trips.txt:
-// build a full-trip-id → canonical-RT-key map so stop-times files are written
-// under the same lineCode the frontend derives from the RT feed.
 const stopTimesDir = resolve(__dir, '../public/stop-times');
 mkdirSync(stopTimesDir, { recursive: true });
 console.log('Building tripId→rtKey map from trips.txt...');
 
-// Map every full trips.txt trip_id → its canonical 3-part RT key
-// e.g. "1001_20260313_346_..." → "4180_36_346" is NOT how it works;
-// rather trips.txt trip_id "4180_36_346_..." → key "4180_36_346"
-// AND trips.txt trip_id "10010_36_346_..." → key "10010_36_346"
-// We store BOTH the full trip_id and the 3-part key, keyed by full trip_id.
-const fullTripToKey = new Map();   // full trip_id → 3-part key
-const fullTripToLine = new Map();  // full trip_id → lineCode (first part of 3-part key)
+const fullTripToKey = new Map();
+const fullTripToLine = new Map();
 await parseCSVStream(zip.file('trips.txt'), t => {
   const parts = t.trip_id.split('_');
   const key = parts.slice(0,3).join('_');
@@ -232,21 +222,16 @@ await parseCSVStream(zip.file('trips.txt'), t => {
 console.log(`  ${fullTripToKey.size} full trip_id mappings`);
 
 console.log('Parsing stop_times.txt...');
-const stByLine = {};  // lineCode → { tripKey → [{s,a}] }
-const stSeen   = new Map();  // fullTripId → first tripId seen (skip duplicates within same trip)
+const stByLine = {};
+const stSeen   = new Map();
 await parseCSVStream(zip.file('stop_times.txt'), st => {
   const fullId   = st.trip_id;
-  // Try exact match first, then try matching by stripping trailing suffix
   let lineCode = fullTripToLine.get(fullId);
   let key      = fullTripToKey.get(fullId);
 
   if (!lineCode || !key) {
-    // stop_times.txt may use a shorter trip_id — try 3-part prefix match
     const parts = fullId.split('_');
     const shortKey = parts.slice(0,3).join('_');
-    // Search trips for a matching 3-part key
-    // (expensive but only runs once; most entries will hit the exact match above)
-    // Use the lineCode from parts[0] directly as fallback
     lineCode = parts[0];
     key      = shortKey;
   }
@@ -270,14 +255,39 @@ for (const [lineCode, tripsObj] of Object.entries(stByLine)) {
 console.log(`✓ stop-times/         ${stCount} files in public/stop-times/  (deploy only)`);
 const stExamples = Object.keys(stByLine).sort().slice(0, 8);
 console.log('  Example stop-time lineCodes:', stExamples.join(', '));
-// Also log a sample key from the first available lineCode to verify key format
 const firstLineCode = Object.keys(stByLine).find(lc => Object.keys(stByLine[lc]).length > 0);
 if (firstLineCode) {
   const sampleKeys = Object.keys(stByLine[firstLineCode]).slice(0,3);
   console.log(`  Sample keys in stop-times/${firstLineCode}.json:`, sampleKeys.join(', '));
 }
 
+// ── stop-index.json — stop_id → [lineCode, ...] — committed to git ───────────
+// Reverse index so the frontend can answer "which lines serve stop X?" instantly,
+// without needing to load individual stop-times files per line.
+// Size: ~500–700 KB uncompressed, small enough to commit and cache aggressively.
+console.log('\nBuilding stop-index (reverse stop→lines map)...');
+const stopIndex = {};
+for (const [lineCode, tripsObj] of Object.entries(stByLine)) {
+  // One Set per lineCode so we don't add the same lineCode twice for the same stop.
+  const seenForLine = new Set();
+  for (const stopSeq of Object.values(tripsObj)) {
+    for (const { s } of stopSeq) {
+      if (!seenForLine.has(s)) {
+        seenForLine.add(s);
+        if (!stopIndex[s]) stopIndex[s] = [];
+        stopIndex[s].push(lineCode);
+      }
+    }
+  }
+}
+const outStopIndex = JSON.stringify(stopIndex);
+writeFileSync(pub('stop-index.json'), outStopIndex);
+console.log(`✓ stop-index.json     ${mb(outStopIndex)}  (committed to git)`);
+console.log(`  ${Object.keys(stopIndex).length} stops indexed`);
 
+// Sample a few entries so we can verify the format looks correct
+const sampleStops = Object.entries(stopIndex).slice(0, 3);
+console.log('  Sample:', sampleStops.map(([s, ls]) => `${s}→[${ls.slice(0,3).join(',')}${ls.length>3?'…':''}]`).join(', '));
 
 console.log(`\nFeed: ${feed.version}  valid ${feed.startDate} → ${feed.endDate}`);
 console.log('Run: wrangler deploy');
