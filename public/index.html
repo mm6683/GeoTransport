@@ -98,6 +98,8 @@
     .sp-approach-badge{padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--font-mono);flex-shrink:0}
     .sp-approach-dest{flex:1;font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .sp-approach-eta{font-size:11px;font-family:var(--font-mono);font-weight:600;flex-shrink:0}
+    .sp-approach-row:hover{background:rgba(0,212,255,.06)}
+    .sp-line-badge:hover{opacity:.8}
     .sp-none{color:var(--text-dim);font-size:11px;font-family:var(--font-mono);padding:4px 0}
 
     .leaflet-control-attribution{background:rgba(8,12,16,.8)!important;color:#4a6070!important;font-size:10px!important}
@@ -342,18 +344,20 @@ async function loadStops() {
   } catch(e) { STOPS = {}; console.warn('Stops:', e.message); }
 }
 
+// Promise-tracked loader so concurrent callers all await the same fetch.
+let _stopIndexPromise = null;
 async function loadStopIndex() {
-  if (STOP_INDEX_tried) return;
+  if (STOP_INDEX !== null) return;          // already resolved
+  if (_stopIndexPromise) return _stopIndexPromise; // in-flight — join it
+  _stopIndexPromise = (async () => {
+    try {
+      const r = await fetch('/stop-index.json', { cache: 'force-cache' });
+      STOP_INDEX = r.ok ? await r.json() : {};
+      if (!r.ok && r.status !== 404) console.warn('Stop-index: HTTP', r.status);
+    } catch(e) { STOP_INDEX = {}; console.warn('Stop-index:', e.message); }
+  })();
   STOP_INDEX_tried = true;
-  try {
-    const r = await fetch('/stop-index.json', { cache: 'force-cache' });
-    if (r.ok) {
-      STOP_INDEX = await r.json();
-    } else {
-      STOP_INDEX = {};
-      if (r.status !== 404) console.warn('Stop-index: HTTP', r.status);
-    }
-  } catch(e) { STOP_INDEX = {}; console.warn('Stop-index:', e.message); }
+  return _stopIndexPromise;
 }
 
 // ST: lineCode → { tripKey → [{s,a}] }  — loaded per line on demand
@@ -1184,6 +1188,31 @@ function closeStopPopup() {
   if (activeStopId)    { allStopsLayer.setActiveStop(null); activeStopId = null; }
 }
 
+// Click a line badge inside the stop popup → apply a line filter on the map.
+function filterByLine(lineCode) {
+  closeStopPopup();
+  const l = SL?.lines?.[lineCode];
+  if (!l) return;
+  const matchIds = new Set(Object.values(vData)
+    .filter(v => v.tripId?.split('_')[0] === lineCode).map(v => v.vehicleId));
+  const shapeIds = new Set(Object.values(vData)
+    .filter(v => v.tripId?.split('_')[0] === lineCode)
+    .map(v => getTrip(v.tripId)?.shapeId).filter(Boolean));
+  const shapeId = shapeIds.size === 1 ? [...shapeIds][0] : null;
+  const dirs    = [l.dir0, l.dir1].filter(Boolean);
+  const label   = `${l.name}${dirs.length ? ' · ' + dirs.join(' ↔ ') : ''}`;
+  applyFilter({ matchIds, label, shapeId, urlKey: 'line', urlVal: lineCode });
+}
+
+// Click a vehicle row inside the stop popup → open its side panel.
+function selectApproachingVehicle(vehicleId) {
+  closeStopPopup();
+  const v = vData[vehicleId];
+  if (!v) return;
+  select(vehicleId);
+  openPanel(vehicleId);
+}
+
 function showStopPopup(stopId) {
   const s = STOPS?.[stopId];
   if (!s) return;
@@ -1192,69 +1221,104 @@ function showStopPopup(stopId) {
   const lineCodes  = STOP_INDEX?.[stopId] || [];
   const approaches = getApproachingVehicles(stopId);
 
-  // Lines badge strip
+  // Line badge strip — each badge is clickable.
   const linesHtml = lineCodes.length
-    ? lineCodes.slice(0, 18).map(lc => {
+    ? lineCodes.slice(0, 20).map(lc => {
         const l = SL?.lines?.[lc];
         if (!l) return '';
-        const c  = l.color     ? '#' + l.color     : '#6b8899';
-        const tc = l.textColor ? '#' + l.textColor : '#ffffff';
-        return `<span class="sp-approach-badge" style="background:${c}22;color:${c};border:1px solid ${c}44;margin:2px">${l.name}</span>`;
+        const c = l.color ? '#' + l.color : '#6b8899';
+        return `<span class="sp-approach-badge sp-line-badge"
+                  style="background:${c}22;color:${c};border:1px solid ${c}44;cursor:pointer"
+                  onclick="filterByLine('${lc}')"
+                  title="Show line ${l.name} on map">${l.name}</span>`;
       }).filter(Boolean).join('')
     : `<span class="sp-none">–</span>`;
 
-  // Approaching vehicles list
-  const approachHtml = approaches.length
-    ? approaches.slice(0, 6).map(a => {
-        const name  = lineName(a.tripId);
-        const dest  = lineDest(a.tripId) || '–';
-        const color = markerCol(a.tripId);
-        const tc    = lineTextColor(a.tripId);
-        const etaStr = a.eta <= 0
-          ? `<span style="color:var(--accent3);font-weight:700">Now</span>`
-          : `<span style="color:var(--text)">${a.eta}m</span>`;
-        return `<div class="sp-approach-row">
-          <span class="sp-approach-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${name}</span>
-          <span class="sp-approach-dest">→ ${dest}</span>
-          ${etaStr}
-        </div>`;
-      }).join('')
-    : `<div class="sp-none">No live vehicles in next 90 min</div>`;
+  // Approaching vehicle rows — each row is clickable.
+  let approachHtml;
+  if (STOP_INDEX === null) {
+    // Still loading the index — haven't started fetching ST yet
+    approachHtml = `<div class="sp-none">Loading…</div>`;
+  } else if (!approaches.length) {
+    approachHtml = `<div class="sp-none">No live vehicles in next 90 min</div>`;
+  } else {
+    approachHtml = approaches.slice(0, 8).map(a => {
+      const name       = lineName(a.tripId);
+      const dest       = lineDest(a.tripId) || '–';
+      const color      = markerCol(a.tripId);
+      const delayMins  = Math.round((a.delay || 0) / 60);
+      const schedStr   = fmtMins(a.scheduled);
+      const adjStr     = fmtMins(a.adjusted);
 
-  activeStopPopup = L.popup({ maxWidth: 300, minWidth: 260, closeButton: false })
+      // ETA label: "Now" when ≤ 0 mins, otherwise "Xm"
+      const etaEl = a.eta <= 0
+        ? `<span style="color:var(--accent3);font-weight:700;font-size:11px;font-family:var(--font-mono)">Now</span>`
+        : `<span style="color:var(--text);font-weight:600;font-size:11px;font-family:var(--font-mono)">${a.eta}m</span>`;
+
+      // Scheduled time, struck through if delayed, plus adjusted time
+      const timeEl = schedStr
+        ? (delayMins !== 0
+            ? `<span style="color:var(--text-dim);font-size:9px;font-family:var(--font-mono);text-decoration:line-through">${schedStr}</span>
+               <span style="color:${delayMins >= 2 ? 'var(--accent2)' : 'var(--accent3)'};font-size:9px;font-family:var(--font-mono)">${adjStr}</span>`
+            : `<span style="color:var(--text-dim);font-size:9px;font-family:var(--font-mono)">${schedStr}</span>`)
+        : '';
+
+      return `<div class="sp-approach-row" style="cursor:pointer"
+                   onclick="selectApproachingVehicle('${a.vehicleId}')"
+                   title="Open vehicle ${a.vehicleId}">
+        <span class="sp-approach-badge"
+              style="background:${color}22;color:${color};border:1px solid ${color}44;flex-shrink:0">${name}</span>
+        <span class="sp-approach-dest">→ ${dest}</span>
+        <span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0">
+          ${etaEl}${timeEl ? `<span style="display:flex;gap:4px">${timeEl}</span>` : ''}
+        </span>
+      </div>`;
+    }).join('');
+  }
+
+  activeStopPopup = L.popup({ maxWidth: 315, minWidth: 275, closeButton: false })
     .setLatLng([s.a, s.o])
-    .setContent(`<div class="mp">
+    .setContent(`<div class="mp" style="max-height:400px;overflow-y:auto">
       <div class="sp-name">${s.n}</div>
       <div class="sp-id">Stop ID: ${stopId}</div>
-      ${lineCodes.length ? `<div class="sp-section-label">Lines served</div>
-      <div class="sp-lines">${linesHtml}</div>` : ''}
+      ${lineCodes.length ? `<div class="sp-section-label" style="margin-top:8px">Lines served</div>
+      <div class="sp-lines" style="margin-bottom:10px;line-height:2">${linesHtml}</div>` : ''}
       <div class="sp-section-label">Approaching</div>
-      ${approachHtml}
+      <div>${approachHtml}</div>
     </div>`)
     .openOn(map);
 }
 
 async function selectStop(stopId) {
-  // Close vehicle panel if open (two interactions don't coexist)
   if (G('info-panel').classList.contains('open')) closePanel();
   closeStopPopup();
 
   activeStopId = stopId;
   allStopsLayer.setActiveStop(stopId);
 
+  // Ensure stops.json is available (needed for the stop name).
+  if (!STOPS_tried) await loadStops();
   if (!STOPS?.[stopId]) return;
 
-  // Show popup immediately with what we already have
+  // Show the popup immediately so the user sees the stop name + lines badge strip.
+  // Approaching vehicles will show "Loading…" until ST files are ready.
   showStopPopup(stopId);
 
-  // Load stop-times for lines serving this stop so we can populate approaches.
-  // Limit to 8 concurrent fetches to avoid hammering the API.
+  // Await the stop-index. Crucially: loadStopIndex() now returns the same
+  // in-flight Promise that _init() already kicked off, so this joins that
+  // request rather than racing against it or ignoring STOP_INDEX_tried.
+  await loadStopIndex();
+  if (activeStopId !== stopId) return;
+
+  // Load stop-times for every line that serves this stop (capped at 8 parallel).
+  // loadStopTimes is a no-op for lines already in the ST cache.
   const lines = STOP_INDEX?.[stopId] || [];
-  if (lines.length) {
+  if (lines.length > 0) {
     await Promise.all(lines.slice(0, 8).map(lc => loadStopTimes(lc)));
-    // Refresh popup if this stop is still selected
-    if (activeStopId === stopId) showStopPopup(stopId);
   }
+
+  // Final render with complete approaching-vehicle data.
+  if (activeStopId === stopId) showStopPopup(stopId);
 }
 
 // ── Virtual scroll ────────────────────────────────────────────────────────────
@@ -1654,6 +1718,11 @@ function process(data){
   if (activeId && vData[activeId]) {
     panToVehicle(vData[activeId]);
     if (activePopup) activePopup.setLatLng([vData[activeId].lat, vData[activeId].lng]);
+  }
+
+  // Refresh the stop popup's approaching list (ETAs change as vehicles move).
+  if (activeStopId && STOPS?.[activeStopId] && activeStopPopup) {
+    showStopPopup(activeStopId);
   }
 
   G("sv").textContent=vehicles.length;
