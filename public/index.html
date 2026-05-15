@@ -28,7 +28,6 @@
     .logo-hex svg{width:20px;height:20px;fill:var(--bg)}
     .logo-name{font-size:19px;font-weight:700;letter-spacing:.1em;color:#fff;text-transform:uppercase}
     .logo-sub{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-family:var(--font-mono)}
-
     #status-bar{padding:10px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
     .status-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
     .live-dot{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-family:var(--font-mono)}
@@ -40,26 +39,22 @@
     .status-ts{font-size:11px;font-family:var(--font-mono);color:var(--text-dim)}
     #bar-wrap{height:2px;background:var(--border);border-radius:1px;margin-top:6px;overflow:hidden}
     #bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:1px;transition:width 1s linear}
-
     #stats{padding:10px 20px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);gap:7px;flex-shrink:0}
     .sc{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px}
     .sn{font-size:19px;font-weight:700;font-family:var(--font-mono);color:var(--accent);line-height:1}
     .sn.or{color:var(--accent2)}.sn.gr{color:var(--accent3)}.sn.re{color:var(--danger)}.sn.ye{color:#ffcc00}.sn.di{color:var(--text-dim)}
     .sl{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);margin-top:3px;font-family:var(--font-mono)}
-
-    #tabs{display:flex;flex-shrink:0;border-bottom:1px solid var(--border)}
+    #tabs{display:flex;flex-shrink:0;border-bottom:1px solid var(--border);position:relative}
     .tab{flex:1;padding:9px 0;text-align:center;font-size:10px;font-family:var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;user-select:none}
     .tab:hover{color:var(--text)}
     .tab.av{color:var(--accent);border-bottom-color:var(--accent)}
     .tab.ac{color:var(--danger);border-bottom-color:var(--danger)}
     .tb{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:10px;font-size:9px;background:var(--surface2)}
-
     .pane{display:none;flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;position:relative}
     .pane.on{display:block}
     .pane::-webkit-scrollbar{width:4px}
     .pane::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
     .vs{width:1px}.vw{position:absolute;top:0;left:0;right:0}
-
     .vr{display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(30,45,61,.45);cursor:pointer;transition:background .12s;padding:0 18px}
     .vr:hover{background:rgba(0,212,255,.04)}
     .vr.sel{background:rgba(0,212,255,.08);border-left:2px solid var(--accent);padding-left:16px}
@@ -70,11 +65,9 @@
     .rm{font-size:10px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .rd{font-size:11px;font-family:var(--font-mono);font-weight:500;flex-shrink:0}
     .cx{font-size:9px;font-family:var(--font-mono);font-weight:600;letter-spacing:.1em;color:var(--danger);background:rgba(255,59,92,.1);border:1px solid rgba(255,59,92,.3);border-radius:3px;padding:2px 5px;flex-shrink:0}
-
-    /* Bearing arrow markers */
     .arrow-marker{position:relative;display:flex;align-items:center;justify-content:center}
 
-    /* Popup — shared by vehicle popups and stop popups */
+    /* Popups */
     .leaflet-popup-content-wrapper{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:10px!important;box-shadow:0 4px 24px rgba(0,0,0,.5)!important;color:var(--text)!important;font-family:var(--font-ui)!important;padding:0!important}
     .leaflet-popup-tip-container{display:none!important}
     .leaflet-popup-content{margin:0!important}
@@ -87,8 +80,6 @@
     .mp-btn:hover{background:rgba(0,212,255,.18)}
     .mp-link{display:block;font-size:10px;font-family:var(--font-mono);color:var(--text-dim);text-decoration:none;margin-bottom:8px;}
     .mp-link:hover{color:var(--accent)}
-
-    /* Stop popup */
     .sp-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
     .sp-id{font-size:10px;font-family:var(--font-mono);color:var(--text-dim);margin-bottom:10px}
     .sp-section-label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:5px}
@@ -97,7 +88,6 @@
     .sp-approach-row:last-child{border-bottom:none}
     .sp-approach-badge{padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--font-mono);flex-shrink:0}
     .sp-approach-dest{flex:1;font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .sp-approach-eta{font-size:11px;font-family:var(--font-mono);font-weight:600;flex-shrink:0}
     .sp-approach-row:hover{background:rgba(0,212,255,.06)}
     .sp-line-badge:hover{opacity:.8}
     .sp-none{color:var(--text-dim);font-size:11px;font-family:var(--font-mono);padding:4px 0}
@@ -118,7 +108,6 @@
     #ip-body{flex:1;overflow-y:auto;padding:18px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
     #ip-body::-webkit-scrollbar{width:4px}
     #ip-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-
     .ip-section{margin-bottom:20px}
     .ip-section-title{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
     .ip-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -152,18 +141,15 @@
     .sd-sub{font-size:10px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;flex-shrink:0}
     .sd-delay{font-size:10px;font-family:var(--font-mono);font-weight:600;white-space:nowrap;flex-shrink:0}
 
-    #tabs{position:relative}
-
     #toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-size:12px;font-family:var(--font-mono);z-index:9999;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:320px}
     #toast.on{opacity:1;transform:translateY(0)}
     #toast.er{border-color:var(--danger);color:var(--danger)}
     #brand{position:absolute;bottom:28px;left:306px;z-index:50;font-family:var(--font-ui);font-size:11px;font-weight:300;letter-spacing:.3em;text-transform:uppercase;color:rgba(200,218,232,.18);pointer-events:none}
 
-    /* ── Stops section in More Info panel ────────────────────────────────────── */
+    /* Stop sequence in panel */
     .stop-list{margin-top:4px}
     .stop-row{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(30,45,61,.35)}
     .stop-row:last-child{border-bottom:none}
-    .stop-track{display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;padding-top:3px}
     .stop-dot{width:9px;height:9px;border-radius:50%;background:var(--border);border:2px solid var(--text-dim);flex-shrink:0}
     .stop-dot.passed{background:rgba(107,136,153,.3);border-color:rgba(107,136,153,.3)}
     .stop-dot.next{background:var(--accent);border-color:var(--accent);box-shadow:0 0 5px rgba(0,212,255,.6)}
@@ -176,7 +162,7 @@
     .stop-times .late{color:var(--accent2)}
     .stop-times .vlate{color:var(--danger)}
 
-    /* ── Mobile FAB ──────────────────────────────────────────────────────────── */
+    /* Mobile FAB */
     #mob-fab{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:350;
       background:var(--surface);border:1px solid var(--border);border-radius:24px;
       padding:10px 22px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
@@ -184,55 +170,46 @@
       box-shadow:0 4px 20px rgba(0,0,0,.6);transition:background .15s;align-items:center;gap:8px}
     #mob-fab:hover{background:var(--surface2)}
 
-    /* ── Mobile responsive ───────────────────────────────────────────────────── */
+    /* Mobile responsive */
     @media (max-width: 768px) {
-      #sidebar{
-        position:fixed;bottom:0;left:0;right:0;top:auto;
-        width:100%;height:68vh;
-        border-right:none;border-top:1px solid var(--border);
-        border-radius:16px 16px 0 0;
-        transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
-        z-index:400;
-      }
+      #sidebar{position:fixed;bottom:0;left:0;right:0;top:auto;width:100%;height:68vh;border-right:none;border-top:1px solid var(--border);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);z-index:400}
       #sidebar.mob-open{transform:translateY(0)}
       #mob-handle{display:block!important}
-      #info-panel{
-        top:auto;right:0;left:0;bottom:0;
-        width:100%;height:72vh;
-        border-left:none;border-top:1px solid var(--border);
-        border-radius:16px 16px 0 0;
-      }
+      #info-panel{top:auto;right:0;left:0;bottom:0;width:100%;height:72vh;border-left:none;border-top:1px solid var(--border);border-radius:16px 16px 0 0}
       #info-panel.open{transform:translateY(0)}
       #mob-fab{display:flex}
       #map{width:100%;height:100%}
       #brand{display:none}
       #toast{bottom:80px;right:12px;left:12px;max-width:none}
+      #locate-btn{bottom:80px}
     }
-    /* ── Stop markers on map (StopLayer — selected vehicle route) ────────────── */
+
+    /* Stop markers */
     .stop-mk{pointer-events:auto!important}
     .stop-tip{background:var(--surface)!important;border:1px solid var(--border)!important;color:var(--text)!important;font-family:var(--font-mono)!important;font-size:11px!important;padding:4px 8px!important;border-radius:4px!important;box-shadow:0 2px 8px rgba(0,0,0,.4)!important;white-space:nowrap}
 
-    /* ── Mobile close buttons ────────────────────────────────────────────────── */
-    .mob-close-btn{display:none;position:absolute;top:14px;right:14px;z-index:10;
-      background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);
-      width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer;
-      align-items:center;justify-content:center;line-height:1;padding:0}
+    /* Mobile close buttons */
+    .mob-close-btn{display:none;position:absolute;top:14px;right:14px;z-index:10;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer;align-items:center;justify-content:center;line-height:1;padding:0}
     .mob-close-btn:hover{border-color:var(--text);color:var(--text)}
     @media(max-width:768px){.mob-close-btn{display:flex}}
-
     #mob-handle{display:none;width:40px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 0;flex-shrink:0}
 
-    /* ── Zoom hint (shown when stops aren't visible yet) ─────────────────────── */
-    #zoom-hint{
-      position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
-      background:rgba(8,12,16,.88);border:1px solid var(--border);
-      border-radius:20px;padding:6px 14px;font-family:var(--font-mono);
-      font-size:10px;letter-spacing:.1em;color:var(--text-dim);
-      z-index:50;pointer-events:none;
-      opacity:0;transition:opacity .3s;
-      white-space:nowrap;
-    }
+    /* Zoom hint */
+    #zoom-hint{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);background:rgba(8,12,16,.88);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--text-dim);z-index:50;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}
     #zoom-hint.on{opacity:1}
+
+    /* Locate button */
+    #locate-btn{position:absolute;right:10px;bottom:96px;z-index:400;width:34px;height:34px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.5);transition:background .15s,border-color .15s,color .15s}
+    #locate-btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
+    #locate-btn.locating{color:var(--accent);animation:loc-spin 1.4s linear infinite}
+    #locate-btn.located{border-color:var(--accent3);color:var(--accent3)}
+    @keyframes loc-spin{to{transform:rotate(360deg)}}
+
+    /* User location dot */
+    .user-loc-wrap{position:relative;width:20px;height:20px}
+    .user-loc-ring{position:absolute;inset:-6px;border-radius:50%;background:rgba(0,212,255,.25);animation:loc-pulse 2.2s ease-out infinite;pointer-events:none}
+    .user-loc-dot{position:absolute;inset:0;border-radius:50%;background:#00d4ff;border:2px solid #fff;box-shadow:0 0 10px rgba(0,212,255,.9);pointer-events:none}
+    @keyframes loc-pulse{0%{transform:scale(1);opacity:.7}60%{transform:scale(2.6);opacity:0}100%{transform:scale(1);opacity:0}}
   </style>
 </head>
 <body>
@@ -284,6 +261,7 @@
   <button id="mob-fab" onclick="toggleSidebar()">☰ Vehicles</button>
   <div id="brand">Belgium · GTFS-RT</div>
   <div id="zoom-hint">Zoom in to see stops</div>
+  <button id="locate-btn" onclick="goToMyLocation()" title="Go to my location">◎</button>
 
   <div id="info-panel">
     <div id="mob-handle"></div>
@@ -305,11 +283,86 @@ const ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &
 const IH_V = 52, IH_C = 46;
 const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11':'Trolleybus'};
 
+// ── User geolocation ──────────────────────────────────────────────────────────
+let _userMarker = null, _userCircle = null;
+let _locatedOnce = false;
+let _geoExplicit = false;
+
+const _locBtn = () => document.getElementById('locate-btn');
+
+function _updateUserMarker(lat, lng, accuracy) {
+  if (_userCircle) _userCircle.remove();
+  if (accuracy > 0 && accuracy < 50000) {
+    _userCircle = L.circle([lat, lng], {
+      radius: accuracy, color: '#00d4ff', fillColor: '#00d4ff',
+      fillOpacity: 0.06, weight: 1, dashArray: '4 4', interactive: false,
+    }).addTo(map);
+    _userCircle.bringToBack();
+  }
+  if (_userMarker) _userMarker.remove();
+  const icon = L.divIcon({
+    className: '',
+    html: '<div class="user-loc-wrap"><div class="user-loc-ring"></div><div class="user-loc-dot"></div></div>',
+    iconSize: [20, 20], iconAnchor: [10, 10],
+  });
+  _userMarker = L.marker([lat, lng], { icon, interactive: false, zIndexOffset: 800 }).addTo(map);
+  const btn = _locBtn();
+  if (btn) { btn.classList.remove('locating'); btn.classList.add('located'); }
+}
+
+function _onGeoSuccess(pos) {
+  const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+  _updateUserMarker(lat, lng, accuracy);
+  if (!_locatedOnce) {
+    _locatedOnce = true;
+    const sp = new URLSearchParams(location.search);
+    const hasUrlState = sp.has('vehicle') || sp.has('line') || sp.has('route') || sp.has('trip');
+    if (!hasUrlState) map.setView([lat, lng], 14, { animate: true });
+  }
+}
+
+function _onGeoError(err) {
+  const btn = _locBtn();
+  if (btn) btn.classList.remove('locating', 'located');
+  if (_geoExplicit) {
+    const msg = err.code === 1 ? 'Location permission denied'
+              : err.code === 2 ? 'Position unavailable' : 'Location request timed out';
+    toast('⚠ ' + msg, true);
+  }
+  _geoExplicit = false;
+}
+
+function initGeolocation() {
+  if (!navigator.geolocation) return;
+  _geoExplicit = false;
+  navigator.geolocation.getCurrentPosition(_onGeoSuccess, _onGeoError,
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
+  navigator.geolocation.watchPosition(_onGeoSuccess, () => {},
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
+}
+
+function goToMyLocation() {
+  if (!navigator.geolocation) { toast('⚠ Geolocation not supported by your browser', true); return; }
+  const btn = _locBtn();
+  if (btn) { btn.classList.add('locating'); btn.classList.remove('located'); }
+  _geoExplicit = true;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+      _updateUserMarker(lat, lng, accuracy);
+      map.setView([lat, lng], Math.max(map.getZoom(), 15), { animate: true });
+      _geoExplicit = false;
+    },
+    err => _onGeoError(err),
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+  );
+}
+
 // ── Static lookup ─────────────────────────────────────────────────────────────
 let SL = null;
 let STOPS = null;
 let STOPS_tried = false;
-let STOP_INDEX = null;       // stop_id → [lineCode, ...]
+let STOP_INDEX = null;
 let STOP_INDEX_tried = false;
 
 async function loadStatic() {
@@ -334,21 +387,15 @@ async function loadStops() {
   STOPS_tried = true;
   try {
     const r = await fetch('/stops.json', { cache: 'force-cache' });
-    if (r.ok) {
-      STOPS = await r.json();
-      allStopsLayer._draw(); // render now that data is available
-    } else {
-      STOPS = {};
-      if (r.status !== 404) console.warn('Stops: HTTP', r.status);
-    }
+    if (r.ok) { STOPS = await r.json(); allStopsLayer._draw(); }
+    else { STOPS = {}; if (r.status !== 404) console.warn('Stops: HTTP', r.status); }
   } catch(e) { STOPS = {}; console.warn('Stops:', e.message); }
 }
 
-// Promise-tracked loader so concurrent callers all await the same fetch.
 let _stopIndexPromise = null;
 async function loadStopIndex() {
-  if (STOP_INDEX !== null) return;          // already resolved
-  if (_stopIndexPromise) return _stopIndexPromise; // in-flight — join it
+  if (STOP_INDEX !== null) return;
+  if (_stopIndexPromise) return _stopIndexPromise;
   _stopIndexPromise = (async () => {
     try {
       const r = await fetch('/stop-index.json', { cache: 'force-cache' });
@@ -360,7 +407,6 @@ async function loadStopIndex() {
   return _stopIndexPromise;
 }
 
-// ST: lineCode → { tripKey → [{s,a}] }  — loaded per line on demand
 const ST = {};
 const ST_loading = new Set();
 
@@ -377,14 +423,8 @@ async function loadStopTimes(tripId) {
   ST_loading.add(lineCode);
   try {
     const r = await fetch(`/stop-times/${lineCode}.json`, { cache: 'force-cache' });
-    if (r.ok) {
-      ST[lineCode] = await r.json();
-      // Refresh stop highlighting now that we have new stop-times data
-      if (activeFilter) allStopsLayer.setRouteFilter(getFilterStopIds());
-    } else {
-      console.warn(`[GT] stop-times/${lineCode}.json → HTTP ${r.status}`);
-      ST[lineCode] = {};
-    }
+    if (r.ok) { ST[lineCode] = await r.json(); if (activeFilter) allStopsLayer.setRouteFilter(getFilterStopIds()); }
+    else { console.warn(`[GT] stop-times/${lineCode}.json → HTTP ${r.status}`); ST[lineCode] = {}; }
   } catch(e) { ST[lineCode] = {}; }
   finally { ST_loading.delete(lineCode); }
 }
@@ -395,8 +435,7 @@ function getTripStops(tripId) {
   const key      = tripId.split('_').slice(0,3).join('_');
   const result   = ST[lineCode]?.[key] || null;
   if (ST[lineCode] && !result) {
-    const available = Object.keys(ST[lineCode] || {}).slice(0,3);
-    console.warn(`[GT] getTripStops miss — looked up "${key}", available sample:`, available);
+    console.warn(`[GT] getTripStops miss — looked up "${key}", available sample:`, Object.keys(ST[lineCode] || {}).slice(0,3));
   }
   return result;
 }
@@ -412,21 +451,12 @@ async function fetchShape(shapeId, lineCode) {
     shapeChunkLoading.add(lc);
     try {
       const r = await fetch(`/shapes/${lc}.json`, { cache: 'force-cache' });
-      if (r.ok) {
-        shapeChunkCache[lc] = await r.json();
-      } else {
-        console.warn(`[GT] shapes/${lc}.json → HTTP ${r.status}`);
-        shapeChunkCache[lc] = {};
-      }
-    } catch(e) {
-      shapeChunkCache[lc] = {};
-    } finally {
-      shapeChunkLoading.delete(lc);
-    }
+      shapeChunkCache[lc] = r.ok ? await r.json() : {};
+      if (!r.ok) console.warn(`[GT] shapes/${lc}.json → HTTP ${r.status}`);
+    } catch(e) { shapeChunkCache[lc] = {}; }
+    finally { shapeChunkLoading.delete(lc); }
   }
-  while (shapeChunkLoading.has(lc)) {
-    await new Promise(r => setTimeout(r, 20));
-  }
+  while (shapeChunkLoading.has(lc)) await new Promise(r => setTimeout(r, 20));
   return shapeChunkCache[lc]?.[shapeId] || null;
 }
 
@@ -438,13 +468,11 @@ async function showShape(shapeId, lineCode, fitBounds = false) {
   if (!valid.length) return;
   shapePolyline = L.polyline(valid, { color: '#00d4ff', weight: 3, opacity: 0.55, interactive: false }).addTo(map);
   shapePolyline.bringToBack();
-  if (fitBounds) {
-    map.fitBounds(shapePolyline.getBounds(), { padding: [40, 40], maxZoom: 14, animate: true });
-  }
+  if (fitBounds) map.fitBounds(shapePolyline.getBounds(), { padding: [40, 40], maxZoom: 14, animate: true });
 }
 
 function getLine(tripId)  { if (!SL || !tripId) return null; return SL.lines?.[tripId.split('_')[0]] || null; }
-function getTrip(tripId)  { if (!SL || !tripId) return null; return SL.trips?.[tripId.split('_').slice(0, 3).join('_')] || null; }
+function getTrip(tripId)  { if (!SL || !tripId) return null; return SL.trips?.[tripId.split('_').slice(0,3).join('_')] || null; }
 function getRoute(routeId){ if (!SL || !routeId) return null; return SL.routes?.[routeId] || null; }
 function getStop(stopId)  { if (!STOPS || !stopId) return null; const s = STOPS[stopId]; if (!s) return null; return { name: s.n, lat: s.a, lon: s.o }; }
 
@@ -452,14 +480,11 @@ function lineName(tripId)      { return getLine(tripId)?.name || '…'; }
 function lineDest(tripId)      { return getTrip(tripId)?.headsign || ''; }
 function lineType(tripId)      { return getLine(tripId)?.type || '3'; }
 function lineTypeLabel(tripId) { return ROUTE_TYPES[lineType(tripId)] || 'Bus'; }
-function lineColor(tripId)     { const c = getLine(tripId)?.color; return c ? '#' + c : null; }
-function lineTextColor(tripId) { const c = getLine(tripId)?.textColor; return c ? '#' + c : '#ffffff'; }
+function lineColor(tripId)     { const c = getLine(tripId)?.color; return c ? '#'+c : null; }
+function lineTextColor(tripId) { const c = getLine(tripId)?.textColor; return c ? '#'+c : '#ffffff'; }
 
 const PAL = ["#00d4ff","#ff6b35","#a8ff3e","#ff3b88","#ffcc00","#c77dff","#06ffa5","#ff9f43","#48dbfb","#ff6b6b"];
-function palCol(k) {
-  let h = 0; for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) & 0xffffffff;
-  return PAL[Math.abs(h) % PAL.length];
-}
+function palCol(k) { let h=0; for (let i=0;i<k.length;i++) h=(h*31+k.charCodeAt(i))&0xffffffff; return PAL[Math.abs(h)%PAL.length]; }
 function markerCol(tripId) { return lineColor(tripId) || palCol(tripId); }
 
 function fmtD(s) {
@@ -468,67 +493,40 @@ function fmtD(s) {
   const text = a<60?`${sg}${a}s`:`${sg}${Math.floor(a/60)}m ${a%60}s`;
   return {text, cls: s>=60?'danger':s<-30?'green':'di'};
 }
-function fmtB(d) {
-  if (d==null) return '–';
-  return ["N","NE","E","SE","S","SW","W","NW"][Math.round(d/45)%8]+` ${Math.round(d)}°`;
-}
-function fmtMins(m) {
-  if (m == null) return '';
-  const h = Math.floor(m / 60) % 24, mn = m % 60;
-  return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`;
-}
+function fmtB(d) { if (d==null) return '–'; return ["N","NE","E","SE","S","SW","W","NW"][Math.round(d/45)%8]+` ${Math.round(d)}°`; }
+function fmtMins(m) { if (m==null) return ''; const h=Math.floor(m/60)%24,mn=m%60; return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`; }
 
 // ── Filter stop IDs ───────────────────────────────────────────────────────────
-// Returns a Set<stopId> of stops that belong to the active filter's route(s),
-// or null if we can't determine that (no filter, type filter, or ST not loaded).
-// Used by AllStopsLayer to dim irrelevant stops.
 function getFilterStopIds() {
-  if (!activeFilter) return null;
-  if (!activeFilter.urlKey || activeFilter.urlKey === 'type') return null;
-
-  const ids = new Set();
-  let found = false;
-
+  if (!activeFilter || !activeFilter.urlKey || activeFilter.urlKey === 'type') return null;
+  const ids = new Set(); let found = false;
   if (activeFilter.urlKey === 'line') {
     const lc = activeFilter.urlVal;
-    if (ST[lc]) {
-      found = true;
-      for (const seq of Object.values(ST[lc])) for (const {s} of seq) ids.add(s);
-    }
+    if (ST[lc]) { found=true; for (const seq of Object.values(ST[lc])) for (const {s} of seq) ids.add(s); }
   } else {
-    // route / trip / vehicle filter — union across all matching vehicles' loaded ST
     for (const v of Object.values(vData)) {
       if (!activeFilter.matchIds?.has(v.vehicleId)) continue;
       const lc = v.tripId?.split('_')[0];
       if (!lc || !ST[lc]) continue;
-      found = true;
-      for (const seq of Object.values(ST[lc])) for (const {s} of seq) ids.add(s);
+      found=true; for (const seq of Object.values(ST[lc])) for (const {s} of seq) ids.add(s);
     }
   }
-
-  return found ? ids : null; // null = don't know yet → don't dim
+  return found ? ids : null;
 }
 
-// ── Approaching vehicles for a stop ──────────────────────────────────────────
-// Scans live vehicles in vData whose loaded stop-times include this stop
-// within the next 90 minutes. Only works for lines whose ST is already cached.
+// ── Approaching vehicles ──────────────────────────────────────────────────────
 function getApproachingVehicles(stopId) {
-  const results = [];
-  const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+  const results = [], nowMins = new Date().getHours()*60+new Date().getMinutes();
   for (const v of Object.values(vData)) {
-    const seq = getTripStops(v.tripId);
-    if (!seq) continue;
-    const idx = seq.findIndex(s => s.s === stopId);
-    if (idx < 0) continue;
-    const delayMins = Math.round((v.delay || 0) / 60);
-    const st = seq[idx];
+    const seq = getTripStops(v.tripId); if (!seq) continue;
+    const idx = seq.findIndex(s => s.s === stopId); if (idx < 0) continue;
+    const delayMins = Math.round((v.delay||0)/60), st = seq[idx];
     if (st.a == null) continue;
-    const adjusted = st.a + delayMins;
-    const eta = adjusted - nowMins;
-    if (eta < -3 || eta > 90) continue; // ignore if already passed or too far ahead
+    const adjusted = st.a + delayMins, eta = adjusted - nowMins;
+    if (eta < -3 || eta > 90) continue;
     results.push({ vehicleId: v.vehicleId, tripId: v.tripId, delay: v.delay, scheduled: st.a, adjusted, eta });
   }
-  return results.sort((a, b) => a.eta - b.eta);
+  return results.sort((a,b) => a.eta - b.eta);
 }
 
 // ── Map ───────────────────────────────────────────────────────────────────────
@@ -536,197 +534,115 @@ const map = L.map("map", {center:[51.0,4.3],zoom:9,preferCanvas:true});
 L.tileLayer(TILE,{attribution:ATTR,subdomains:"abcd",maxZoom:19}).addTo(map);
 
 // ── All-stops canvas layer ────────────────────────────────────────────────────
-// Renders every De Lijn stop as a small dot at zoom ≥ 14.
-// At lower zooms the layer clears itself — no visual noise.
-// When a line/route/trip filter is active AND the relevant stop-times file is
-// loaded, stops not on that route are dimmed like vehicles are dimmed.
 const AllStopsLayer = L.Layer.extend({
-  initialize() {
-    this._activeStopId = null;   // currently-clicked stop
-    this._routeStopIds = null;   // Set<stopId> for active filter, or null
-  },
-
+  initialize() { this._activeStopId=null; this._routeStopIds=null; },
   onAdd(map) {
-    this._map = map;
-    this._canvas = L.DomUtil.create('canvas', 'leaflet-layer');
+    this._map=map;
+    this._canvas=L.DomUtil.create('canvas','leaflet-layer');
     map.getPanes().overlayPane.appendChild(this._canvas);
-    this._ctx = this._canvas.getContext('2d');
-    map.on('moveend zoomend resize', this._reset, this);
+    this._ctx=this._canvas.getContext('2d');
+    map.on('moveend zoomend resize',this._reset,this);
     this._reset();
   },
-
-  onRemove(map) {
-    this._canvas.remove();
-    map.off('moveend zoomend resize', this._reset, this);
-  },
-
-  setActiveStop(id) { this._activeStopId = id; this._draw(); },
-  setRouteFilter(ids) { this._routeStopIds = ids; this._draw(); },
-
+  onRemove(map) { this._canvas.remove(); map.off('moveend zoomend resize',this._reset,this); },
+  setActiveStop(id) { this._activeStopId=id; this._draw(); },
+  setRouteFilter(ids) { this._routeStopIds=ids; this._draw(); },
   _reset() {
-    const size = this._map.getSize();
-    this._canvas.width  = size.x;
-    this._canvas.height = size.y;
-    L.DomUtil.setPosition(this._canvas, this._map.containerPointToLayerPoint([0, 0]));
+    const size=this._map.getSize();
+    this._canvas.width=size.x; this._canvas.height=size.y;
+    L.DomUtil.setPosition(this._canvas,this._map.containerPointToLayerPoint([0,0]));
     this._draw();
   },
-
   _draw() {
-    const ctx = this._ctx, m = this._map;
-    if (!ctx || !m) return;
-    ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
-    if (!STOPS || m.getZoom() < 14) return;
-
-    const b   = m.getBounds();
-    const sw  = b.getSouth(), ne = b.getNorth(), ww = b.getWest(), ew = b.getEast();
-    const z   = m.getZoom();
-    const r   = z >= 16 ? 4 : z >= 15 ? 3 : 2.5;
-    const rId = this._routeStopIds; // null = no filter; Set = filter active
-
-    // Bucket into three groups so we can batch-fill each style in one path.
-    const normalPts = [], dimPts = [], activePts = [];
-
-    for (const [sid, s] of Object.entries(STOPS)) {
-      const la = s.a, lo = s.o;
-      if (la < sw || la > ne || lo < ww || lo > ew) continue;
-      const pt = m.latLngToContainerPoint([la, lo]);
-      if (sid === this._activeStopId)       activePts.push(pt);
-      else if (rId && !rId.has(sid))        dimPts.push(pt);
-      else                                  normalPts.push(pt);
+    const ctx=this._ctx, m=this._map;
+    if (!ctx||!m) return;
+    ctx.clearRect(0,0,this._canvas.width,this._canvas.height);
+    if (!STOPS||m.getZoom()<14) return;
+    const b=m.getBounds(), sw=b.getSouth(),ne=b.getNorth(),ww=b.getWest(),ew=b.getEast();
+    const z=m.getZoom(), r=z>=16?4:z>=15?3:2.5, rId=this._routeStopIds;
+    const normalPts=[], dimPts=[], activePts=[];
+    for (const [sid,s] of Object.entries(STOPS)) {
+      const la=s.a, lo=s.o;
+      if (la<sw||la>ne||lo<ww||lo>ew) continue;
+      const pt=m.latLngToContainerPoint([la,lo]);
+      if (sid===this._activeStopId) activePts.push(pt);
+      else if (rId&&!rId.has(sid))  dimPts.push(pt);
+      else                          normalPts.push(pt);
     }
-
-    // Dimmed stops — barely visible
     if (dimPts.length) {
-      ctx.beginPath();
-      for (const p of dimPts) { ctx.moveTo(p.x + r, p.y); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); }
-      ctx.fillStyle = 'rgba(200,218,232,0.08)';
-      ctx.fill();
+      ctx.beginPath(); for (const p of dimPts) { ctx.moveTo(p.x+r,p.y); ctx.arc(p.x,p.y,r,0,Math.PI*2); }
+      ctx.fillStyle='rgba(200,218,232,0.08)'; ctx.fill();
     }
-
-    // Normal stops — subtle grey circles
     if (normalPts.length) {
-      ctx.beginPath();
-      for (const p of normalPts) { ctx.moveTo(p.x + r, p.y); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); }
-      ctx.fillStyle   = 'rgba(200,218,232,0.42)';
-      ctx.strokeStyle = 'rgba(0,0,0,0.32)';
-      ctx.lineWidth   = 0.8;
-      ctx.fill();
-      ctx.stroke();
+      ctx.beginPath(); for (const p of normalPts) { ctx.moveTo(p.x+r,p.y); ctx.arc(p.x,p.y,r,0,Math.PI*2); }
+      ctx.fillStyle='rgba(200,218,232,0.42)'; ctx.strokeStyle='rgba(0,0,0,0.32)'; ctx.lineWidth=0.8; ctx.fill(); ctx.stroke();
     }
-
-    // Active (clicked) stop — bright accent with white ring
     if (activePts.length) {
-      const ra = r + 3;
-      ctx.beginPath();
-      for (const p of activePts) { ctx.moveTo(p.x + ra, p.y); ctx.arc(p.x, p.y, ra, 0, Math.PI * 2); }
-      ctx.fillStyle   = '#00d4ff';
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth   = 2;
-      ctx.fill();
-      ctx.stroke();
+      const ra=r+3;
+      ctx.beginPath(); for (const p of activePts) { ctx.moveTo(p.x+ra,p.y); ctx.arc(p.x,p.y,ra,0,Math.PI*2); }
+      ctx.fillStyle='#00d4ff'; ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
     }
   },
-
-  // Hit-test: returns stopId of the closest stop within 12px, or null.
   getStopAt(containerPoint) {
-    if (!STOPS || !this._map || this._map.getZoom() < 14) return null;
-    const b  = this._map.getBounds();
-    const sw = b.getSouth(), ne = b.getNorth(), ww = b.getWest(), ew = b.getEast();
-    let best = null, bestD = 12;
-    for (const [sid, s] of Object.entries(STOPS)) {
-      if (s.a < sw || s.a > ne || s.o < ww || s.o > ew) continue;
-      const pt = this._map.latLngToContainerPoint([s.a, s.o]);
-      const d  = Math.hypot(containerPoint.x - pt.x, containerPoint.y - pt.y);
-      if (d < bestD) { bestD = d; best = sid; }
+    if (!STOPS||!this._map||this._map.getZoom()<14) return null;
+    const b=this._map.getBounds(), sw=b.getSouth(),ne=b.getNorth(),ww=b.getWest(),ew=b.getEast();
+    let best=null, bestD=12;
+    for (const [sid,s] of Object.entries(STOPS)) {
+      if (s.a<sw||s.a>ne||s.o<ww||s.o>ew) continue;
+      const pt=this._map.latLngToContainerPoint([s.a,s.o]);
+      const d=Math.hypot(containerPoint.x-pt.x,containerPoint.y-pt.y);
+      if (d<bestD) { bestD=d; best=sid; }
     }
     return best;
   },
 });
 
 const allStopsLayer = new AllStopsLayer();
-allStopsLayer.addTo(map); // added BEFORE arrowLayer so vehicles render on top
+allStopsLayer.addTo(map);
 
 // ── Custom canvas arrow layer ─────────────────────────────────────────────────
 const ArrowLayer = L.Layer.extend({
-  initialize() { this._vehicles = []; },
-
+  initialize() { this._vehicles=[]; },
   onAdd(map) {
-    this._map = map;
-    this._canvas = L.DomUtil.create('canvas', 'leaflet-layer');
-    const pane = map.getPanes().overlayPane;
-    pane.appendChild(this._canvas);
-    this._ctx = this._canvas.getContext('2d');
-    map.on('moveend zoomend resize', this._reset, this);
+    this._map=map;
+    this._canvas=L.DomUtil.create('canvas','leaflet-layer');
+    map.getPanes().overlayPane.appendChild(this._canvas);
+    this._ctx=this._canvas.getContext('2d');
+    map.on('moveend zoomend resize',this._reset,this);
     this._reset();
   },
-
-  onRemove(map) {
-    this._canvas.remove();
-    map.off('moveend zoomend resize', this._reset, this);
-  },
-
-  setVehicles(vehicles) {
-    this._vehicles = vehicles;
-    this._draw();
-  },
-
+  onRemove(map) { this._canvas.remove(); map.off('moveend zoomend resize',this._reset,this); },
+  setVehicles(vehicles) { this._vehicles=vehicles; this._draw(); },
   _reset() {
-    const size = this._map.getSize();
-    this._canvas.width  = size.x;
-    this._canvas.height = size.y;
-    const topLeft = this._map.containerPointToLayerPoint([0,0]);
-    L.DomUtil.setPosition(this._canvas, topLeft);
+    const size=this._map.getSize();
+    this._canvas.width=size.x; this._canvas.height=size.y;
+    L.DomUtil.setPosition(this._canvas,this._map.containerPointToLayerPoint([0,0]));
     this._draw();
   },
-
   _draw() {
-    const ctx = this._ctx, m = this._map;
-    if (!ctx || !m) return;
-    ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
-
+    const ctx=this._ctx, m=this._map;
+    if (!ctx||!m) return;
+    ctx.clearRect(0,0,this._canvas.width,this._canvas.height);
     for (const v of this._vehicles) {
-      const pt = m.latLngToContainerPoint([v.lat, v.lng]);
-      const x = pt.x, y = pt.y;
-      const color = v.c;
-      const isActive  = v.vehicleId === activeId;
-      const isDimmed  = activeFilter && !activeFilter.matchIds.has(v.vehicleId);
-
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.globalAlpha = isDimmed ? 0.15 : 1;
-
-      if (v.bearing != null) {
-        ctx.rotate((v.bearing * Math.PI) / 180);
-        ctx.beginPath();
-        ctx.moveTo(0, -8);
-        ctx.lineTo(5, 5);
-        ctx.lineTo(0, 2);
-        ctx.lineTo(-5, 5);
-        ctx.closePath();
-        ctx.fillStyle = color;
-        ctx.strokeStyle = isActive ? '#ffffff' : 'rgba(0,0,0,0.45)';
-        ctx.lineWidth = isActive ? 1.5 : 1;
-        ctx.fill();
-        ctx.stroke();
+      const pt=m.latLngToContainerPoint([v.lat,v.lng]);
+      const x=pt.x, y=pt.y, color=v.c;
+      const isActive=v.vehicleId===activeId, isDimmed=activeFilter&&!activeFilter.matchIds.has(v.vehicleId);
+      ctx.save(); ctx.translate(x,y); ctx.globalAlpha=isDimmed?0.15:1;
+      if (v.bearing!=null) {
+        ctx.rotate((v.bearing*Math.PI)/180);
+        ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(5,5); ctx.lineTo(0,2); ctx.lineTo(-5,5); ctx.closePath();
+        ctx.fillStyle=color; ctx.strokeStyle=isActive?'#ffffff':'rgba(0,0,0,0.45)'; ctx.lineWidth=isActive?1.5:1; ctx.fill(); ctx.stroke();
       } else {
-        ctx.beginPath();
-        ctx.arc(0, 0, isActive ? 7 : 5, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.strokeStyle = isActive ? '#ffffff' : 'rgba(0,0,0,0.45)';
-        ctx.lineWidth = isActive ? 1.5 : 1;
-        ctx.fill();
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(0,0,isActive?7:5,0,Math.PI*2);
+        ctx.fillStyle=color; ctx.strokeStyle=isActive?'#ffffff':'rgba(0,0,0,0.45)'; ctx.lineWidth=isActive?1.5:1; ctx.fill(); ctx.stroke();
       }
-
       ctx.restore();
     }
   },
-
   getVehicleAt(containerPoint) {
     for (const v of this._vehicles) {
-      const pt = this._map.latLngToContainerPoint([v.lat, v.lng]);
-      const dx = containerPoint.x - pt.x, dy = containerPoint.y - pt.y;
-      if (Math.sqrt(dx*dx + dy*dy) < 10) return v.vehicleId;
+      const pt=this._map.latLngToContainerPoint([v.lat,v.lng]);
+      if (Math.hypot(containerPoint.x-pt.x,containerPoint.y-pt.y)<10) return v.vehicleId;
     }
     return null;
   },
@@ -737,37 +653,26 @@ arrowLayer.addTo(map);
 
 // ── Stop marker layer (route stops for selected vehicle) ──────────────────────
 const StopLayer = L.Layer.extend({
-  onAdd(map) { this._map = map; map.on('moveend zoomend', this._draw, this); this._draw(); },
-  onRemove(map) { map.off('moveend zoomend', this._draw, this); this._markers?.forEach(m => m.remove()); this._markers = []; },
-  _markers: [],
-  _routeStops: [],
-
-  setRouteStops(stops) { this._routeStops = stops; this._draw(); },
-  clearRouteStops()    { this._routeStops = []; this._draw(); },
-
+  onAdd(map) { this._map=map; map.on('moveend zoomend',this._draw,this); this._draw(); },
+  onRemove(map) { map.off('moveend zoomend',this._draw,this); this._markers?.forEach(m=>m.remove()); this._markers=[]; },
+  _markers:[], _routeStops:[],
+  setRouteStops(stops) { this._routeStops=stops; this._draw(); },
+  clearRouteStops()    { this._routeStops=[]; this._draw(); },
   _draw() {
     if (!this._map) return;
-    this._markers.forEach(m => m.remove());
-    this._markers = [];
+    this._markers.forEach(m=>m.remove()); this._markers=[];
     if (!this._routeStops.length) return;
-
     const styles = {
-      start:    { color: '#a8ff3e', fill: '#a8ff3e', r: 7,  weight: 2, opacity: 1   },
-      passed:   { color: '#3a5060', fill: '#1e2d3d', r: 4,  weight: 1, opacity: 0.5 },
-      current:  { color: '#00d4ff', fill: '#00d4ff', r: 9,  weight: 3, opacity: 1   },
-      upcoming: { color: '#c8dae8', fill: '#141b23', r: 5,  weight: 2, opacity: 0.9 },
-      terminal: { color: '#ff6b35', fill: '#ff6b35', r: 7,  weight: 2, opacity: 1   },
+      start:    {color:'#a8ff3e',fill:'#a8ff3e',r:7, weight:2,opacity:1  },
+      passed:   {color:'#3a5060',fill:'#1e2d3d',r:4, weight:1,opacity:0.5},
+      current:  {color:'#00d4ff',fill:'#00d4ff',r:9, weight:3,opacity:1  },
+      upcoming: {color:'#c8dae8',fill:'#141b23',r:5, weight:2,opacity:0.9},
+      terminal: {color:'#ff6b35',fill:'#ff6b35',r:7, weight:2,opacity:1  },
     };
-
     for (const stop of this._routeStops) {
-      const s = styles[stop.status] || styles.upcoming;
-      const m = L.circleMarker([stop.lat, stop.lon], {
-        radius: s.r, color: s.color, fillColor: s.fill,
-        weight: s.weight, opacity: s.opacity, fillOpacity: s.opacity * 0.85,
-        className: 'stop-mk',
-        interactive: false,
-      }).addTo(this._map);
-      if (stop.name) m.bindTooltip(stop.name, { permanent: false, direction: 'top', className: 'stop-tip' });
+      const s=styles[stop.status]||styles.upcoming;
+      const m=L.circleMarker([stop.lat,stop.lon],{radius:s.r,color:s.color,fillColor:s.fill,weight:s.weight,opacity:s.opacity,fillOpacity:s.opacity*0.85,className:'stop-mk',interactive:false}).addTo(this._map);
+      if (stop.name) m.bindTooltip(stop.name,{permanent:false,direction:'top',className:'stop-tip'});
       this._markers.push(m);
     }
   }
@@ -777,72 +682,39 @@ const stopLayer = new StopLayer();
 stopLayer.addTo(map);
 
 let shapePolyline = null;
-
-function clearShape() {
-  if (shapePolyline) { shapePolyline.remove(); shapePolyline = null; }
-}
+function clearShape() { if (shapePolyline) { shapePolyline.remove(); shapePolyline=null; } }
 
 // ── Mobile sidebar ────────────────────────────────────────────────────────────
-function toggleSidebar() {
-  const sb = G("sidebar");
-  const open = sb.classList.toggle("mob-open");
-  G("mob-fab").textContent = open ? "✕ Close" : "☰ Vehicles";
-}
-function closeSidebarMobile() {
-  G("sidebar").classList.remove("mob-open");
-  G("mob-fab").textContent = "☰ Vehicles";
-}
+function toggleSidebar() { const sb=G("sidebar"), open=sb.classList.toggle("mob-open"); G("mob-fab").textContent=open?"✕ Close":"☰ Vehicles"; }
+function closeSidebarMobile() { G("sidebar").classList.remove("mob-open"); G("mob-fab").textContent="☰ Vehicles"; }
 
 // ── Zoom hint ─────────────────────────────────────────────────────────────────
-let _hintTimer = null;
-function showZoomHint() {
-  const el = G('zoom-hint');
-  el.classList.add('on');
-  clearTimeout(_hintTimer);
-  _hintTimer = setTimeout(() => el.classList.remove('on'), 2500);
-}
+let _hintTimer=null;
+function showZoomHint() { const el=G('zoom-hint'); el.classList.add('on'); clearTimeout(_hintTimer); _hintTimer=setTimeout(()=>el.classList.remove('on'),2500); }
 
-// ── Map click — vehicles take priority over stops ─────────────────────────────
+// ── Map click ─────────────────────────────────────────────────────────────────
 map.on('click', e => {
-  const vehicleHit = arrowLayer.getVehicleAt(e.containerPoint);
-  if (vehicleHit) {
-    L.DomEvent.stopPropagation(e);
-    select(vehicleHit);
-    return;
-  }
-
-  // Stop hit — only active at zoom ≥ 14 (AllStopsLayer handles the guard)
-  const stopHit = allStopsLayer.getStopAt(e.containerPoint);
-  if (stopHit) {
-    L.DomEvent.stopPropagation(e);
-    selectStop(stopHit);
-    return;
-  }
-
-  // Clicked empty map: close everything
-  closePanel();
-  closeStopPopup();
+  const vehicleHit=arrowLayer.getVehicleAt(e.containerPoint);
+  if (vehicleHit) { L.DomEvent.stopPropagation(e); select(vehicleHit); return; }
+  const stopHit=allStopsLayer.getStopAt(e.containerPoint);
+  if (stopHit) { L.DomEvent.stopPropagation(e); selectStop(stopHit); return; }
+  closePanel(); closeStopPopup();
 });
 
-// Zoom-change: show hint when crossing threshold downward, load data upward
 map.on('zoomend', () => {
-  const z = map.getZoom();
-  if (z === 13) showZoomHint(); // just went below the stop-display threshold
-  if (z >= 14) {
-    if (!STOPS_tried)      loadStops();
-    if (!STOP_INDEX_tried) loadStopIndex();
-  }
+  const z=map.getZoom();
+  if (z===13) showZoomHint();
+  if (z>=14) { if (!STOPS_tried) loadStops(); if (!STOP_INDEX_tried) loadStopIndex(); }
 });
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const vData = {};
+const vData={};
 let sortedV=[], sortedC=[], activeId=null, activeTab="v";
-let activeFilter = null;
+let activeFilter=null;
 let rtimer=null, ptimer=null, pstart=null;
-let activeStopId   = null;   // currently-selected stop (for AllStopsLayer highlight)
-let activeStopPopup = null;  // Leaflet popup for the selected stop
+let activeStopId=null, activeStopPopup=null;
 
-const G = id => document.getElementById(id);
+const G=id=>document.getElementById(id);
 let ttimer=null;
 function toast(msg,err=false){const el=G("toast");el.textContent=msg;el.className="on"+(err?" er":"");clearTimeout(ttimer);ttimer=setTimeout(()=>el.className="",3500)}
 
@@ -855,434 +727,230 @@ function switchTab(t){
 }
 
 // ── URL state ─────────────────────────────────────────────────────────────────
-const URL_KEYS = ['line','route','trip','type','vehicle','agency'];
+const URL_KEYS=['line','route','trip','type','vehicle','agency'];
 function pushUrlState(params) {
-  const url = new URL(location.href);
-  URL_KEYS.forEach(k => url.searchParams.delete(k));
-  for (const [k, v] of Object.entries(params || {})) {
-    if (v != null && v !== '') url.searchParams.set(k, String(v));
-  }
-  history.replaceState(null, '', url.toString());
+  const url=new URL(location.href);
+  URL_KEYS.forEach(k=>url.searchParams.delete(k));
+  for (const [k,v] of Object.entries(params||{})) { if (v!=null&&v!=='') url.searchParams.set(k,String(v)); }
+  history.replaceState(null,'',url.toString());
 }
-function filterUrlParams() {
-  if (!activeFilter?.urlKey) return {};
-  return { [activeFilter.urlKey]: activeFilter.urlVal };
-}
+function filterUrlParams() { if (!activeFilter?.urlKey) return {}; return {[activeFilter.urlKey]:activeFilter.urlVal}; }
 
 async function restoreFromUrl() {
-  const sp = new URLSearchParams(location.search);
-  const pLine=sp.get('line'), pRoute=sp.get('route'), pTrip=sp.get('trip'),
-        pType=sp.get('type'), pVehicle=sp.get('vehicle');
-  if (!pLine && !pRoute && !pTrip && !pType && !pVehicle) return;
-
-  await new Promise(resolve => {
-    if (SL) return resolve();
-    const id = setInterval(() => { if (SL) { clearInterval(id); resolve(); } }, 50);
-    setTimeout(() => { clearInterval(id); resolve(); }, 5000);
-  });
-
+  const sp=new URLSearchParams(location.search);
+  const pLine=sp.get('line'),pRoute=sp.get('route'),pTrip=sp.get('trip'),pType=sp.get('type'),pVehicle=sp.get('vehicle');
+  if (!pLine&&!pRoute&&!pTrip&&!pType&&!pVehicle) return;
+  await new Promise(resolve => { if (SL) return resolve(); const id=setInterval(()=>{if(SL){clearInterval(id);resolve();}},50); setTimeout(()=>{clearInterval(id);resolve();},5000); });
   if (pType) {
-    const entry = Object.entries(ROUTE_TYPES).find(([code]) => code === pType);
-    if (entry) {
-      const [code, label] = entry;
-      const matchIds = new Set(Object.values(vData)
-        .filter(v => (getLine(v.tripId)?.type || '3') === code).map(v => v.vehicleId));
-      applyFilter({ matchIds, label, urlKey:'type', urlVal:code }, true);
-    }
-  } else if (pLine && SL?.lines?.[pLine]) {
-    const l = SL.lines[pLine];
-    const matchIds = new Set(Object.values(vData).filter(v => v.tripId?.split('_')[0] === pLine).map(v => v.vehicleId));
-    const shapeIds = new Set(Object.values(vData).filter(v => v.tripId?.split('_')[0] === pLine).map(v => getTrip(v.tripId)?.shapeId).filter(Boolean));
-    const shapeId = shapeIds.size === 1 ? [...shapeIds][0] : null;
-    const dirs = [l.dir0, l.dir1].filter(Boolean);
-    applyFilter({ matchIds, label: l.name + (dirs.length ? ' · '+dirs.join(' ↔ ') : ''), shapeId, urlKey:'line', urlVal:pLine }, true);
+    const entry=Object.entries(ROUTE_TYPES).find(([code])=>code===pType);
+    if (entry) { const [code,label]=entry; const matchIds=new Set(Object.values(vData).filter(v=>(getLine(v.tripId)?.type||'3')===code).map(v=>v.vehicleId)); applyFilter({matchIds,label,urlKey:'type',urlVal:code},true); }
+  } else if (pLine&&SL?.lines?.[pLine]) {
+    const l=SL.lines[pLine];
+    const matchIds=new Set(Object.values(vData).filter(v=>v.tripId?.split('_')[0]===pLine).map(v=>v.vehicleId));
+    const shapeIds=new Set(Object.values(vData).filter(v=>v.tripId?.split('_')[0]===pLine).map(v=>getTrip(v.tripId)?.shapeId).filter(Boolean));
+    const shapeId=shapeIds.size===1?[...shapeIds][0]:null;
+    const dirs=[l.dir0,l.dir1].filter(Boolean);
+    applyFilter({matchIds,label:l.name+(dirs.length?' · '+dirs.join(' ↔ '):''),shapeId,urlKey:'line',urlVal:pLine},true);
   } else if (pRoute) {
-    const matchIds = new Set(); let shapeId=null, lName='', hs='';
-    for (const v of Object.values(vData)) {
-      const ti = getTrip(v.tripId);
-      if (ti?.routeId !== pRoute) continue;
-      matchIds.add(v.vehicleId);
-      if (!shapeId && ti.shapeId) shapeId = ti.shapeId;
-      if (!lName) lName = getLine(v.tripId)?.name || '';
-      if (!hs)    hs    = ti.headsign || '';
-    }
-    if (matchIds.size) applyFilter({ matchIds, label:`${lName} → ${hs}`, shapeId, urlKey:'route', urlVal:pRoute }, true);
+    const matchIds=new Set(); let shapeId=null,lName='',hs='';
+    for (const v of Object.values(vData)) { const ti=getTrip(v.tripId); if (ti?.routeId!==pRoute) continue; matchIds.add(v.vehicleId); if (!shapeId&&ti.shapeId) shapeId=ti.shapeId; if (!lName) lName=getLine(v.tripId)?.name||''; if (!hs) hs=ti.headsign||''; }
+    if (matchIds.size) applyFilter({matchIds,label:`${lName} → ${hs}`,shapeId,urlKey:'route',urlVal:pRoute},true);
   } else if (pTrip) {
-    const v = Object.values(vData).find(v => v.tripId?.split('_').slice(0,3).join('_') === pTrip || v.tripId === pTrip);
-    if (v) {
-      const matchIds = new Set([v.vehicleId]);
-      applyFilter({ matchIds, label:`Trip ${pTrip}`, shapeId:getTrip(v.tripId)?.shapeId||null, urlKey:'trip', urlVal:pTrip }, true);
-    }
+    const v=Object.values(vData).find(v=>v.tripId?.split('_').slice(0,3).join('_')===pTrip||v.tripId===pTrip);
+    if (v) applyFilter({matchIds:new Set([v.vehicleId]),label:`Trip ${pTrip}`,shapeId:getTrip(v.tripId)?.shapeId||null,urlKey:'trip',urlVal:pTrip},true);
   }
-
-  if (pVehicle) {
-    const v = Object.values(vData).find(v => v.vehicleId === pVehicle);
-    if (v) { select(v.vehicleId); openPanel(v.vehicleId); }
-  }
+  if (pVehicle) { const v=Object.values(vData).find(v=>v.vehicleId===pVehicle); if (v) { select(v.vehicleId); openPanel(v.vehicleId); } }
 }
 
 function startBar(){
-  clearInterval(ptimer);pstart=Date.now();
+  clearInterval(ptimer); pstart=Date.now();
   const bar=G("bar");
   ptimer=setInterval(()=>{const p=Math.min(100,(Date.now()-pstart)/REFRESH*100);bar.style.width=p+"%";if(p>=100)clearInterval(ptimer)},250);
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
-const sinput = G("search-input");
-const sdrop  = G("search-drop");
-const sclear = G("search-clear");
-let dropItems = [], dropHi = -1;
-
-sinput.addEventListener("input",  () => { buildDrop(); });
-sinput.addEventListener("keydown", e => {
+const sinput=G("search-input"), sdrop=G("search-drop"), sclear=G("search-clear");
+let dropItems=[], dropHi=-1;
+sinput.addEventListener("input", ()=>buildDrop());
+sinput.addEventListener("keydown", e=>{
   if (!sdrop.classList.contains("on")) return;
-  if (e.key === "ArrowDown") { e.preventDefault(); moveDrop(1); }
-  else if (e.key === "ArrowUp") { e.preventDefault(); moveDrop(-1); }
-  else if (e.key === "Enter")  { e.preventDefault(); if (dropHi >= 0) dropItems[dropHi]?.apply(); }
-  else if (e.key === "Escape") { closeDrop(); sinput.blur(); }
+  if (e.key==="ArrowDown"){e.preventDefault();moveDrop(1);}
+  else if (e.key==="ArrowUp"){e.preventDefault();moveDrop(-1);}
+  else if (e.key==="Enter"){e.preventDefault();if(dropHi>=0)dropItems[dropHi]?.apply();}
+  else if (e.key==="Escape"){closeDrop();sinput.blur();}
 });
-sinput.addEventListener("focus", () => { if (sinput.value) buildDrop(); });
-document.addEventListener("click", e => {
-  if (!G("search-wrap").contains(e.target)) closeDrop();
-});
+sinput.addEventListener("focus", ()=>{ if (sinput.value) buildDrop(); });
+document.addEventListener("click", e=>{ if (!G("search-wrap").contains(e.target)) closeDrop(); });
 
-function closeDrop() { sdrop.classList.remove("on"); dropHi = -1; }
-function moveDrop(dir) {
-  const els = sdrop.querySelectorAll(".sd-item");
-  if (!els.length) return;
+function closeDrop(){sdrop.classList.remove("on");dropHi=-1;}
+function moveDrop(dir){
+  const els=sdrop.querySelectorAll(".sd-item"); if (!els.length) return;
   els[dropHi]?.classList.remove("hi");
-  dropHi = Math.max(0, Math.min(els.length - 1, dropHi + dir));
-  els[dropHi]?.classList.add("hi");
-  els[dropHi]?.scrollIntoView({ block: "nearest" });
+  dropHi=Math.max(0,Math.min(els.length-1,dropHi+dir));
+  els[dropHi]?.classList.add("hi"); els[dropHi]?.scrollIntoView({block:"nearest"});
 }
 
-function buildDrop() {
-  const q = sinput.value.trim().toLowerCase();
-  sclear.style.display = q ? "block" : "none";
-  if (!q) { closeDrop(); return; }
+function buildDrop(){
+  const q=sinput.value.trim().toLowerCase();
+  sclear.style.display=q?"block":"none";
+  if (!q){closeDrop();return;}
+  const groups=[], agencyName=SL?.agency?.['delijn']?.name||'De Lijn';
 
-  const groups = [];
-  const agencyName = SL?.agency?.['delijn']?.name || 'De Lijn';
-
-  // ── Agency ─────────────────────────────────────────────────────────────────
   if (agencyName.toLowerCase().includes(q)) {
-    groups.push({ label: 'Agency', items: [{
-      badge: 'ALL', color: '#1e2d3d', textC: '#c8dae8',
-      main: agencyName, sub: `${Object.keys(vData).length} vehicles`,
-      apply() { applyFilter(null); }
-    }]});
+    groups.push({label:'Agency',items:[{badge:'ALL',color:'#1e2d3d',textC:'#c8dae8',main:agencyName,sub:`${Object.keys(vData).length} vehicles`,apply(){applyFilter(null);}}]});
   }
-
-  // ── Vehicle type ───────────────────────────────────────────────────────────
-  const typeMatches = [];
-  for (const [code, label] of Object.entries(ROUTE_TYPES)) {
+  const typeMatches=[];
+  for (const [code,label] of Object.entries(ROUTE_TYPES)) {
     if (!label.toLowerCase().includes(q)) continue;
-    const matchIds = new Set(Object.values(vData).filter(v => (getLine(v.tripId)?.type || '3') === code).map(v => v.vehicleId));
-    if (matchIds.size > 0) {
-      typeMatches.push({
-        badge: label[0], color: '#1e2d3d', textC: '#c8dae8',
-        main: label, sub: `${matchIds.size} vehicles`,
-        apply() { applyFilter({ matchIds, label, urlKey:'type', urlVal:code }); }
-      });
-    }
+    const matchIds=new Set(Object.values(vData).filter(v=>(getLine(v.tripId)?.type||'3')===code).map(v=>v.vehicleId));
+    if (matchIds.size>0) typeMatches.push({badge:label[0],color:'#1e2d3d',textC:'#c8dae8',main:label,sub:`${matchIds.size} vehicles`,apply(){applyFilter({matchIds,label,urlKey:'type',urlVal:code});}});
   }
-  if (typeMatches.length) groups.push({ label: 'Type', items: typeMatches });
+  if (typeMatches.length) groups.push({label:'Type',items:typeMatches});
 
-  // ── Line ───────────────────────────────────────────────────────────────────
   if (SL?.lines) {
-    const lineItems = [];
-    for (const [code, l] of Object.entries(SL.lines)) {
+    const lineItems=[];
+    for (const [code,l] of Object.entries(SL.lines)) {
       if (!l.name.toLowerCase().includes(q)) continue;
-      const matchIds = new Set();
-      const shapeIds = new Set();
-      for (const v of Object.values(vData)) {
-        if (v.tripId?.split('_')[0] !== code) continue;
-        matchIds.add(v.vehicleId);
-        const sid = getTrip(v.tripId)?.shapeId;
-        if (sid) shapeIds.add(sid);
-      }
+      const matchIds=new Set(), shapeIds=new Set();
+      for (const v of Object.values(vData)) { if (v.tripId?.split('_')[0]!==code) continue; matchIds.add(v.vehicleId); const sid=getTrip(v.tripId)?.shapeId; if (sid) shapeIds.add(sid); }
       if (!matchIds.size) continue;
-      const color  = l.color  ? '#'+l.color  : '#444';
-      const textC  = l.textColor ? '#'+l.textColor : '#fff';
-      const snap   = new Set(matchIds);
-      const shapeId = shapeIds.size === 1 ? [...shapeIds][0] : null;
-      const dirs    = [l.dir0, l.dir1].filter(Boolean);
-      const label   = `${l.name}${dirs.length ? ' · '+dirs.join(' ↔ ') : ''}`;
-      lineItems.push({
-        badge: l.name, color, textC,
-        main: label, sub: `${snap.size} vehicle${snap.size!==1?'s':''}`,
-        apply() { applyFilter({ matchIds: snap, label, shapeId, urlKey:'line', urlVal:code }); }
-      });
+      const color=l.color?'#'+l.color:'#444', textC=l.textColor?'#'+l.textColor:'#fff';
+      const snap=new Set(matchIds), shapeId=shapeIds.size===1?[...shapeIds][0]:null;
+      const dirs=[l.dir0,l.dir1].filter(Boolean), label=`${l.name}${dirs.length?' · '+dirs.join(' ↔ '):''}`;
+      lineItems.push({badge:l.name,color,textC,main:label,sub:`${snap.size} vehicle${snap.size!==1?'s':''}`,apply(){applyFilter({matchIds:snap,label,shapeId,urlKey:'line',urlVal:code});}});
     }
-    if (lineItems.length) groups.push({ label: 'Line', items: lineItems.slice(0,8) });
+    if (lineItems.length) groups.push({label:'Line',items:lineItems.slice(0,8)});
   }
 
-  // ── Route ──────────────────────────────────────────────────────────────────
   if (SL?.trips) {
-    const routeHits = new Map();
+    const routeHits=new Map();
     for (const v of Object.values(vData)) {
-      const ti = getTrip(v.tripId);
-      const li = getLine(v.tripId) || {};
-      if (!ti) continue;
-      const rid   = ti.routeId;
-      const name  = li.name || '';
-      const hs    = ti.headsign || '';
-      const label = `${name} → ${hs}`;
-      if (!label.toLowerCase().includes(q) && !rid?.toLowerCase().includes(q)) continue;
-      if (!routeHits.has(rid)) routeHits.set(rid, { lineName: name, headsign: hs, color: li.color, textColor: li.textColor, matchIds: new Set(), shapeId: ti.shapeId || null });
+      const ti=getTrip(v.tripId), li=getLine(v.tripId)||{}; if (!ti) continue;
+      const rid=ti.routeId, name=li.name||'', hs=ti.headsign||'', label=`${name} → ${hs}`;
+      if (!label.toLowerCase().includes(q)&&!rid?.toLowerCase().includes(q)) continue;
+      if (!routeHits.has(rid)) routeHits.set(rid,{lineName:name,headsign:hs,color:li.color,textColor:li.textColor,matchIds:new Set(),shapeId:ti.shapeId||null});
       routeHits.get(rid).matchIds.add(v.vehicleId);
     }
-    const routeItems = [];
-    for (const [rid, entry] of routeHits) {
-      const color = entry.color  ? '#'+entry.color  : '#444';
-      const textC = entry.textColor ? '#'+entry.textColor : '#fff';
-      const snap  = new Set(entry.matchIds);
-      routeItems.push({
-        badge: entry.lineName, color, textC,
-        main: `${entry.lineName} → ${entry.headsign}`, sub: `${snap.size} vehicles`,
-        apply() { applyFilter({ matchIds: snap, label: `${entry.lineName} → ${entry.headsign}`, shapeId: entry.shapeId, urlKey:'route', urlVal:rid }); }
-      });
+    const routeItems=[];
+    for (const [rid,entry] of routeHits) {
+      const color=entry.color?'#'+entry.color:'#444', textC=entry.textColor?'#'+entry.textColor:'#fff', snap=new Set(entry.matchIds);
+      routeItems.push({badge:entry.lineName,color,textC,main:`${entry.lineName} → ${entry.headsign}`,sub:`${snap.size} vehicles`,apply(){applyFilter({matchIds:snap,label:`${entry.lineName} → ${entry.headsign}`,shapeId:entry.shapeId,urlKey:'route',urlVal:rid});}});
     }
-    if (routeItems.length) groups.push({ label: 'Route', items: routeItems.slice(0,6) });
+    if (routeItems.length) groups.push({label:'Route',items:routeItems.slice(0,6)});
   }
 
-  // ── Trip ───────────────────────────────────────────────────────────────────
-  const tripItems = [];
+  const tripItems=[];
   for (const v of Object.values(vData)) {
     if (!v.tripId?.toLowerCase().includes(q)) continue;
-    const name = lineName(v.tripId), dest = lineDest(v.tripId);
-    const c = markerCol(v.tripId), tc = lineTextColor(v.tripId);
-    const d = fmtD(v.delay);
-    const snap = new Set([v.vehicleId]);
-    const tripShapeId = getTrip(v.tripId)?.shapeId || null;
-    tripItems.push({
-      badge: name, color: c, textC: tc,
-      main: dest ? `${name} → ${dest}` : v.tripId.slice(0,30),
-      sub: v.vehicleId, delayText: d.text, delayCls: d.cls,
-      apply() { const tripKey=v.tripId.split('_').slice(0,3).join('_'); applyFilter({ matchIds: snap, label: `Trip ${tripKey}`, shapeId: tripShapeId, urlKey:'trip', urlVal:tripKey }); select(v.vehicleId); openPanel(v.vehicleId); }
-    });
+    const name=lineName(v.tripId),dest=lineDest(v.tripId),c=markerCol(v.tripId),tc=lineTextColor(v.tripId),d=fmtD(v.delay),snap=new Set([v.vehicleId]),tripShapeId=getTrip(v.tripId)?.shapeId||null;
+    tripItems.push({badge:name,color:c,textC:tc,main:dest?`${name} → ${dest}`:v.tripId.slice(0,30),sub:v.vehicleId,delayText:d.text,delayCls:d.cls,apply(){const tripKey=v.tripId.split('_').slice(0,3).join('_');applyFilter({matchIds:snap,label:`Trip ${tripKey}`,shapeId:tripShapeId,urlKey:'trip',urlVal:tripKey});select(v.vehicleId);openPanel(v.vehicleId);}});
   }
-  if (tripItems.length) groups.push({ label: 'Trip', items: tripItems.slice(0,4) });
+  if (tripItems.length) groups.push({label:'Trip',items:tripItems.slice(0,4)});
 
-  // ── Vehicle ────────────────────────────────────────────────────────────────
-  const vehItems = [];
+  const vehItems=[];
   for (const v of Object.values(vData)) {
     if (!v.vehicleId?.toLowerCase().includes(q)) continue;
-    const name = lineName(v.tripId), dest = lineDest(v.tripId);
-    const c = markerCol(v.tripId), tc = lineTextColor(v.tripId);
-    const d = fmtD(v.delay);
-    const snap = new Set([v.vehicleId]);
-    vehItems.push({
-      badge: name, color: c, textC: tc,
-      main: dest ? `${name} → ${dest}` : name,
-      sub: v.vehicleId, delayText: d.text, delayCls: d.cls,
-      apply() { applyFilter({ matchIds: snap, label: `Vehicle ${v.vehicleId}` }); select(v.vehicleId); openPanel(v.vehicleId); }
-    });
+    const name=lineName(v.tripId),dest=lineDest(v.tripId),c=markerCol(v.tripId),tc=lineTextColor(v.tripId),d=fmtD(v.delay),snap=new Set([v.vehicleId]);
+    vehItems.push({badge:name,color:c,textC:tc,main:dest?`${name} → ${dest}`:name,sub:v.vehicleId,delayText:d.text,delayCls:d.cls,apply(){applyFilter({matchIds:snap,label:`Vehicle ${v.vehicleId}`});select(v.vehicleId);openPanel(v.vehicleId);}});
   }
-  if (vehItems.length) groups.push({ label: 'Vehicle', items: vehItems.slice(0,4) });
+  if (vehItems.length) groups.push({label:'Vehicle',items:vehItems.slice(0,4)});
 
-  // ── Stop (by name or ID) ───────────────────────────────────────────────────
   if (STOPS) {
-    const stopItems = [];
-    for (const [sid, s] of Object.entries(STOPS)) {
-      if (!s.n?.toLowerCase().includes(q) && !sid.includes(q)) continue;
-      const snapSid = sid, snapS = s;
-      stopItems.push({
-        badge: '⬡', color: '#6b8899', textC: '#c8dae8',
-        main: s.n, sub: `Stop ${sid}`,
-        apply() {
-          closeDrop();
-          sinput.value = '';
-          sclear.style.display = 'none';
-          // Fly to the stop then select it
-          map.flyTo([snapS.a, snapS.o], Math.max(map.getZoom(), 17), { animate: true, duration: 0.8 });
-          setTimeout(() => selectStop(snapSid), 850);
-        }
-      });
-      if (stopItems.length >= 6) break;
+    const stopItems=[];
+    for (const [sid,s] of Object.entries(STOPS)) {
+      if (!s.n?.toLowerCase().includes(q)&&!sid.includes(q)) continue;
+      const snapSid=sid, snapS=s;
+      stopItems.push({badge:'⬡',color:'#6b8899',textC:'#c8dae8',main:s.n,sub:`Stop ${sid}`,
+        apply(){closeDrop();sinput.value='';sclear.style.display='none';map.flyTo([snapS.a,snapS.o],Math.max(map.getZoom(),17),{animate:true,duration:0.8});setTimeout(()=>selectStop(snapSid),850);}});
+      if (stopItems.length>=6) break;
     }
-    if (stopItems.length) groups.push({ label: 'Stop', items: stopItems });
+    if (stopItems.length) groups.push({label:'Stop',items:stopItems});
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  dropItems = [];
-  if (!groups.length) {
-    sdrop.innerHTML = `<div style="padding:12px 14px;font-size:11px;color:var(--text-dim);font-family:var(--font-mono)">No results</div>`;
-    sdrop.classList.add("on");
-    return;
-  }
+  dropItems=[];
+  if (!groups.length) { sdrop.innerHTML=`<div style="padding:12px 14px;font-size:11px;color:var(--text-dim);font-family:var(--font-mono)">No results</div>`; sdrop.classList.add("on"); return; }
 
-  let html = '';
+  let html='';
   for (const g of groups) {
-    html += `<div class="sd-group">${g.label}</div>`;
+    html+=`<div class="sd-group">${g.label}</div>`;
     for (const it of g.items) {
-      const idx = dropItems.length;
-      dropItems.push(it);
-      const delaySpan = it.delayText
-        ? `<span class="sd-delay" style="color:var(--${it.delayCls})">${it.delayText}</span>`
-        : (it.sub ? `<span class="sd-sub">${it.sub}</span>` : '');
-      html += `<div class="sd-item" data-i="${idx}">
-        <span class="sd-badge" style="background:${it.color}22;color:${it.color};border:1px solid ${it.color}44">${it.badge}</span>
-        <span class="sd-main">${it.main}</span>
-        ${delaySpan}
-      </div>`;
+      const idx=dropItems.length; dropItems.push(it);
+      const delaySpan=it.delayText?`<span class="sd-delay" style="color:var(--${it.delayCls})">${it.delayText}</span>`:(it.sub?`<span class="sd-sub">${it.sub}</span>`:'');
+      html+=`<div class="sd-item" data-i="${idx}"><span class="sd-badge" style="background:${it.color}22;color:${it.color};border:1px solid ${it.color}44">${it.badge}</span><span class="sd-main">${it.main}</span>${delaySpan}</div>`;
     }
   }
-  sdrop.innerHTML = html;
-  sdrop.querySelectorAll(".sd-item").forEach(el => {
-    el.addEventListener("mousedown", e => {
-      e.preventDefault();
-      dropItems[+el.dataset.i]?.apply();
-      closeDrop();
-    });
-  });
-  sdrop.classList.add("on");
-  dropHi = -1;
+  sdrop.innerHTML=html;
+  sdrop.querySelectorAll(".sd-item").forEach(el=>{ el.addEventListener("mousedown",e=>{e.preventDefault();dropItems[+el.dataset.i]?.apply();closeDrop();}); });
+  sdrop.classList.add("on"); dropHi=-1;
 }
 
 function applyFilter(filter, skipPush=false) {
-  activeFilter = filter;
-  if (!skipPush) pushUrlState(filter ? { [filter.urlKey]: filter.urlVal } : {});
-  const all = Object.values(vData).sort((a,b) => (b.delay||0)-(a.delay||0));
-  sortedV = filter ? all.filter(v => filter.matchIds.has(v.vehicleId)) : all;
-  G("bv").textContent = sortedV.length;
-
+  activeFilter=filter;
+  if (!skipPush) pushUrlState(filter?{[filter.urlKey]:filter.urlVal}:{});
+  const all=Object.values(vData).sort((a,b)=>(b.delay||0)-(a.delay||0));
+  sortedV=filter?all.filter(v=>filter.matchIds.has(v.vehicleId)):all;
+  G("bv").textContent=sortedV.length;
   if (filter?.shapeId) {
-    const anyV = filter.matchIds.size ? Object.values(vData).find(v => filter.matchIds.has(v.vehicleId)) : null;
-    const lc = anyV?.tripId?.split('_')[0] || null;
-    showShape(filter.shapeId, lc, true);
-  } else if (!filter || filter.matchIds.size > 1) {
-    clearShape();
-    stopLayer.clearRouteStops();
-  }
-
-  // Flush virtual scroll
-  const win = G("wv");
-  [...win.children].forEach(ch => { win.removeChild(ch); freeRow(ch); });
-  G("pv").scrollTop = 0;
-
-  // Update stop layer dimming
-  allStopsLayer.setRouteFilter(filter ? getFilterStopIds() : null);
-
-  arrowLayer._draw();
-  redraw();
-  if (filter) {
-    sinput.value = filter.label;
-    sclear.style.display = "block";
-  }
+    const anyV=filter.matchIds.size?Object.values(vData).find(v=>filter.matchIds.has(v.vehicleId)):null;
+    showShape(filter.shapeId,anyV?.tripId?.split('_')[0]||null,true);
+  } else if (!filter||filter.matchIds.size>1) { clearShape(); stopLayer.clearRouteStops(); }
+  const win=G("wv"); [...win.children].forEach(ch=>{win.removeChild(ch);freeRow(ch);}); G("pv").scrollTop=0;
+  allStopsLayer.setRouteFilter(filter?getFilterStopIds():null);
+  arrowLayer._draw(); redraw();
+  if (filter) { sinput.value=filter.label; sclear.style.display="block"; }
 }
 
-function clearSearch() {
-  sinput.value = "";
-  sclear.style.display = "none";
-  closeDrop();
-  clearShape();
-  stopLayer.clearRouteStops();
-  applyFilter(null);
-}
+function clearSearch() { sinput.value=""; sclear.style.display="none"; closeDrop(); clearShape(); stopLayer.clearRouteStops(); applyFilter(null); }
 
 // ── Stop popup ────────────────────────────────────────────────────────────────
-
 function closeStopPopup() {
-  if (activeStopPopup) { activeStopPopup.remove(); activeStopPopup = null; }
-  if (activeStopId)    { allStopsLayer.setActiveStop(null); activeStopId = null; }
+  if (activeStopPopup) { activeStopPopup.remove(); activeStopPopup=null; }
+  if (activeStopId)    { allStopsLayer.setActiveStop(null); activeStopId=null; }
 }
 
-// Click a line badge inside the stop popup → apply a line filter on the map.
 function filterByLine(lineCode) {
   closeStopPopup();
-  const l = SL?.lines?.[lineCode];
-  if (!l) return;
-  const matchIds = new Set(Object.values(vData)
-    .filter(v => v.tripId?.split('_')[0] === lineCode).map(v => v.vehicleId));
-  const shapeIds = new Set(Object.values(vData)
-    .filter(v => v.tripId?.split('_')[0] === lineCode)
-    .map(v => getTrip(v.tripId)?.shapeId).filter(Boolean));
-  const shapeId = shapeIds.size === 1 ? [...shapeIds][0] : null;
-  const dirs    = [l.dir0, l.dir1].filter(Boolean);
-  const label   = `${l.name}${dirs.length ? ' · ' + dirs.join(' ↔ ') : ''}`;
-  applyFilter({ matchIds, label, shapeId, urlKey: 'line', urlVal: lineCode });
+  const l=SL?.lines?.[lineCode]; if (!l) return;
+  const matchIds=new Set(Object.values(vData).filter(v=>v.tripId?.split('_')[0]===lineCode).map(v=>v.vehicleId));
+  const shapeIds=new Set(Object.values(vData).filter(v=>v.tripId?.split('_')[0]===lineCode).map(v=>getTrip(v.tripId)?.shapeId).filter(Boolean));
+  const shapeId=shapeIds.size===1?[...shapeIds][0]:null;
+  const dirs=[l.dir0,l.dir1].filter(Boolean), label=`${l.name}${dirs.length?' · '+dirs.join(' ↔ '):''}`;
+  applyFilter({matchIds,label,shapeId,urlKey:'line',urlVal:lineCode});
 }
 
-// Click a vehicle row inside the stop popup → open its side panel.
 function selectApproachingVehicle(vehicleId) {
   closeStopPopup();
-  const v = vData[vehicleId];
-  if (!v) return;
-  select(vehicleId);
-  openPanel(vehicleId);
+  const v=vData[vehicleId]; if (!v) return;
+  select(vehicleId); openPanel(vehicleId);
 }
 
 function showStopPopup(stopId) {
-  const s = STOPS?.[stopId];
-  if (!s) return;
-  if (activeStopPopup) { activeStopPopup.remove(); activeStopPopup = null; }
-
-  const lineCodes  = STOP_INDEX?.[stopId] || [];
-  const approaches = getApproachingVehicles(stopId);
-
-  // Line badge strip — each badge is clickable.
-  const linesHtml = lineCodes.length
-    ? lineCodes.slice(0, 20).map(lc => {
-        const l = SL?.lines?.[lc];
-        if (!l) return '';
-        const c = l.color ? '#' + l.color : '#6b8899';
-        return `<span class="sp-approach-badge sp-line-badge"
-                  style="background:${c}22;color:${c};border:1px solid ${c}44;cursor:pointer"
-                  onclick="filterByLine('${lc}')"
-                  title="Show line ${l.name} on map">${l.name}</span>`;
-      }).filter(Boolean).join('')
-    : `<span class="sp-none">–</span>`;
-
-  // Approaching vehicle rows — each row is clickable.
+  const s=STOPS?.[stopId]; if (!s) return;
+  if (activeStopPopup) { activeStopPopup.remove(); activeStopPopup=null; }
+  const lineCodes=STOP_INDEX?.[stopId]||[], approaches=getApproachingVehicles(stopId);
+  const linesHtml=lineCodes.length
+    ?lineCodes.slice(0,20).map(lc=>{const l=SL?.lines?.[lc];if(!l)return'';const c=l.color?'#'+l.color:'#6b8899';return`<span class="sp-approach-badge sp-line-badge" style="background:${c}22;color:${c};border:1px solid ${c}44;cursor:pointer" onclick="filterByLine('${lc}')" title="Show line ${l.name} on map">${l.name}</span>`;}).filter(Boolean).join('')
+    :`<span class="sp-none">–</span>`;
   let approachHtml;
-  if (STOP_INDEX === null) {
-    // Still loading the index — haven't started fetching ST yet
-    approachHtml = `<div class="sp-none">Loading…</div>`;
+  if (STOP_INDEX===null) {
+    approachHtml=`<div class="sp-none">Loading…</div>`;
   } else if (!approaches.length) {
-    approachHtml = `<div class="sp-none">No live vehicles in next 90 min</div>`;
+    approachHtml=`<div class="sp-none">No live vehicles in next 90 min</div>`;
   } else {
-    approachHtml = approaches.slice(0, 8).map(a => {
-      const name       = lineName(a.tripId);
-      const dest       = lineDest(a.tripId) || '–';
-      const color      = markerCol(a.tripId);
-      const delayMins  = Math.round((a.delay || 0) / 60);
-      const schedStr   = fmtMins(a.scheduled);
-      const adjStr     = fmtMins(a.adjusted);
-
-      // ETA label: "Now" when ≤ 0 mins, otherwise "Xm"
-      const etaEl = a.eta <= 0
-        ? `<span style="color:var(--accent3);font-weight:700;font-size:11px;font-family:var(--font-mono)">Now</span>`
-        : `<span style="color:var(--text);font-weight:600;font-size:11px;font-family:var(--font-mono)">${a.eta}m</span>`;
-
-      // Scheduled time, struck through if delayed, plus adjusted time
-      const timeEl = schedStr
-        ? (delayMins !== 0
-            ? `<span style="color:var(--text-dim);font-size:9px;font-family:var(--font-mono);text-decoration:line-through">${schedStr}</span>
-               <span style="color:${delayMins >= 2 ? 'var(--accent2)' : 'var(--accent3)'};font-size:9px;font-family:var(--font-mono)">${adjStr}</span>`
-            : `<span style="color:var(--text-dim);font-size:9px;font-family:var(--font-mono)">${schedStr}</span>`)
-        : '';
-
-      return `<div class="sp-approach-row" style="cursor:pointer"
-                   onclick="selectApproachingVehicle('${a.vehicleId}')"
-                   title="Open vehicle ${a.vehicleId}">
-        <span class="sp-approach-badge"
-              style="background:${color}22;color:${color};border:1px solid ${color}44;flex-shrink:0">${name}</span>
-        <span class="sp-approach-dest">→ ${dest}</span>
-        <span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0">
-          ${etaEl}${timeEl ? `<span style="display:flex;gap:4px">${timeEl}</span>` : ''}
-        </span>
-      </div>`;
+    approachHtml=approaches.slice(0,8).map(a=>{
+      const name=lineName(a.tripId),dest=lineDest(a.tripId)||'–',color=markerCol(a.tripId);
+      const delayMins=Math.round((a.delay||0)/60),schedStr=fmtMins(a.scheduled),adjStr=fmtMins(a.adjusted);
+      const etaEl=a.eta<=0?`<span style="color:var(--accent3);font-weight:700;font-size:11px;font-family:var(--font-mono)">Now</span>`:`<span style="color:var(--text);font-weight:600;font-size:11px;font-family:var(--font-mono)">${a.eta}m</span>`;
+      const timeEl=schedStr?(delayMins!==0?`<span style="color:var(--text-dim);font-size:9px;font-family:var(--font-mono);text-decoration:line-through">${schedStr}</span><span style="color:${delayMins>=2?'var(--accent2)':'var(--accent3)'};font-size:9px;font-family:var(--font-mono)">${adjStr}</span>`:`<span style="color:var(--text-dim);font-size:9px;font-family:var(--font-mono)">${schedStr}</span>`):'';
+      return`<div class="sp-approach-row" style="cursor:pointer" onclick="selectApproachingVehicle('${a.vehicleId}')" title="Open vehicle ${a.vehicleId}"><span class="sp-approach-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;flex-shrink:0">${name}</span><span class="sp-approach-dest">→ ${dest}</span><span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0">${etaEl}${timeEl?`<span style="display:flex;gap:4px">${timeEl}</span>`:''}</span></div>`;
     }).join('');
   }
-
-  activeStopPopup = L.popup({ maxWidth: 315, minWidth: 275, closeButton: false })
-    .setLatLng([s.a, s.o])
+  activeStopPopup=L.popup({maxWidth:315,minWidth:275,closeButton:false})
+    .setLatLng([s.a,s.o])
     .setContent(`<div class="mp" style="max-height:400px;overflow-y:auto">
       <div class="sp-name">${s.n}</div>
       <div class="sp-id">Stop ID: ${stopId}</div>
-      ${lineCodes.length ? `<div class="sp-section-label" style="margin-top:8px">Lines served</div>
-      <div class="sp-lines" style="margin-bottom:10px;line-height:2">${linesHtml}</div>` : ''}
+      ${lineCodes.length?`<div class="sp-section-label" style="margin-top:8px">Lines served</div><div class="sp-lines" style="margin-bottom:10px;line-height:2">${linesHtml}</div>`:''}
       <div class="sp-section-label">Approaching</div>
       <div>${approachHtml}</div>
     </div>`)
@@ -1292,33 +960,15 @@ function showStopPopup(stopId) {
 async function selectStop(stopId) {
   if (G('info-panel').classList.contains('open')) closePanel();
   closeStopPopup();
-
-  activeStopId = stopId;
-  allStopsLayer.setActiveStop(stopId);
-
-  // Ensure stops.json is available (needed for the stop name).
+  activeStopId=stopId; allStopsLayer.setActiveStop(stopId);
   if (!STOPS_tried) await loadStops();
   if (!STOPS?.[stopId]) return;
-
-  // Show the popup immediately so the user sees the stop name + lines badge strip.
-  // Approaching vehicles will show "Loading…" until ST files are ready.
   showStopPopup(stopId);
-
-  // Await the stop-index. Crucially: loadStopIndex() now returns the same
-  // in-flight Promise that _init() already kicked off, so this joins that
-  // request rather than racing against it or ignoring STOP_INDEX_tried.
   await loadStopIndex();
-  if (activeStopId !== stopId) return;
-
-  // Load stop-times for every line that serves this stop (capped at 8 parallel).
-  // loadStopTimes is a no-op for lines already in the ST cache.
-  const lines = STOP_INDEX?.[stopId] || [];
-  if (lines.length > 0) {
-    await Promise.all(lines.slice(0, 8).map(lc => loadStopTimes(lc)));
-  }
-
-  // Final render with complete approaching-vehicle data.
-  if (activeStopId === stopId) showStopPopup(stopId);
+  if (activeStopId!==stopId) return;
+  const lines=STOP_INDEX?.[stopId]||[];
+  if (lines.length>0) await Promise.all(lines.slice(0,8).map(lc=>loadStopTimes(lc)));
+  if (activeStopId===stopId) showStopPopup(stopId);
 }
 
 // ── Virtual scroll ────────────────────────────────────────────────────────────
@@ -1345,23 +995,15 @@ function drawList(paneId,spacerId,winId,items,rowH,renderFn){
 }
 
 function renderV(row,v){
-  const d=fmtD(v.delay);
-  const name=lineName(v.tripId), dest=lineDest(v.tripId)||v.vehicleId;
-  const c=markerCol(v.tripId);
+  const d=fmtD(v.delay), name=lineName(v.tripId), dest=lineDest(v.tripId)||v.vehicleId, c=markerCol(v.tripId);
   row.className="vr"+(v.vehicleId===activeId?" sel":"");
-  row.onclick=()=>{ select(v.vehicleId); openPanel(v.vehicleId); };
-  row.innerHTML=`
-    <div class="badge" style="background:${c}22;color:${c};border:1px solid ${c}44">${name}</div>
-    <div class="ri"><div class="rr">${dest}</div><div class="rm">${v.vehicleId}</div></div>
-    <div class="rd" style="color:var(--${d.cls})">${d.text}</div>`;
+  row.onclick=()=>{select(v.vehicleId);openPanel(v.vehicleId);};
+  row.innerHTML=`<div class="badge" style="background:${c}22;color:${c};border:1px solid ${c}44">${name}</div><div class="ri"><div class="rr">${dest}</div><div class="rm">${v.vehicleId}</div></div><div class="rd" style="color:var(--${d.cls})">${d.text}</div>`;
 }
 
 function renderC(row,c){
   row.className="vr cr";
-  row.innerHTML=`
-    <div class="badge" style="background:rgba(255,59,92,.1);color:var(--danger);border:1px solid rgba(255,59,92,.3)">${lineName(c.tripId)}</div>
-    <div class="ri"><div class="rr" style="color:var(--text-dim);text-decoration:line-through">${lineDest(c.tripId)||c.tripId.split('_').slice(0,3).join('_')}</div><div class="rm">${c.routeId||'–'}</div></div>
-    <div class="cx">Canceled</div>`;
+  row.innerHTML=`<div class="badge" style="background:rgba(255,59,92,.1);color:var(--danger);border:1px solid rgba(255,59,92,.3)">${lineName(c.tripId)}</div><div class="ri"><div class="rr" style="color:var(--text-dim);text-decoration:line-through">${lineDest(c.tripId)||c.tripId.split('_').slice(0,3).join('_')}</div><div class="rm">${c.routeId||'–'}</div></div><div class="cx">Canceled</div>`;
 }
 
 function redraw(){
@@ -1373,416 +1015,202 @@ G("pv").addEventListener("scroll",()=>drawList("pv","sv2","wv",sortedV,IH_V,rend
 G("pc").addEventListener("scroll",()=>drawList("pc","sc3","wc",sortedC,IH_C,renderC),{passive:true});
 
 // ── Vehicle popup ─────────────────────────────────────────────────────────────
-let activePopup = null;
+let activePopup=null;
 function showPopup(id){
   const v=vData[id]; if(!v) return;
-  const name  = lineName(v.tripId);
-  const dest  = lineDest(v.tripId)||'–';
-  const color = markerCol(v.tripId);
-  const textC = lineTextColor(v.tripId);
-  const url   = getLine(v.tripId)?.url || '';
-  const d     = fmtD(v.delay);
-  if (activePopup) { activePopup.remove(); activePopup = null; }
-  activePopup = L.popup({maxWidth:240, minWidth:200, closeButton:false})
-    .setLatLng([v.lat, v.lng])
-    .setContent(`
-      <div class="mp">
-        <div class="mp-badge" style="background:${color};color:${textC}">${name}</div>
-        <div class="mp-dest">→ ${dest}</div>
-        <div class="mp-sub">${v.vehicleId}</div>
-        <div class="mp-delay" style="color:var(--${d.cls})">${d.text}</div>
-        ${url ? `<a class="mp-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a>` : ''}
-        <button class="mp-btn" onclick="openPanel('${id}')">More Info</button>
-      </div>`)
+  const name=lineName(v.tripId), dest=lineDest(v.tripId)||'–', color=markerCol(v.tripId), textC=lineTextColor(v.tripId), url=getLine(v.tripId)?.url||'', d=fmtD(v.delay);
+  if (activePopup){activePopup.remove();activePopup=null;}
+  activePopup=L.popup({maxWidth:240,minWidth:200,closeButton:false})
+    .setLatLng([v.lat,v.lng])
+    .setContent(`<div class="mp"><div class="mp-badge" style="background:${color};color:${textC}">${name}</div><div class="mp-dest">→ ${dest}</div><div class="mp-sub">${v.vehicleId}</div><div class="mp-delay" style="color:var(--${d.cls})">${d.text}</div>${url?`<a class="mp-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a>`:''}<button class="mp-btn" onclick="openPanel('${id}')">More Info</button></div>`)
     .openOn(map);
 }
 
-let _renderToken = 0;
+let _renderToken=0;
 function openPanel(id){
-  const v = vData[id]; if (!v) return;
-  closeStopPopup(); // stop popup and vehicle panel are mutually exclusive
-  activeId = id;
-  const token = ++_renderToken;
+  const v=vData[id]; if(!v) return;
+  closeStopPopup(); activeId=id; ++_renderToken;
+  const lineInfo=getLine(v.tripId)||{}, tripInfo=getTrip(v.tripId)||{}, routeInfo=getRoute(tripInfo.routeId||v.routeId)||{};
+  const name=routeInfo.name||lineInfo.name||'–', dest=tripInfo.headsign||'–';
+  const color='#'+(routeInfo.color||lineInfo.color||'444'), textC='#'+(routeInfo.textColor||lineInfo.textColor||'fff');
+  const routeLong=routeInfo.long||lineInfo[`dir${tripInfo.dir}`]||lineInfo.dir0||'–';
+  const url=routeInfo.url||lineInfo.url||'', type=routeInfo.type||lineInfo.type||'3';
+  const typeLabel=ROUTE_TYPES[type]||'Bus', routeId=tripInfo.routeId||v.routeId||'–';
+  const lineCode=v.tripId?.split('_')[0]||'–', d=fmtD(v.delay);
+  const t0=lineInfo.dir0||'', t1=lineInfo.dir1||'';
+  const terminals=(t0&&t1)?`${t0} ↔ ${t1}`:(t0||t1||'–');
+  const ag=SL?.agency?.['delijn']||{}, feed=SL?.feed||{};
 
-  const lineInfo  = getLine(v.tripId)  || {};
-  const tripInfo  = getTrip(v.tripId)  || {};
-  const routeInfo = getRoute(tripInfo.routeId || v.routeId) || {};
+  pushUrlState({...filterUrlParams(),vehicle:v.vehicleId,agency:'delijn'});
+  G("ip-badge").textContent=name; G("ip-badge").style.background=color; G("ip-badge").style.color=textC;
+  G("ip-title").textContent=dest;
 
-  const name      = routeInfo.name      || lineInfo.name      || '–';
-  const dest      = tripInfo.headsign   || '–';
-  const color     = '#' + (routeInfo.color     || lineInfo.color     || '444');
-  const textC     = '#' + (routeInfo.textColor || lineInfo.textColor || 'fff');
-  const routeLong = routeInfo.long      || lineInfo[`dir${tripInfo.dir}`] || lineInfo.dir0 || '–';
-  const url       = routeInfo.url       || lineInfo.url       || '';
-  const type      = routeInfo.type      || lineInfo.type      || '3';
-  const typeLabel = ROUTE_TYPES[type]   || 'Bus';
-  const routeId   = tripInfo.routeId    || v.routeId          || '–';
-  const lineCode  = v.tripId?.split('_')[0]                   || '–';
-  const d         = fmtD(v.delay);
-
-  const t0 = lineInfo.dir0 || '', t1 = lineInfo.dir1 || '';
-  const terminals = (t0 && t1) ? `${t0} ↔ ${t1}` : (t0 || t1 || '–');
-
-  const ag   = SL?.agency?.['delijn'] || {};
-  const feed = SL?.feed || {};
-
-  pushUrlState({ ...filterUrlParams(), vehicle: v.vehicleId, agency: 'delijn' });
-
-  G("ip-badge").textContent      = name;
-  G("ip-badge").style.background = color;
-  G("ip-badge").style.color      = textC;
-  G("ip-title").textContent      = dest;
-
-  G("ip-body").innerHTML = `
-    <div style="margin-bottom:16px">
-      <button class="ip-share-btn" onclick="shareVehicleUrl()">
-        <span>⬡</span> Share this vehicle
-      </button>
-    </div>
-
-    <div class="ip-section">
-      <div class="ip-section-title">Route</div>
-      <div class="ip-grid">
-        <div class="ip-field">
-          <div class="ip-label">Line</div>
-          <div class="ip-value accent"><span class="ip-swatch" style="background:${color}"></span>${name}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Type</div>
-          <div class="ip-value">${typeLabel}</div>
-        </div>
-        <div class="ip-field ip-full">
-          <div class="ip-label">Direction</div>
-          <div class="ip-value">→ ${dest}</div>
-        </div>
-        <div class="ip-field ip-full">
-          <div class="ip-label">Full Route</div>
-          <div class="ip-value" style="font-size:11px">${routeLong}</div>
-        </div>
-        <div class="ip-field ip-full">
-          <div class="ip-label">Terminals</div>
-          <div class="ip-value" style="font-size:11px;color:var(--text-dim)">${terminals}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Internal Line ID</div>
-          <div class="ip-value di" style="font-size:11px">${lineCode}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Route ID</div>
-          <div class="ip-value di" style="font-size:11px">${routeId}</div>
-        </div>
-        ${url ? `<div class="ip-field ip-full">
-          <div class="ip-label">De Lijn Page</div>
-          <div class="ip-value"><a class="ip-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a></div>
-        </div>` : ''}
-      </div>
-    </div>
-
-    <div class="ip-section">
-      <div class="ip-section-title">Realtime</div>
-      <div class="ip-grid">
-        <div class="ip-field">
-          <div class="ip-label">Delay</div>
-          <div class="ip-value ${d.cls}">${d.text}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Bearing</div>
-          <div class="ip-value">${fmtB(v.bearing)}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Latitude</div>
-          <div class="ip-value">${v.lat.toFixed(5)}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Longitude</div>
-          <div class="ip-value">${v.lng.toFixed(5)}</div>
-        </div>
-        <div class="ip-field ip-full">
-          <div class="ip-label">Trip ID</div>
-          <div class="ip-value" style="font-size:10px;color:var(--text-dim)">${v.tripId || '–'}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="ip-section">
-      <div class="ip-section-title">Vehicle</div>
-      <div class="ip-grid">
-        <div class="ip-field">
-          <div class="ip-label">Vehicle ID</div>
-          <div class="ip-value">${v.vehicleId}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Agency</div>
-          <div class="ip-value">${ag.name || 'De Lijn'}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="ip-section" id="stops-section">
-      <div class="ip-section-title">Stops</div>
-      <div id="stops-list" style="color:var(--text-dim);font-size:11px;font-family:var(--font-mono)">Loading…</div>
-    </div>
-
-    ${feed.version ? `<div class="ip-section">
-      <div class="ip-section-title">Feed</div>
-      <div class="ip-grid">
-        <div class="ip-field">
-          <div class="ip-label">Version</div>
-          <div class="ip-value" style="font-size:10px;color:var(--text-dim)">${feed.version}</div>
-        </div>
-        <div class="ip-field">
-          <div class="ip-label">Valid Until</div>
-          <div class="ip-value" style="font-size:11px">${feed.endDate ? feed.endDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3') : '–'}</div>
-        </div>
-      </div>
-    </div>` : ''}
+  G("ip-body").innerHTML=`
+    <div style="margin-bottom:16px"><button class="ip-share-btn" onclick="shareVehicleUrl()"><span>⬡</span> Share this vehicle</button></div>
+    <div class="ip-section"><div class="ip-section-title">Route</div><div class="ip-grid">
+      <div class="ip-field"><div class="ip-label">Line</div><div class="ip-value accent"><span class="ip-swatch" style="background:${color}"></span>${name}</div></div>
+      <div class="ip-field"><div class="ip-label">Type</div><div class="ip-value">${typeLabel}</div></div>
+      <div class="ip-field ip-full"><div class="ip-label">Direction</div><div class="ip-value">→ ${dest}</div></div>
+      <div class="ip-field ip-full"><div class="ip-label">Full Route</div><div class="ip-value" style="font-size:11px">${routeLong}</div></div>
+      <div class="ip-field ip-full"><div class="ip-label">Terminals</div><div class="ip-value" style="font-size:11px;color:var(--text-dim)">${terminals}</div></div>
+      <div class="ip-field"><div class="ip-label">Internal Line ID</div><div class="ip-value di" style="font-size:11px">${lineCode}</div></div>
+      <div class="ip-field"><div class="ip-label">Route ID</div><div class="ip-value di" style="font-size:11px">${routeId}</div></div>
+      ${url?`<div class="ip-field ip-full"><div class="ip-label">De Lijn Page</div><div class="ip-value"><a class="ip-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a></div></div>`:''}
+    </div></div>
+    <div class="ip-section"><div class="ip-section-title">Realtime</div><div class="ip-grid">
+      <div class="ip-field"><div class="ip-label">Delay</div><div class="ip-value ${d.cls}">${d.text}</div></div>
+      <div class="ip-field"><div class="ip-label">Bearing</div><div class="ip-value">${fmtB(v.bearing)}</div></div>
+      <div class="ip-field"><div class="ip-label">Latitude</div><div class="ip-value">${v.lat.toFixed(5)}</div></div>
+      <div class="ip-field"><div class="ip-label">Longitude</div><div class="ip-value">${v.lng.toFixed(5)}</div></div>
+      <div class="ip-field ip-full"><div class="ip-label">Trip ID</div><div class="ip-value" style="font-size:10px;color:var(--text-dim)">${v.tripId||'–'}</div></div>
+    </div></div>
+    <div class="ip-section"><div class="ip-section-title">Vehicle</div><div class="ip-grid">
+      <div class="ip-field"><div class="ip-label">Vehicle ID</div><div class="ip-value">${v.vehicleId}</div></div>
+      <div class="ip-field"><div class="ip-label">Agency</div><div class="ip-value">${ag.name||'De Lijn'}</div></div>
+    </div></div>
+    <div class="ip-section" id="stops-section"><div class="ip-section-title">Stops</div><div id="stops-list" style="color:var(--text-dim);font-size:11px;font-family:var(--font-mono)">Loading…</div></div>
+    ${feed.version?`<div class="ip-section"><div class="ip-section-title">Feed</div><div class="ip-grid"><div class="ip-field"><div class="ip-label">Version</div><div class="ip-value" style="font-size:10px;color:var(--text-dim)">${feed.version}</div></div><div class="ip-field"><div class="ip-label">Valid Until</div><div class="ip-value" style="font-size:11px">${feed.endDate?feed.endDate.replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3'):'–'}</div></div></div></div>`:''}
   `;
 
-  G("info-panel").classList.add("open");
-  G("ip-body").scrollTop = 0;
+  G("info-panel").classList.add("open"); G("ip-body").scrollTop=0;
+  panToVehicle(v,Math.max(map.getZoom(),13));
 
-  panToVehicle(v, Math.max(map.getZoom(), 13));
-
-  const _vid = v.vehicleId;
-  const _lc  = v.tripId?.split('_')[0];
-  ;(async () => {
-    clearShape();
-    stopLayer.clearRouteStops();
-
-    if (tripInfo.shapeId) {
-      try { await showShape(tripInfo.shapeId, _lc); }
-      catch(e) { console.warn('showShape failed:', e.message); }
-    }
-    if (activeId !== _vid) return;
-
+  const _vid=v.vehicleId, _lc=v.tripId?.split('_')[0];
+  ;(async()=>{
+    clearShape(); stopLayer.clearRouteStops();
+    if (tripInfo.shapeId) { try{await showShape(tripInfo.shapeId,_lc);}catch(e){console.warn('showShape:',e.message);} }
+    if (activeId!==_vid) return;
     try {
-      await loadStops();
-      if (activeId !== _vid) return;
-      await loadStopTimes(v.tripId);
-      if (activeId !== _vid) return;
-      await renderStopMarkers(v);
-      if (activeId === _vid) await renderStopsForVehicle(v);
-    } catch(e) {
-      console.warn('stop loading failed:', e.message);
-      const el = G("stops-list");
-      if (el && activeId === _vid) el.textContent = 'Error loading stops';
-    }
+      await loadStops(); if (activeId!==_vid) return;
+      await loadStopTimes(v.tripId); if (activeId!==_vid) return;
+      await renderStopMarkers(v); if (activeId===_vid) await renderStopsForVehicle(v);
+    } catch(e) { console.warn('stop loading:',e.message); const el=G("stops-list"); if (el&&activeId===_vid) el.textContent='Error loading stops'; }
   })();
-
   redraw();
 }
 
 function shareVehicleUrl() {
-  const url = location.href;
-  if (navigator.share) {
-    navigator.share({ title: document.title, url }).catch(() => {});
-  } else if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).then(() => toast('🔗 Link copied to clipboard'));
-  } else {
-    prompt('Copy this link:', url);
-  }
+  const url=location.href;
+  if (navigator.share) navigator.share({title:document.title,url}).catch(()=>{});
+  else if (navigator.clipboard) navigator.clipboard.writeText(url).then(()=>toast('🔗 Link copied to clipboard'));
+  else prompt('Copy this link:',url);
 }
 
 async function renderStopsForVehicle(v) {
-  const el = G("stops-list");
-  if (!el) return;
+  const el=G("stops-list"); if (!el) return;
   try {
-    await Promise.all([loadStops(), loadStopTimes(v.tripId)]);
-    if (activeId !== v.vehicleId) return;
-
-    const stops = getTripStops(v.tripId);
-    if (!stops?.length) { el.textContent = 'No stop data available'; return; }
-
-    const nowMins   = new Date().getHours() * 60 + new Date().getMinutes();
-    const delayMins = Math.round((v.delay || 0) / 60);
-    let nextIdx = stops.findIndex(s => s.a != null && (s.a + delayMins) >= nowMins);
-    if (nextIdx < 0) nextIdx = stops.length;
-
-    const rows = stops.map((st, i) => {
-      const stop    = getStop(st.s);
-      const name    = stop?.name || st.s;
-      const isPast  = i < nextIdx;
-      const isNext  = i === nextIdx;
-      const isTerm  = i === stops.length - 1;
-      const dotCls  = isTerm ? 'term' : isNext ? 'next' : isPast ? 'passed' : '';
-      const nameCls = isPast ? 'passed' : '';
-
-      let timesHtml = '';
-      if (st.a != null) {
-        const sched = fmtMins(st.a);
-        const adj   = fmtMins(st.a + delayMins);
-        const late  = delayMins >= 2 ? (delayMins >= 5 ? 'vlate' : 'late') : 'adj';
-        timesHtml = `<span style="color:var(--text-dim)">${sched}</span>`
-          + (delayMins !== 0 ? ` <span class="${isPast ? '' : late}">${adj}</span>` : '');
+    await Promise.all([loadStops(),loadStopTimes(v.tripId)]);
+    if (activeId!==v.vehicleId) return;
+    const stops=getTripStops(v.tripId);
+    if (!stops?.length){el.textContent='No stop data available';return;}
+    const nowMins=new Date().getHours()*60+new Date().getMinutes(), delayMins=Math.round((v.delay||0)/60);
+    let nextIdx=stops.findIndex(s=>s.a!=null&&(s.a+delayMins)>=nowMins); if (nextIdx<0) nextIdx=stops.length;
+    const rows=stops.map((st,i)=>{
+      const stop=getStop(st.s), name=stop?.name||st.s;
+      const isPast=i<nextIdx, isNext=i===nextIdx, isTerm=i===stops.length-1;
+      const dotCls=isTerm?'term':isNext?'next':isPast?'passed':'', nameCls=isPast?'passed':'';
+      let timesHtml='';
+      if (st.a!=null){
+        const sched=fmtMins(st.a), adj=fmtMins(st.a+delayMins), late=delayMins>=2?(delayMins>=5?'vlate':'late'):'adj';
+        timesHtml=`<span style="color:var(--text-dim)">${sched}</span>`+(delayMins!==0?` <span class="${isPast?'':late}">${adj}</span>`:'');
       }
-
-      return `<div class="stop-row">
-        <div class="stop-dot ${dotCls}"></div>
-        <div class="stop-info">
-          <div class="stop-name ${nameCls}">${name}</div>
-          ${timesHtml ? `<div class="stop-times">${timesHtml}</div>` : ''}
-        </div>
-      </div>`;
+      return`<div class="stop-row"><div class="stop-dot ${dotCls}"></div><div class="stop-info"><div class="stop-name ${nameCls}">${name}</div>${timesHtml?`<div class="stop-times">${timesHtml}</div>`:''}</div></div>`;
     });
-
-    el.innerHTML = `<div class="stop-list">${rows.join('')}</div>`;
-
-    if (nextIdx > 2) {
-      const rowEls = el.querySelectorAll('.stop-row');
-      rowEls[Math.max(0, nextIdx - 1)]?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    }
-  } catch(e) {
-    console.warn('renderStopsForVehicle:', e);
-    const el2 = G("stops-list");
-    if (el2 && activeId === v.vehicleId) el2.textContent = 'Error loading stops';
-  }
+    el.innerHTML=`<div class="stop-list">${rows.join('')}</div>`;
+    if (nextIdx>2){const rowEls=el.querySelectorAll('.stop-row');rowEls[Math.max(0,nextIdx-1)]?.scrollIntoView({block:'start',behavior:'smooth'});}
+  } catch(e) { console.warn('renderStopsForVehicle:',e); const el2=G("stops-list"); if (el2&&activeId===v.vehicleId) el2.textContent='Error loading stops'; }
 }
 
 async function renderStopMarkers(v) {
   if (!v?.tripId) return;
-  const seq = getTripStops(v.tripId);
-  if (!seq?.length) return;
-  if (activeId !== v.vehicleId) return;
-
-  const nowMins   = new Date().getHours() * 60 + new Date().getMinutes();
-  const delayMins = Math.round((v.delay || 0) / 60);
-  let nextIdx = seq.findIndex(s => s.a != null && (s.a + delayMins) >= nowMins);
-  if (nextIdx < 0) nextIdx = seq.length;
-
-  const markers = seq.map((st, i) => {
-    const stop = getStop(st.s);
-    if (!stop || !isFinite(stop.lat) || !isFinite(stop.lon)) return null;
-    let status;
-    if (i === 0)               status = 'start';
-    else if (i === seq.length-1) status = 'terminal';
-    else if (i < nextIdx)      status = 'passed';
-    else if (i === nextIdx)    status = 'current';
-    else                       status = 'upcoming';
-    return { lat: stop.lat, lon: stop.lon, name: stop.name, status };
+  const seq=getTripStops(v.tripId); if (!seq?.length||activeId!==v.vehicleId) return;
+  const nowMins=new Date().getHours()*60+new Date().getMinutes(), delayMins=Math.round((v.delay||0)/60);
+  let nextIdx=seq.findIndex(s=>s.a!=null&&(s.a+delayMins)>=nowMins); if (nextIdx<0) nextIdx=seq.length;
+  const markers=seq.map((st,i)=>{
+    const stop=getStop(st.s); if (!stop||!isFinite(stop.lat)||!isFinite(stop.lon)) return null;
+    let status=i===0?'start':i===seq.length-1?'terminal':i<nextIdx?'passed':i===nextIdx?'current':'upcoming';
+    return {lat:stop.lat,lon:stop.lon,name:stop.name,status};
   }).filter(Boolean);
-
   stopLayer.setRouteStops(markers);
 }
 
 function closePanel(){
   G("info-panel").classList.remove("open");
-  if (activePopup) { activePopup.remove(); activePopup = null; }
-  activeId = null;
-  clearShape();
-  stopLayer.clearRouteStops();
-  pushUrlState({});
-  arrowLayer._draw();
-  redraw();
+  if (activePopup){activePopup.remove();activePopup=null;}
+  activeId=null; clearShape(); stopLayer.clearRouteStops(); pushUrlState({}); arrowLayer._draw(); redraw();
 }
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 async function refresh(){
   const pd=G("pd"),lt=G("lt");
-  pd.className="pulse spin";lt.textContent="Fetching…";
+  pd.className="pulse spin"; lt.textContent="Fetching…";
   let data;
   try{
     const r=await fetch("/api/gtfs",{cache:"no-store"});
     if(!r.ok){const e=await r.json().catch(()=>({error:`HTTP ${r.status}`}));throw new Error(e.error)}
     data=await r.json();
   }catch(err){pd.className="pulse err";lt.textContent="Error";toast("⚠ "+err.message,true);return}
-  pd.className="pulse";lt.textContent="Live";
+  pd.className="pulse"; lt.textContent="Live";
   G("ts").textContent=new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  process(data);startBar();
+  process(data); startBar();
 }
 
 function process(data){
   const vehicles=data.vehicles||[], canceled=data.canceled||[];
-  const seen=new Set();
-  let onTime=0,delayed=0,early=0;
-
+  const seen=new Set(); let onTime=0,delayed=0,early=0;
   for(const v of vehicles){
-    const id=v.vehicleId||v.tripId;
-    const c=markerCol(v.tripId);
-    const delay=v.delay;
+    const id=v.vehicleId||v.tripId, c=markerCol(v.tripId), delay=v.delay;
     seen.add(id);
     if(delay!=null&&Math.abs(delay)<60)onTime++;
     else if(delay!=null&&delay>=60)delayed++;
     if(delay!=null&&delay<-30)early++;
     vData[id]={vehicleId:id,tripId:v.tripId,routeId:v.routeId,lat:v.lat,lng:v.lng,bearing:v.bearing,delay,c};
   }
-
-  for (const id of Object.keys(vData)) {
-    if (!seen.has(id)) {
-      if (id === activeId) closePanel();
-      delete vData[id];
-    }
-  }
-
+  for (const id of Object.keys(vData)) { if (!seen.has(id)) { if (id===activeId) closePanel(); delete vData[id]; } }
   arrowLayer.setVehicles(Object.values(vData));
-
-  if (activeId && vData[activeId]) {
-    panToVehicle(vData[activeId]);
-    if (activePopup) activePopup.setLatLng([vData[activeId].lat, vData[activeId].lng]);
-  }
-
-  // Refresh the stop popup's approaching list (ETAs change as vehicles move).
-  if (activeStopId && STOPS?.[activeStopId] && activeStopPopup) {
-    showStopPopup(activeStopId);
-  }
-
-  G("sv").textContent=vehicles.length;
-  G("so").textContent=onTime;
-  G("sd").textContent=delayed;
-  G("sc2").textContent=canceled.length;
-  G("se2").textContent=early;
-  G("se").textContent=data.counts?.entities||vehicles.length+canceled.length;
-
-  const all = Object.values(vData).sort((a,b)=>(b.delay||0)-(a.delay||0));
-  sortedV = activeFilter ? all.filter(v => activeFilter.matchIds.has(v.vehicleId)) : all;
-  const allC = [...canceled].sort((a,b)=>a.tripId.localeCompare(b.tripId));
-  sortedC = activeFilter ? allC.filter(c => activeFilter.matchIds.has(c.vehicleId||c.tripId)) : allC;
-  G("bv").textContent = sortedV.length;
-  G("bc").textContent = sortedC.length;
-  G("bc").style.background = sortedC.length > 0 ? "rgba(255,59,92,.2)" : "";
-  G("bc").style.color = sortedC.length > 0 ? "var(--danger)" : "";
+  if (activeId&&vData[activeId]) { panToVehicle(vData[activeId]); if (activePopup) activePopup.setLatLng([vData[activeId].lat,vData[activeId].lng]); }
+  if (activeStopId&&STOPS?.[activeStopId]&&activeStopPopup) showStopPopup(activeStopId);
+  G("sv").textContent=vehicles.length; G("so").textContent=onTime; G("sd").textContent=delayed;
+  G("sc2").textContent=canceled.length; G("se2").textContent=early; G("se").textContent=data.counts?.entities||vehicles.length+canceled.length;
+  const all=Object.values(vData).sort((a,b)=>(b.delay||0)-(a.delay||0));
+  sortedV=activeFilter?all.filter(v=>activeFilter.matchIds.has(v.vehicleId)):all;
+  const allC=[...canceled].sort((a,b)=>a.tripId.localeCompare(b.tripId));
+  sortedC=activeFilter?allC.filter(c=>activeFilter.matchIds.has(c.vehicleId||c.tripId)):allC;
+  G("bv").textContent=sortedV.length; G("bc").textContent=sortedC.length;
+  G("bc").style.background=sortedC.length>0?"rgba(255,59,92,.2)":""; G("bc").style.color=sortedC.length>0?"var(--danger)":"";
   redraw();
 }
 
-function panToVehicle(v, zoom) {
-  const mobile    = window.innerWidth <= 768;
-  const panelOpen = !mobile && G("info-panel").classList.contains("open");
-  const leftPad   = mobile ? 0 : 290;
-  const rightPad  = panelOpen ? 320 : 0;
-  const W = window.innerWidth, H = window.innerHeight;
-  const z = zoom ?? map.getZoom();
-  map.setView([v.lat, v.lng], z, { animate: false });
-  const visCX   = leftPad + (W - leftPad - rightPad) / 2;
-  const offsetX = -(visCX - W / 2);
-  map.panBy([offsetX, 0], { animate: true });
+function panToVehicle(v,zoom){
+  const mobile=window.innerWidth<=768, panelOpen=!mobile&&G("info-panel").classList.contains("open");
+  const leftPad=mobile?0:290, rightPad=panelOpen?320:0, W=window.innerWidth, z=zoom??map.getZoom();
+  map.setView([v.lat,v.lng],z,{animate:false});
+  const visCX=leftPad+(W-leftPad-rightPad)/2, offsetX=-(visCX-W/2);
+  map.panBy([offsetX,0],{animate:true});
 }
 
 function select(id){
-  activeId = id;
-  closeStopPopup(); // selecting a vehicle dismisses any open stop popup
-  const v = vData[id]; if (!v) return;
-  arrowLayer._draw();
-  showPopup(id);
-  closeSidebarMobile();
-  redraw();
+  activeId=id; closeStopPopup();
+  const v=vData[id]; if(!v) return;
+  arrowLayer._draw(); showPopup(id); closeSidebarMobile(); redraw();
 }
 
 function schedNext(){clearTimeout(rtimer);rtimer=setTimeout(async()=>{await refresh();schedNext()},REFRESH)}
 
-let _firstLoad = true;
-async function _init() {
-  // Kick off static data fetches immediately — they run in parallel with refresh
+let _firstLoad=true;
+async function _init(){
+  // Fire geolocation immediately — permission prompt appears before first data load
+  initGeolocation();
+
   loadStatic();
   loadStopIndex();
-  // Pre-load stops + stop-index if already zoomed in enough at startup
-  if (map.getZoom() >= 14) {
-    loadStops();
-  }
+  if (map.getZoom()>=14) loadStops();
 
   await refresh();
 
-  if (_firstLoad) {
-    _firstLoad = false;
-    await new Promise(r => setTimeout(r, 200));
+  if (_firstLoad){
+    _firstLoad=false;
+    await new Promise(r=>setTimeout(r,200));
     await restoreFromUrl();
   }
   schedNext();
