@@ -348,8 +348,11 @@ export default {
           }
         );
         if (!upstream.ok) {
+          let errBody = '';
+          try { errBody = await upstream.text(); } catch(_) {}
+          console.error(`[GT] Kern API ${upstream.status} for stop ${stopId}:`, errBody.slice(0, 400));
           return jsonResp(
-            { error: `De Lijn Kern API ${upstream.status}` },
+            { error: `De Lijn Kern API ${upstream.status}`, detail: errBody.slice(0, 400) },
             upstream.status >= 500 ? 502 : upstream.status,
             { "Cache-Control": "no-store" }
           );
