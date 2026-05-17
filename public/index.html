@@ -404,7 +404,12 @@ async function loadStatic() {
 }
 
 async function loadStops() {
-  if (STOPS_tried) return;
+  if (STOPS !== null) return;   // already loaded (even if empty)
+  if (STOPS_tried) {
+    // A load is in flight or failed; wait briefly for any in-flight fetch to settle
+    await new Promise(r => setTimeout(r, 30));
+    return;
+  }
   STOPS_tried = true;
   try {
     const r = await fetch('/stops.json', { cache: 'force-cache' });
@@ -549,14 +554,22 @@ async function fetchStopDoorkomsten(stopId) {
   try {
     const r = await fetch(`/api/kern/halte-rt?id=${encodeURIComponent(stopId)}`, { cache: 'no-store' });
     if (!r.ok) {
-      console.warn(`[GT] /api/kern/halte-rt ${r.status} for stop ${stopId}`);
-      return [];
+      let body = '';
+      try { body = await r.text(); } catch(_) {}
+      console.error(`[GT] /api/kern/halte-rt HTTP ${r.status} for stop ${stopId}:`, body);
+      // Surface the error string so buildDoorkomstenHtml can display it
+      return { _error: `API ${r.status}: ${body.slice(0, 120) || '(empty)'}` };
     }
     const data = await r.json();
-    return Array.isArray(data.doorkomsten) ? data.doorkomsten : [];
+    console.log(`[GT] doorkomsten stop ${stopId}:`, data);
+    if (!Array.isArray(data.doorkomsten)) {
+      console.error('[GT] unexpected doorkomsten shape — top-level keys:', Object.keys(data));
+      return { _error: `Unexpected response shape. Keys: ${Object.keys(data).join(', ')}` };
+    }
+    return data.doorkomsten;
   } catch(e) {
-    console.warn('[GT] fetchStopDoorkomsten:', e.message);
-    return [];
+    console.error('[GT] fetchStopDoorkomsten threw:', e.message);
+    return { _error: e.message };
   }
 }
 
@@ -588,7 +601,11 @@ function buildDoorkomstenHtml(doorkomsten) {
   if (doorkomsten === undefined) {
     return '<div class="sp-none">Loading departures…</div>';
   }
-  if (!doorkomsten.length) {
+  // Error object returned by fetchStopDoorkomsten on non-ok / unexpected response
+  if (doorkomsten && typeof doorkomsten === 'object' && !Array.isArray(doorkomsten) && doorkomsten._error) {
+    return `<div class="sp-none" style="color:var(--danger)">${doorkomsten._error}</div>`;
+  }
+  if (!Array.isArray(doorkomsten) || !doorkomsten.length) {
     return '<div class="sp-none">No upcoming departures</div>';
   }
 
@@ -1115,8 +1132,12 @@ async function selectStop(stopId) {
   closeStopPopup();
   activeStopId=stopId; allStopsLayer.setActiveStop(stopId);
 
-  if (!STOPS_tried) await loadStops();
-  if (!STOPS?.[stopId]) return;
+  // Always ensure stops are loaded — they may not be if zoom < 14 at page load
+  await loadStops();
+  if (!STOPS?.[stopId]) {
+    console.warn('[GT] selectStop: stop', stopId, 'not found in stops.json');
+    return;
+  }
 
   // First render — shows lines section (may be empty) + loading departures
   showStopPopup(stopId, undefined);
