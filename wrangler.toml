@@ -13,8 +13,11 @@ zone_name = "geotransport.be"
 
 # ── Secrets (set via CLI, never commit these) ──────────────────────────────────
 #
-# GTFS Realtime key (used by the Worker on every request):
+# GTFS Realtime key (used by the Worker on every /api/gtfs request):
 #   wrangler secret put DL_GTFSRT
+#
+# Kern OpenData key (used by the Worker for /api/kern/halte-rt departure boards):
+#   wrangler secret put DL_OPDA
 #
 # GTFS Static key (used LOCALLY by the build script — NOT needed in the Worker):
 #   set DL_GTFS=your_key   (Windows)
