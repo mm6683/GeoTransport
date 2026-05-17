@@ -15,6 +15,8 @@
 const GTFS_URL =
   "https://api.delijn.be/gtfs/v3/realtime?canceled=true&delay=true&position=true&vehicleid=true&tripid=true";
 
+const KERN_BASE = "https://api.delijn.be/DLKernOpenData/api/v1/haltes";
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -90,16 +92,6 @@ const dec = new TextDecoder();
 
 // ── Slim extractors — return only what the frontend uses ─────────────────────
 
-/**
- * Extract from TripDescriptor:
- *   tripId (field 1), scheduleRelationship (field 4), routeId (field 5)
- *
- * De Lijn field mapping (verified from binary):
- *   field 1 = tripId (len)
- *   field 3 = startDate (len)
- *   field 4 = scheduleRelationship (varint)  ← 3 = CANCELED
- *   field 5 = routeId (len)
- */
 function extractTripDescriptor(r) {
   const o = { tripId: "", routeId: "", schedRel: 0, directionId: -1 };
   while (!r.done) {
@@ -113,14 +105,6 @@ function extractTripDescriptor(r) {
   return o;
 }
 
-/**
- * Extract from TripUpdate:
- *   trip (field 1) → tripId + scheduleRelationship
- *   last StopTimeUpdate (field 2) → delay from departure or arrival
- *   vehicle (field 3) → vehicleId label
- *
- * Returns null if canceled (handled separately).
- */
 function extractTripUpdate(r) {
   let trip = null, lastDelay = null;
   while (!r.done) {
@@ -128,16 +112,15 @@ function extractTripUpdate(r) {
     if (f === 1 && w === 2) {
       trip = extractTripDescriptor(r.sub());
     } else if (f === 2 && w === 2) {
-      // StopTimeUpdate — we only want the last one's delay
       const stu = r.sub();
       let d = null;
       while (!stu.done) {
         const [sf, sw] = stu.tag();
-        if ((sf === 2 || sf === 3) && sw === 2) { // arrival=2, departure=3
+        if ((sf === 2 || sf === 3) && sw === 2) {
           const ste = stu.sub();
           while (!ste.done) {
             const [ef, ew] = ste.tag();
-            if (ef === 1 && ew === 0) d = ste.si(); // delay field
+            if (ef === 1 && ew === 0) d = ste.si();
             else ste.skip(ew);
           }
         } else stu.skip(sw);
@@ -150,14 +133,6 @@ function extractTripUpdate(r) {
   return trip ? { tripId: trip.tripId, routeId: trip.routeId, schedRel: trip.schedRel, directionId: trip.directionId, delay: lastDelay } : null;
 }
 
-/**
- * Extract from VehiclePosition:
- *   De Lijn field mapping (verified from binary debug):
- *     field 1 = TripDescriptor
- *     field 2 = Position  (lat=1,lng=2,bearing=3,speed=5 — all float/wire5)
- *     field 5 = timestamp (varint)
- *     field 8 = VehicleDescriptor (id=1,label=2)
- */
 function extractVehiclePosition(r) {
   let tripId = "", routeId = "";
   let lat = 0, lng = 0, bearing = null;
@@ -166,7 +141,6 @@ function extractVehiclePosition(r) {
   while (!r.done) {
     const [f, w] = r.tag();
     if (f === 1 && w === 2) {
-      // TripDescriptor
       const td = r.sub();
       while (!td.done) {
         const [tf, tw] = td.tag();
@@ -175,7 +149,6 @@ function extractVehiclePosition(r) {
         else td.skip(tw);
       }
     } else if (f === 2 && w === 2) {
-      // Position
       const pos = r.sub();
       while (!pos.done) {
         const [pf, pw] = pos.tag();
@@ -185,7 +158,6 @@ function extractVehiclePosition(r) {
         else pos.skip(pw);
       }
     } else if (f === 8 && w === 2) {
-      // VehicleDescriptor
       const vd = r.sub();
       while (!vd.done) {
         const [vf, vw] = vd.tag();
@@ -202,16 +174,11 @@ function extractVehiclePosition(r) {
   return { vehicleId: vehicleId || label, tripId, routeId, lat, lng, bearing };
 }
 
-/**
- * Single-pass scan of the full FeedMessage.
- * Returns a slim object — only the data the frontend renders.
- */
 function extractFeed(buf) {
   const r = new PB(buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf);
 
-  // Pass 1: collect TripUpdates (delay + canceled) and VehiclePositions
-  const delayMap    = new Map();  // tripId → delay (seconds)
-  const canceledMap = new Map();  // tripId → { tripId, routeId }
+  const delayMap    = new Map();
+  const canceledMap = new Map();
   const vehicles    = [];
 
   let timestamp = 0;
@@ -220,7 +187,6 @@ function extractFeed(buf) {
     const [f, w] = r.tag();
 
     if (f === 1 && w === 2) {
-      // FeedHeader — just grab timestamp
       const hr = r.sub();
       while (!hr.done) {
         const [hf, hw] = hr.tag();
@@ -228,14 +194,11 @@ function extractFeed(buf) {
         else hr.skip(hw);
       }
     } else if (f === 2 && w === 2) {
-      // FeedEntity — each one is isolated so a parse error can't corrupt the stream
       const entityLen = r.vi();
       const entityEnd = r.p + entityLen;
 
       try {
         const er = new PB(r.b.subarray(r.p, entityEnd));
-
-        // Peek: find field 3 (TripUpdate) or field 4 (VehiclePosition)
         let entityId = "";
         let tuData = null, vpData = null;
 
@@ -249,19 +212,14 @@ function extractFeed(buf) {
 
         if (tuData) {
           if (tuData.schedRel === 3) {
-            // CANCELED
             canceledMap.set(tuData.tripId, { tripId: tuData.tripId, routeId: tuData.routeId });
           } else if (tuData.delay !== null) {
             delayMap.set(tuData.tripId, { delay: tuData.delay, directionId: tuData.directionId ?? -1 });
           }
         }
 
-        if (vpData) {
-          vehicles.push(vpData);
-        }
-      } catch (_) {
-        // Skip bad entity silently
-      }
+        if (vpData) vehicles.push(vpData);
+      } catch (_) { /* skip bad entity */ }
 
       r.p = entityEnd;
     } else {
@@ -269,7 +227,6 @@ function extractFeed(buf) {
     }
   }
 
-  // Pass 2: join delay + directionId onto vehicles (single loop, O(n))
   for (const v of vehicles) {
     const tu = delayMap.get(v.tripId);
     v.delay       = tu?.delay       ?? null;
@@ -278,8 +235,8 @@ function extractFeed(buf) {
 
   return {
     timestamp,
-    vehicles,                              // [{vehicleId,tripId,routeId,lat,lng,bearing,delay,directionId}]
-    canceled: [...canceledMap.values()],   // [{tripId,routeId}]
+    vehicles,
+    canceled: [...canceledMap.values()],
     counts: {
       entities: vehicles.length + canceledMap.size,
       vehicles: vehicles.length,
@@ -290,13 +247,10 @@ function extractFeed(buf) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// How long to cache the parsed feed (seconds).
-// The frontend refreshes every 15s, so 14s means at most 1 parse per cycle
-// regardless of how many users are hitting the site simultaneously.
-const CACHE_TTL = 14;
+const CACHE_TTL  = 14;  // seconds — GTFS-RT feed cache
+const KERN_TTL   = 20;  // seconds — halte real-time doorkomsten cache
 
-// Stable cache key — same for every user so they all share one entry.
-const CACHE_KEY = "https://geotransport-cache.internal/api/gtfs";
+const CACHE_KEY  = "https://geotransport-cache.internal/api/gtfs";
 
 function jsonResp(obj, status = 200, extra = {}) {
   return new Response(JSON.stringify(obj), {
@@ -325,57 +279,120 @@ async function fetchProto(env) {
 // ── Worker ────────────────────────────────────────────────────────────────────
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
+    const url   = new URL(request.url);
+    const cache = caches.default;
 
     if (request.method === "OPTIONS") return new Response(null, { headers: CORS });
 
+    // ── /api/gtfs — GTFS-RT vehicle feed ─────────────────────────────────────
     if (url.pathname === "/api/gtfs") {
       if (!env.DL_GTFSRT)
         return jsonResp({ error: "Secret DL_GTFSRT not configured. Run: wrangler secret put DL_GTFSRT" }, 500);
 
-      // ── Cache-first: serve from Cloudflare edge cache when possible ──────
-      // This means the expensive protobuf parse only runs once per CACHE_TTL
-      // seconds, no matter how many concurrent users hit the endpoint.
-      const cache = caches.default;
       const cacheReq = new Request(CACHE_KEY);
-
-      const cached = await cache.match(cacheReq);
+      const cached   = await cache.match(cacheReq);
       if (cached) {
-        // Clone and re-add CORS headers (cache strips them on some edge nodes)
         const headers = new Headers(cached.headers);
         Object.entries(CORS).forEach(([k, v]) => headers.set(k, v));
         headers.set("X-Cache", "HIT");
         return new Response(cached.body, { status: cached.status, headers });
       }
 
-      // ── Cache miss: fetch + parse + store ────────────────────────────────
       let raw;
-      try {
-        raw = await fetchProto(env);
-      } catch (err) {
-        return jsonResp({ error: err.message }, err.status ?? 502);
-      }
+      try { raw = await fetchProto(env); }
+      catch (err) { return jsonResp({ error: err.message }, err.status ?? 502); }
 
       let feed;
-      try {
-        feed = extractFeed(raw);
-      } catch (err) {
-        return jsonResp({ error: "Protobuf decode failed", detail: err.message }, 500);
-      }
+      try { feed = extractFeed(raw); }
+      catch (err) { return jsonResp({ error: "Protobuf decode failed", detail: err.message }, 500); }
 
       const response = jsonResp(feed, 200, { "X-Cache": "MISS" });
-
-      // Store in edge cache asynchronously — don't block the response
       ctx.waitUntil(cache.put(cacheReq, response.clone()));
-
       return response;
     }
 
+    // ── /api/kern/halte-rt — live departure board for a single stop ───────────
+    // Upstream: GET /DLKernOpenData/api/v1/haltes/{entiteit}/{stopId}/real-time
+    // Auth:     DL_OPDA secret (separate subscription from DL_GTFSRT)
+    // Cache:    20 s per stop ID
+    if (url.pathname === "/api/kern/halte-rt") {
+      if (!env.DL_OPDA)
+        return jsonResp({ error: "Secret DL_OPDA not configured. Run: wrangler secret put DL_OPDA" }, 500);
+
+      const stopId = url.searchParams.get("id") || "";
+      if (!stopId || !/^\d+$/.test(stopId))
+        return jsonResp({ error: "Missing or invalid stop id" }, 400);
+
+      const entiteit    = stopId[0];   // first digit = province entity number (1–5)
+      const kernCacheKey = `https://geotransport-cache.internal/kern/halte-rt/${stopId}`;
+      const kernReq      = new Request(kernCacheKey);
+
+      const kernCached = await cache.match(kernReq);
+      if (kernCached) {
+        const headers = new Headers(kernCached.headers);
+        Object.entries(CORS).forEach(([k, v]) => headers.set(k, v));
+        headers.set("X-Cache", "HIT");
+        return new Response(kernCached.body, { status: kernCached.status, headers });
+      }
+
+      let raw;
+      try {
+        const upstream = await fetch(
+          `${KERN_BASE}/${entiteit}/${stopId}/real-time?maxAantalDoorkomsten=8`,
+          {
+            headers: {
+              "Ocp-Apim-Subscription-Key": env.DL_OPDA,
+              "Accept": "application/json",
+              "Cache-Control": "no-cache",
+            },
+          }
+        );
+        if (!upstream.ok) {
+          return jsonResp(
+            { error: `De Lijn Kern API ${upstream.status}` },
+            upstream.status >= 500 ? 502 : upstream.status,
+            { "Cache-Control": "no-store" }
+          );
+        }
+        raw = await upstream.json();
+      } catch (err) {
+        return jsonResp({ error: "Fetch failed: " + err.message }, 502);
+      }
+
+      // Slim response — strip all `links` arrays and keep only what the UI renders.
+      const doorkomsten = (raw.doorkomsten || []).map(d => ({
+        lijnnummer: d.lijnnummer  ?? null,
+        richting:   d.richting    ?? null,
+        bestemming: d.bestemming  ?? null,
+        vias:       Array.isArray(d.vias) ? d.vias : [],
+        scheduled:  d.dienstregelingTijdstip ?? null,
+        realtime:   d["real-timeTijdstip"]   ?? null,
+        vrtnum:     d.vrtnum ?? null,
+        // Normalise the status array — upstream field is predictionStatussen
+        status:     Array.isArray(d.predictionStatussen) ? d.predictionStatussen : [],
+      }));
+
+      const slim = { doorkomsten };
+      const kernResp = new Response(JSON.stringify(slim), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": `public, max-age=${KERN_TTL}`,
+          ...CORS,
+          "X-Cache": "MISS",
+        },
+      });
+
+      ctx.waitUntil(cache.put(kernReq, kernResp.clone()));
+      return kernResp;
+    }
+
+    // ── Static assets ─────────────────────────────────────────────────────────
     const asset = await env.ASSETS.fetch(request);
-    const ct = asset.headers.get('Content-Type') || '';
-    if (ct.includes('text/html')) {
+    const ct    = asset.headers.get("Content-Type") || "";
+    if (ct.includes("text/html")) {
       const h = new Headers(asset.headers);
-      h.set('Cache-Control', 'no-cache');
+      h.set("Cache-Control", "no-cache");
       return new Response(asset.body, { status: asset.status, headers: h });
     }
     return asset;
