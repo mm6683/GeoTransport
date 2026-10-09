@@ -59,9 +59,11 @@ npm run dev
 
 Open [http://localhost:8787](http://localhost:8787).
 
-> **Tip:** For local dev you can put your key in a `.dev.vars` file (already git-ignored):
+> **Tip:** For local dev you can put your keys in a `.dev.vars` file (git-ignored):
 > ```
 > DL_GTFSRT=your_key_here
+> DL_OPDA=your_key_here
+> CARTO_KEY=your_carto_basemaps_key_here
 > ```
 
 ### 4. Deploy to Cloudflare
@@ -107,9 +109,11 @@ dl-gtfs-rt-map/
 
 ## Configuration
 
-| Variable   | Where                   | Description                         |
-|------------|-------------------------|-------------------------------------|
-| `DL_GTFSRT`| Cloudflare Secret       | `Ocp-Apim-Subscription-Key` value  |
+| Variable    | Where             | Description                                          |
+|-------------|-------------------|-------------------------------------------------------|
+| `DL_GTFSRT` | Cloudflare Secret | `Ocp-Apim-Subscription-Key` value for GTFS-RT         |
+| `DL_OPDA`   | Cloudflare Secret | Kern OpenData subscription key (halte real-time)      |
+| `CARTO_KEY` | Cloudflare Secret | CARTO Basemaps API key, injected into the served HTML |
 
 ## License
 

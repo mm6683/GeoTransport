@@ -1,5 +1,6 @@
 node_modules/
 .wrangler/
+.dev.vars
 
 # Large GTFS-derived files — built by GitHub Action, deployed via wrangler, never committed to git.
 # stops.json is committed (small enough at ~3MB, needed for manual wrangler deploys).
