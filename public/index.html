@@ -3,234 +3,1336 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Geotransport · Live Tracker</title>
+  <title>Geotransport · Live GTFS-RT Tracker</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{
-      --bg:#080c10;--surface:#0e1419;--surface2:#141b23;--border:#1e2d3d;
-      --accent:#00d4ff;--accent2:#ff6b35;--accent3:#a8ff3e;
-      --text:#c8dae8;--text-dim:#6b8899;--danger:#ff3b5c;
-      --panel:320px;
-      --font-ui:'Oxanium',sans-serif;--font-mono:'JetBrains Mono',monospace;
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-    html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:var(--font-ui);overflow:hidden}
-    #app{position:relative;width:100vw;height:100vh;display:flex}
-    #map{flex:1;height:100%;background:var(--bg);z-index:1}
 
-    /* Sidebar */
-    #sidebar{position:absolute;top:0;left:0;bottom:0;width:290px;background:linear-gradient(180deg,rgba(8,12,16,.97),rgba(14,20,25,.95));border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;backdrop-filter:blur(12px)}
-    #header{padding:16px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
-    .logo-row{display:flex;align-items:center;gap:10px}
-    .logo-hex{width:34px;height:34px;background:var(--accent);flex-shrink:0;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center}
-    .logo-hex svg{width:20px;height:20px;fill:var(--bg)}
-    .logo-name{font-size:19px;font-weight:700;letter-spacing:.1em;color:#fff;text-transform:uppercase}
-    .logo-sub{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-family:var(--font-mono)}
-    #status-bar{padding:10px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
-    .status-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
-    .live-dot{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-family:var(--font-mono)}
-    .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent3);animation:pa 2s infinite}
-    .pulse.err{background:var(--danger);animation:none}
-    .pulse.spin{background:var(--accent);animation:sp 1s linear infinite}
-    @keyframes pa{0%{box-shadow:0 0 0 0 rgba(168,255,62,.6)}70%{box-shadow:0 0 0 8px rgba(168,255,62,0)}100%{box-shadow:0 0 0 0 rgba(168,255,62,0)}}
-    @keyframes sp{to{transform:rotate(360deg)}}
-    .status-ts{font-size:11px;font-family:var(--font-mono);color:var(--text-dim)}
-    #bar-wrap{height:2px;background:var(--border);border-radius:1px;margin-top:6px;overflow:hidden}
-    #bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:1px;transition:width 1s linear}
-    #stats{padding:10px 20px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);gap:7px;flex-shrink:0}
-    .sc{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px}
-    .sn{font-size:19px;font-weight:700;font-family:var(--font-mono);color:var(--accent);line-height:1}
-    .sn.or{color:var(--accent2)}.sn.gr{color:var(--accent3)}.sn.re{color:var(--danger)}.sn.ye{color:#ffcc00}.sn.di{color:var(--text-dim)}
-    .sl{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);margin-top:3px;font-family:var(--font-mono)}
-    #tabs{display:flex;flex-shrink:0;border-bottom:1px solid var(--border);position:relative}
-    .tab{flex:1;padding:9px 0;text-align:center;font-size:10px;font-family:var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;user-select:none}
-    .tab:hover{color:var(--text)}
-    .tab.av{color:var(--accent);border-bottom-color:var(--accent)}
-    .tab.ac{color:var(--danger);border-bottom-color:var(--danger)}
-    .tb{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:10px;font-size:9px;background:var(--surface2)}
-    .pane{display:none;flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;position:relative}
-    .pane.on{display:block}
-    .pane::-webkit-scrollbar{width:4px}
-    .pane::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-    .vs{width:1px}.vw{position:absolute;top:0;left:0;right:0}
-    .vr{display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(30,45,61,.45);cursor:pointer;transition:background .12s;padding:0 18px}
-    .vr:hover{background:rgba(0,212,255,.04)}
-    .vr.sel{background:rgba(0,212,255,.08);border-left:2px solid var(--accent);padding-left:16px}
-    .vr.cr{cursor:default}.vr.cr:hover{background:none}
-    .badge{width:38px;height:22px;border-radius:4px;font-size:11px;font-weight:700;font-family:var(--font-mono);flex-shrink:0;display:flex;align-items:center;justify-content:center}
-    .ri{flex:1;min-width:0}
-    .rr{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .rm{font-size:10px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .rd{font-size:11px;font-family:var(--font-mono);font-weight:500;flex-shrink:0}
-    .cx{font-size:9px;font-family:var(--font-mono);font-weight:600;letter-spacing:.1em;color:var(--danger);background:rgba(255,59,92,.1);border:1px solid rgba(255,59,92,.3);border-radius:3px;padding:2px 5px;flex-shrink:0}
-    .arrow-marker{position:relative;display:flex;align-items:center;justify-content:center}
+    :root {
+      /* Deep obsidian & slate palette */
+      --bg: #080b10;
+      --panel-bg: rgba(12, 16, 23, 0.85);
+      --panel-solid: #0d121a;
+      --surface: rgba(22, 28, 38, 0.65);
+      --surface-hover: rgba(30, 39, 53, 0.85);
+      --surface-active: rgba(38, 50, 68, 0.95);
+      --surface2: rgba(18, 23, 33, 0.9);
+      
+      --border: rgba(240, 246, 252, 0.08);
+      --border-light: rgba(240, 246, 252, 0.14);
+      --border-accent: rgba(0, 212, 255, 0.35);
 
-    /* Popups */
-    .leaflet-popup-content-wrapper{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:10px!important;box-shadow:0 4px 24px rgba(0,0,0,.5)!important;color:var(--text)!important;font-family:var(--font-ui)!important;padding:0!important}
-    .leaflet-popup-tip-container{display:none!important}
-    .leaflet-popup-content{margin:0!important}
-    .mp{padding:14px 16px;min-width:200px}
-    .mp-badge{display:inline-flex;align-items:center;justify-content:center;padding:3px 10px;border-radius:20px;font-size:13px;font-weight:700;margin-bottom:8px;letter-spacing:.05em}
-    .mp-dest{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
-    .mp-sub{font-size:11px;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:10px}
-    .mp-delay{font-size:12px;font-family:var(--font-mono);margin-bottom:12px}
-    .mp-btn{width:100%;padding:8px;border:1px solid var(--accent);background:rgba(0,212,255,.08);color:var(--accent);border-radius:6px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .15s}
-    .mp-btn:hover{background:rgba(0,212,255,.18)}
-    .mp-link{display:block;font-size:10px;font-family:var(--font-mono);color:var(--text-dim);text-decoration:none;margin-bottom:8px;}
-    .mp-link:hover{color:var(--accent)}
+      /* Electric accents */
+      --accent: #00d4ff;
+      --accent-glow: rgba(0, 212, 255, 0.25);
+      --accent-subtle: rgba(0, 212, 255, 0.08);
+      --accent2: #ff7849;
+      --accent3: #10b981;
+      --warning: #f59e0b;
+      --danger: #f43f5e;
+      --danger-subtle: rgba(244, 63, 94, 0.12);
+
+      /* Backward compatibility with dynamic class/color tokens */
+      --green: #10b981;
+      --orange: #ff7849;
+      --di: #8b949e;
+
+      /* Typography */
+      --text: #f0f6fc;
+      --text-muted: #8b949e;
+      --text-dim: #64748b;
+      --font-ui: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      /* Elevation */
+      --shadow-lg: 0 16px 40px -10px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.06);
+      --shadow-popup: 0 20px 48px -10px rgba(0, 0, 0, 0.85), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+    }
+
+    #map {
+      flex: 1;
+      height: 100%;
+      background: var(--bg);
+      z-index: 1;
+    }
+
+    /* ── Floating Sidebar ────────────────────────────────────────────────────────── */
+    #sidebar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      bottom: 16px;
+      width: 320px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Header */
+    #header {
+      padding: 16px 18px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, 0.15);
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-hex {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #00d4ff, #0284c7);
+      border-radius: 10px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px rgba(0, 212, 255, 0.35);
+    }
+    .logo-hex svg {
+      width: 22px;
+      height: 22px;
+      fill: #080b10;
+    }
+    .logo-name {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: #fff;
+      text-transform: uppercase;
+      line-height: 1.1;
+    }
+    .logo-sub {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      margin-top: 3px;
+    }
+
+    /* Status Bar */
+    #status-bar {
+      padding: 10px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, 0.1);
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .live-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--text);
+    }
+    .pulse {
+      position: relative;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent3);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+      flex-shrink: 0;
+    }
+    .pulse::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      background: rgba(16, 185, 129, 0.4);
+      animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    @keyframes radar-ping {
+      0% { transform: scale(0.8); opacity: 0.9; }
+      75%, 100% { transform: scale(2.4); opacity: 0; }
+    }
+    .pulse.err {
+      background: var(--danger);
+      box-shadow: 0 0 8px rgba(244, 63, 94, 0.8);
+    }
+    .pulse.err::before { display: none; }
+    .pulse.spin {
+      background: var(--accent);
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.8);
+      animation: spin-pulse 1s linear infinite;
+    }
+    .pulse.spin::before { display: none; }
+    @keyframes spin-pulse {
+      0% { transform: scale(0.8); opacity: 0.6; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(0.8); opacity: 0.6; }
+    }
+    .status-ts {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    #bar-wrap {
+      height: 3px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    #bar {
+      height: 100%;
+      background: linear-gradient(90deg, #00d4ff, #10b981);
+      border-radius: 2px;
+      transition: width 0.25s linear;
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+    }
+
+    /* Search Component */
+    #search-wrap {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      position: relative;
+      background: rgba(0, 0, 0, 0.08);
+    }
+    #search-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 32px 8px 34px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 500;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+    #search-input::placeholder {
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+    #search-input:focus {
+      border-color: var(--accent);
+      background: rgba(0, 0, 0, 0.5);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+    }
+    .search-icon {
+      position: absolute;
+      left: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #search-clear {
+      position: absolute;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      border-radius: 50%;
+      color: var(--text-muted);
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+      font-size: 11px;
+      line-height: 1;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.12s ease;
+    }
+    #search-clear:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+    }
+    #search-drop {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 14px;
+      right: 14px;
+      background: rgba(13, 17, 23, 0.95);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      z-index: 500;
+      display: none;
+      max-height: 290px;
+      overflow-y: auto;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    #search-drop.on { display: block; }
+    .sd-group {
+      padding: 8px 12px 4px;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .sd-group:first-child { border-top: none; }
+    .sd-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+    .sd-item:hover, .sd-item.hi {
+      background: rgba(0, 212, 255, 0.1);
+    }
+    .sd-badge {
+      flex-shrink: 0;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .sd-main {
+      flex: 1;
+      min-width: 0;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+    }
+    .sd-sub {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .sd-delay {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Fleet Stats Dashboard */
+    #stats {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, 0.12);
+    }
+    .sc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .sc:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-light);
+      transform: translateY(-1px);
+    }
+    .sn {
+      font-size: 17px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+    .sn.or { color: var(--accent2); }
+    .sn.gr { color: var(--accent3); }
+    .sn.re { color: var(--danger); }
+    .sn.ye { color: var(--warning); }
+    .sn.di { color: var(--text-dim); }
+    .sl {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    /* Segmented Navigation Tabs */
+    #tabs {
+      display: flex;
+      flex-shrink: 0;
+      margin: 10px 14px 6px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 3px;
+      gap: 4px;
+    }
+    .tab {
+      flex: 1;
+      padding: 7px 0;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-ui);
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 7px;
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid transparent;
+    }
+    .tab:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .tab.av {
+      color: #fff;
+      background: rgba(0, 212, 255, 0.16);
+      border-color: rgba(0, 212, 255, 0.35);
+      box-shadow: 0 2px 8px rgba(0, 212, 255, 0.15);
+    }
+    .tab.ac {
+      color: #fff;
+      background: rgba(244, 63, 94, 0.16);
+      border-color: rgba(244, 63, 94, 0.35);
+      box-shadow: 0 2px 8px rgba(244, 63, 94, 0.15);
+    }
+    .tb {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px 7px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+    .tab.av .tb {
+      background: rgba(0, 212, 255, 0.25);
+      color: var(--accent);
+    }
+    .tab.ac .tb {
+      background: rgba(244, 63, 94, 0.25);
+      color: var(--danger);
+    }
+
+    /* Virtual Scroll Panes */
+    .pane {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      position: relative;
+    }
+    .pane.on { display: block; }
+    .pane::-webkit-scrollbar { width: 5px; }
+    .pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .pane::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+    .vs { width: 1px; }
+    .vw { position: absolute; top: 0; left: 0; right: 0; }
+
+    .vr {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      padding: 0 14px;
+      position: relative;
+    }
+    .vr:hover {
+      background: rgba(0, 212, 255, 0.05);
+    }
+    .vr.sel {
+      background: linear-gradient(90deg, rgba(0, 212, 255, 0.16), rgba(0, 212, 255, 0.03));
+      border-left: 3px solid var(--accent);
+      padding-left: 11px;
+    }
+    .vr.cr { cursor: default; }
+    .vr.cr:hover { background: none; }
+
+    .badge {
+      width: 40px;
+      height: 24px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+    .ri {
+      flex: 1;
+      min-width: 0;
+    }
+    .rr {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: -0.01em;
+    }
+    .rm {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+    .rd {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .cx {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--danger);
+      background: var(--danger-subtle);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      border-radius: 4px;
+      padding: 2px 6px;
+      flex-shrink: 0;
+    }
+
+    /* ── Popups (Leaflet Redesign) ──────────────────────────────────────────────── */
+    .leaflet-popup-content-wrapper {
+      background: rgba(13, 17, 23, 0.94) !important;
+      border: 1px solid var(--border-light) !important;
+      border-radius: 14px !important;
+      box-shadow: var(--shadow-popup) !important;
+      color: var(--text) !important;
+      font-family: var(--font-ui) !important;
+      padding: 0 !important;
+      backdrop-filter: blur(20px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    }
+    .leaflet-popup-tip-container { display: none !important; }
+    .leaflet-popup-content { margin: 0 !important; line-height: 1.4 !important; }
+
+    .mp {
+      padding: 16px 18px;
+      min-width: 220px;
+    }
+    .mp-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      margin-bottom: 8px;
+      letter-spacing: 0.04em;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    .mp-dest {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+    .mp-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      margin-bottom: 8px;
+    }
+    .mp-delay {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .mp-btn {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-accent);
+      background: var(--accent-subtle);
+      color: var(--accent);
+      border-radius: 8px;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .mp-btn:hover {
+      background: rgba(0, 212, 255, 0.2);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+    }
+    .mp-link {
+      display: block;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      text-decoration: none;
+      margin-bottom: 10px;
+    }
+    .mp-link:hover { color: var(--accent); text-decoration: underline; }
+
     /* Stop popup styles */
-    .sp-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
-    .sp-id{font-size:10px;font-family:var(--font-mono);color:var(--text-dim);margin-bottom:10px}
-    .sp-section-label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:5px}
-    .sp-lines{line-height:2;margin-bottom:12px}
-    /* Doorkomsten (departure board) rows */
-    .dk-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(30,45,61,.35)}
-    .dk-row:last-child{border-bottom:none}
-    .dk-row.canceled{opacity:.65}
-    .dk-badge{padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--font-mono);flex-shrink:0;white-space:nowrap}
-    .dk-dest{flex:1;min-width:0;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .dk-dest .vias{color:var(--text-dim);font-size:9px}
-    .dk-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
-    .dk-eta{font-size:12px;font-weight:700;font-family:var(--font-mono);white-space:nowrap}
-    .dk-eta.now{color:var(--accent3)}
-    .dk-eta.soon{color:var(--text)}
-    .dk-times{display:flex;gap:4px;align-items:center;font-size:9px;font-family:var(--font-mono);white-space:nowrap}
-    .dk-sched{color:var(--text-dim)}
-    .dk-sched.strike{text-decoration:line-through}
-    .dk-rt{color:var(--accent2)}
-    .dk-rt.early{color:var(--accent3)}
-    .dk-canceled-badge{font-size:8px;font-weight:700;letter-spacing:.08em;color:var(--danger);background:rgba(255,59,92,.15);border:1px solid rgba(255,59,92,.3);border-radius:3px;padding:2px 5px;white-space:nowrap}
-    .dk-track{font-size:9px;font-family:var(--font-mono);color:var(--accent);background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);border-radius:3px;padding:1px 5px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .12s}
-    .dk-track:hover{background:rgba(0,212,255,.2)}
-    /* Legacy approach rows kept for fallback */
-    .sp-approach-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(30,45,61,.35)}
-    .sp-approach-row:last-child{border-bottom:none}
-    .sp-approach-badge{padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--font-mono);flex-shrink:0}
-    .sp-approach-dest{flex:1;font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .sp-approach-row:hover{background:rgba(0,212,255,.06)}
-    .sp-line-badge:hover{opacity:.8}
-    .sp-none{color:var(--text-dim);font-size:11px;font-family:var(--font-mono);padding:4px 0}
-
-    .leaflet-control-attribution{background:rgba(8,12,16,.8)!important;color:#4a6070!important;font-size:10px!important}
-    .leaflet-control-attribution a{color:var(--accent)!important}
-    .leaflet-control-zoom a{background:var(--surface)!important;border-color:var(--border)!important;color:var(--text)!important}
-    .leaflet-control-zoom a:hover{background:var(--surface2)!important}
-
-    /* Info panel */
-    #info-panel{position:absolute;top:0;right:0;bottom:0;width:var(--panel);background:linear-gradient(180deg,rgba(8,12,16,.98),rgba(14,20,25,.96));border-left:1px solid var(--border);z-index:200;display:flex;flex-direction:column;backdrop-filter:blur(16px);transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
-    #info-panel.open{transform:translateX(0)}
-    #ip-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
-    #ip-close{background:none;border:1px solid var(--border);color:var(--text-dim);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0;transition:all .15s}
-    #ip-close:hover{border-color:var(--text);color:var(--text)}
-    #ip-badge{padding:4px 12px;border-radius:20px;font-size:14px;font-weight:700;letter-spacing:.05em;flex-shrink:0}
-    #ip-title{font-size:15px;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #ip-body{flex:1;overflow-y:auto;padding:18px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
-    #ip-body::-webkit-scrollbar{width:4px}
-    #ip-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-    .ip-section{margin-bottom:20px}
-    .ip-section-title{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-    .ip-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .ip-field{}
-    .ip-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:3px}
-    .ip-value{font-size:13px;font-weight:600;font-family:var(--font-mono);color:var(--text);word-break:break-all}
-    .ip-value.accent{color:var(--accent)}.ip-value.danger{color:var(--danger)}.ip-value.green{color:var(--accent3)}.ip-value.orange{color:var(--accent2)}.ip-value.di{color:var(--text-dim)}
-    .ip-full{grid-column:1/-1}
-    .ip-link{color:var(--accent);text-decoration:none;font-size:11px;font-family:var(--font-mono)}
-    .ip-link:hover{text-decoration:underline}
-    .ip-swatch{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:5px}
-    .ip-share-btn{width:100%;padding:9px;border:1px solid var(--border);background:var(--surface2);color:var(--accent);border-radius:6px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .15s,border-color .15s;display:flex;align-items:center;justify-content:center;gap:6px}
-    .ip-share-btn:hover{background:var(--border);border-color:var(--accent)}
-
-    /* Search */
-    #search-wrap{padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative}
-    #search-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 30px 7px 30px;color:var(--text);font-family:var(--font-mono);font-size:11px;outline:none;transition:border-color .15s}
-    #search-input::placeholder{color:var(--text-dim)}
-    #search-input:focus{border-color:var(--accent)}
-    .search-icon{position:absolute;left:22px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none;font-size:13px}
-    #search-clear{position:absolute;right:22px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px;display:none}
-    #search-clear:hover{color:var(--text)}
-    #search-drop{position:absolute;top:calc(100% - 2px);left:14px;right:14px;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;z-index:500;display:none;max-height:280px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4)}
-    #search-drop.on{display:block}
-    .sd-group{padding:6px 12px 2px;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);border-top:1px solid var(--border)}
-    .sd-group:first-child{border-top:none}
-    .sd-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;transition:background .1s}
-    .sd-item:hover,.sd-item.hi{background:rgba(0,212,255,.07)}
-    .sd-badge{flex-shrink:0;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--font-mono)}
-    .sd-main{flex:1;min-width:0;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .sd-sub{font-size:10px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;flex-shrink:0}
-    .sd-delay{font-size:10px;font-family:var(--font-mono);font-weight:600;white-space:nowrap;flex-shrink:0}
-
-    #toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-size:12px;font-family:var(--font-mono);z-index:9999;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:320px}
-    #toast.on{opacity:1;transform:translateY(0)}
-    #toast.er{border-color:var(--danger);color:var(--danger)}
-    #brand{position:absolute;bottom:28px;left:306px;z-index:50;font-family:var(--font-ui);font-size:11px;font-weight:300;letter-spacing:.3em;text-transform:uppercase;color:rgba(200,218,232,.18);pointer-events:none}
-
-    /* Stop sequence in vehicle panel */
-    .stop-list{margin-top:4px}
-    .stop-row{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(30,45,61,.35)}
-    .stop-row:last-child{border-bottom:none}
-    .stop-dot{width:9px;height:9px;border-radius:50%;background:var(--border);border:2px solid var(--text-dim);flex-shrink:0}
-    .stop-dot.passed{background:rgba(107,136,153,.3);border-color:rgba(107,136,153,.3)}
-    .stop-dot.next{background:var(--accent);border-color:var(--accent);box-shadow:0 0 5px rgba(0,212,255,.6)}
-    .stop-dot.term{background:var(--accent2);border-color:var(--accent2)}
-    .stop-info{flex:1;min-width:0}
-    .stop-name{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .stop-name.passed{color:var(--text-dim);font-weight:400}
-    .stop-times{display:flex;gap:6px;margin-top:2px;font-size:10px;font-family:var(--font-mono);color:var(--text-dim)}
-    .stop-times .adj{color:var(--accent3);font-weight:600}
-    .stop-times .late{color:var(--accent2)}
-    .stop-times .vlate{color:var(--danger)}
-
-    /* Mobile FAB */
-    #mob-fab{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:350;
-      background:var(--surface);border:1px solid var(--border);border-radius:24px;
-      padding:10px 22px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
-      text-transform:uppercase;color:var(--accent);cursor:pointer;
-      box-shadow:0 4px 20px rgba(0,0,0,.6);transition:background .15s;align-items:center;gap:8px}
-    #mob-fab:hover{background:var(--surface2)}
-
-    /* Mobile responsive */
-    @media (max-width: 768px) {
-      #sidebar{position:fixed;bottom:0;left:0;right:0;top:auto;width:100%;height:68vh;border-right:none;border-top:1px solid var(--border);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);z-index:400}
-      #sidebar.mob-open{transform:translateY(0)}
-      #mob-handle{display:block!important}
-      #info-panel{top:auto;right:0;left:0;bottom:0;width:100%;height:72vh;border-left:none;border-top:1px solid var(--border);border-radius:16px 16px 0 0}
-      #info-panel.open{transform:translateY(0)}
-      #mob-fab{display:flex}
-      #map{width:100%;height:100%}
-      #brand{display:none}
-      #toast{bottom:80px;right:12px;left:12px;max-width:none}
-      #locate-btn{bottom:80px}
+    .sp-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .sp-id {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 4px;
+      padding: 1px 6px;
+      display: inline-block;
+      margin-bottom: 10px;
+    }
+    .sp-section-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .sp-lines {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      line-height: normal;
+      margin-bottom: 12px;
+    }
+    .sp-approach-badge {
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    .sp-line-badge:hover { opacity: 0.8; }
+    .sp-none {
+      color: var(--text-dim);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      padding: 4px 0;
     }
 
-    /* Stop markers */
-    .stop-mk{pointer-events:auto!important}
-    .stop-tip{background:var(--surface)!important;border:1px solid var(--border)!important;color:var(--text)!important;font-family:var(--font-mono)!important;font-size:11px!important;padding:4px 8px!important;border-radius:4px!important;box-shadow:0 2px 8px rgba(0,0,0,.4)!important;white-space:nowrap}
+    /* Doorkomsten departure board */
+    .dk-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      transition: background 0.12s ease;
+    }
+    .dk-row:last-child { border-bottom: none; }
+    .dk-row:hover { background: rgba(255, 255, 255, 0.02); }
+    .dk-row.canceled { opacity: 0.65; }
+    .dk-badge {
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .dk-dest {
+      flex: 1;
+      min-width: 0;
+      font-size: 11px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .dk-dest .vias { color: var(--text-dim); font-size: 9px; }
+    .dk-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .dk-eta {
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
+    .dk-eta.now { color: var(--accent3); }
+    .dk-eta.soon { color: var(--text); }
+    .dk-times {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
+    .dk-sched { color: var(--text-dim); }
+    .dk-sched.strike { text-decoration: line-through; }
+    .dk-rt { color: var(--accent2); font-weight: 600; }
+    .dk-rt.early { color: var(--accent3); font-weight: 600; }
+    .dk-canceled-badge {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--danger);
+      background: var(--danger-subtle);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      border-radius: 4px;
+      padding: 2px 5px;
+      white-space: nowrap;
+    }
+    .dk-track {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-subtle);
+      border: 1px solid var(--border-accent);
+      border-radius: 4px;
+      padding: 2px 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.12s ease;
+    }
+    .dk-track:hover {
+      background: rgba(0, 212, 255, 0.22);
+      border-color: var(--accent);
+    }
 
-    /* Mobile close buttons */
-    .mob-close-btn{display:none;position:absolute;top:14px;right:14px;z-index:10;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer;align-items:center;justify-content:center;line-height:1;padding:0}
-    .mob-close-btn:hover{border-color:var(--text);color:var(--text)}
-    @media(max-width:768px){.mob-close-btn{display:flex}}
-    #mob-handle{display:none;width:40px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 0;flex-shrink:0}
+    /* ── Leaflet Controls & Attribution ────────────────────────────────────────── */
+    .leaflet-control-attribution {
+      background: rgba(9, 12, 16, 0.75) !important;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: var(--text-dim) !important;
+      font-size: 9px !important;
+      padding: 3px 8px !important;
+      border-top-left-radius: 6px;
+    }
+    .leaflet-control-attribution a {
+      color: var(--accent) !important;
+      text-decoration: none;
+    }
+    .leaflet-control-attribution a:hover {
+      text-decoration: underline;
+    }
+    .leaflet-control-zoom {
+      border: 1px solid var(--border) !important;
+      border-radius: 10px !important;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .leaflet-control-zoom a {
+      background: rgba(13, 17, 23, 0.85) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+      width: 32px !important;
+      height: 32px !important;
+      line-height: 30px !important;
+      font-size: 16px !important;
+      transition: all 0.15s ease !important;
+    }
+    .leaflet-control-zoom a:hover {
+      background: rgba(22, 27, 34, 0.95) !important;
+      color: var(--accent) !important;
+    }
 
-    /* Zoom hint */
-    #zoom-hint{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);background:rgba(8,12,16,.88);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--text-dim);z-index:50;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}
-    #zoom-hint.on{opacity:1}
+    /* ── Info Panel ────────────────────────────────────────────────────────────── */
+    #info-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      bottom: 16px;
+      width: 340px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      box-shadow: var(--shadow-lg);
+      transform: translateX(calc(100% + 24px));
+      transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+    #info-panel.open {
+      transform: translateX(0);
+    }
+    #ip-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    #ip-close {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: auto;
+      flex-shrink: 0;
+      transition: all 0.18s ease;
+    }
+    #ip-close:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: var(--text);
+      color: #fff;
+      transform: rotate(90deg);
+    }
+    #ip-badge {
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    #ip-title {
+      font-size: 15px;
+      font-weight: 700;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #fff;
+    }
+    #ip-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    #ip-body::-webkit-scrollbar { width: 5px; }
+    #ip-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-    /* Locate button */
-    #locate-btn{position:absolute;right:10px;bottom:96px;z-index:400;width:34px;height:34px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.5);transition:background .15s,border-color .15s,color .15s}
-    #locate-btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
-    #locate-btn.locating{color:var(--accent);animation:loc-spin 1.4s linear infinite}
-    #locate-btn.located{border-color:var(--accent3);color:var(--accent3)}
-    @keyframes loc-spin{to{transform:rotate(360deg)}}
+    .ip-section {
+      margin-bottom: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .ip-section-title {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-weight: 600;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .ip-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .ip-field {}
+    .ip-label {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      margin-bottom: 4px;
+    }
+    .ip-value {
+      font-size: 13px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      color: var(--text);
+      word-break: break-all;
+    }
+    .ip-value.accent { color: var(--accent); }
+    .ip-value.danger { color: var(--danger); }
+    .ip-value.green  { color: var(--accent3); }
+    .ip-value.orange { color: var(--accent2); }
+    .ip-value.di     { color: var(--text-dim); }
+    .ip-full { grid-column: 1 / -1; }
+    .ip-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+    .ip-link:hover { text-decoration: underline; }
+    .ip-swatch {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    .ip-share-btn {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-accent);
+      background: var(--accent-subtle);
+      color: var(--accent);
+      border-radius: 10px;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .ip-share-btn:hover {
+      background: rgba(0, 212, 255, 0.2);
+      border-color: var(--accent);
+      box-shadow: 0 0 16px rgba(0, 212, 255, 0.25);
+    }
 
-    /* User location dot */
-    .user-loc-wrap{position:relative;width:20px;height:20px}
-    .user-loc-ring{position:absolute;inset:-6px;border-radius:50%;background:rgba(0,212,255,.25);animation:loc-pulse 2.2s ease-out infinite;pointer-events:none}
-    .user-loc-dot{position:absolute;inset:0;border-radius:50%;background:#00d4ff;border:2px solid #fff;box-shadow:0 0 10px rgba(0,212,255,.9);pointer-events:none}
-    @keyframes loc-pulse{0%{transform:scale(1);opacity:.7}60%{transform:scale(2.6);opacity:0}100%{transform:scale(1);opacity:0}}
+    /* ── Stop sequence in vehicle panel ────────────────────────────────────────── */
+    .stop-list {
+      position: relative;
+      margin-top: 6px;
+      padding-left: 22px;
+    }
+    .stop-list::before {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 8px;
+      bottom: 8px;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 1px;
+    }
+    .stop-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 6px 0;
+      position: relative;
+    }
+    .stop-dot {
+      position: absolute;
+      left: -22px;
+      top: 5px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #141b23;
+      border: 2px solid var(--text-dim);
+      z-index: 2;
+      transition: all 0.2s ease;
+    }
+    .stop-dot.passed {
+      background: rgba(100, 116, 139, 0.2);
+      border-color: rgba(100, 116, 139, 0.35);
+    }
+    .stop-dot.next {
+      background: var(--accent);
+      border-color: #fff;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.85);
+      transform: scale(1.2);
+    }
+    .stop-dot.term {
+      background: var(--accent2);
+      border-color: var(--accent2);
+      box-shadow: 0 0 8px rgba(255, 120, 73, 0.6);
+    }
+    .stop-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .stop-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .stop-name.passed {
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+    .stop-times {
+      display: flex;
+      gap: 6px;
+      margin-top: 2px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+    }
+    .stop-times .adj   { color: var(--accent3); font-weight: 600; }
+    .stop-times .late  { color: var(--accent2); font-weight: 600; }
+    .stop-times .vlate { color: var(--danger);  font-weight: 600; }
+
+    /* ── Floating Controls & Overlays ─────────────────────────────────────────── */
+    #locate-btn {
+      position: absolute;
+      right: 16px;
+      bottom: 24px;
+      z-index: 100;
+      width: 40px;
+      height: 40px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #locate-btn:hover {
+      background: rgba(22, 27, 34, 0.95);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 16px rgba(0, 212, 255, 0.25);
+      transform: translateY(-2px);
+    }
+    #locate-btn.locating {
+      color: var(--accent);
+      animation: loc-spin 1.4s linear infinite;
+    }
+    #locate-btn.located {
+      border-color: var(--accent3);
+      color: var(--accent3);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);
+    }
+    @keyframes loc-spin { to { transform: rotate(360deg); } }
+
+    #zoom-hint {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(13, 17, 23, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 7px 18px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      z-index: 50;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      white-space: nowrap;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+    #zoom-hint.on {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-4px);
+    }
+
+    #brand {
+      position: absolute;
+      bottom: 12px;
+      left: 352px;
+      z-index: 50;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(240, 246, 252, 0.25);
+      pointer-events: none;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: rgba(13, 17, 23, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: 12px;
+      font-family: var(--font-ui);
+      font-weight: 500;
+      color: var(--text);
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(12px) scale(0.96);
+      transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      max-width: 340px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+    }
+    #toast.on { opacity: 1; transform: translateY(0) scale(1); }
+    #toast.er {
+      border-color: rgba(244, 63, 94, 0.4);
+      color: var(--danger);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 16px rgba(244, 63, 94, 0.2);
+    }
+
+    /* Mobile Floating Action Button */
+    #mob-fab {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 350;
+      background: rgba(13, 17, 23, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 11px 24px;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transition: all 0.2s ease;
+      align-items: center;
+      gap: 8px;
+    }
+    #mob-fab:hover {
+      background: rgba(22, 27, 34, 0.95);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7), 0 0 16px rgba(0, 212, 255, 0.3);
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    /* Mobile Sheet & Responsiveness */
+    .mob-close-btn {
+      display: none;
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 14px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      padding: 0;
+      transition: all 0.15s ease;
+    }
+    .mob-close-btn:hover {
+      border-color: var(--text);
+      color: #fff;
+      background: rgba(255, 255, 255, 0.15);
+    }
+    #mob-handle {
+      display: none;
+      width: 44px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      margin: 10px auto 4px;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 768px) {
+      #sidebar {
+        position: fixed;
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 72vh;
+        border-radius: 20px 20px 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        border-top: 1px solid var(--border);
+        transform: translateY(100%);
+        z-index: 400;
+      }
+      #sidebar.mob-open { transform: translateY(0); }
+      #info-panel {
+        position: fixed;
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 75vh;
+        border-radius: 20px 20px 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        border-top: 1px solid var(--border);
+        transform: translateY(100%);
+        z-index: 450;
+      }
+      #info-panel.open { transform: translateY(0); }
+      #mob-handle { display: block !important; }
+      .mob-close-btn { display: flex !important; }
+      #mob-fab { display: flex; }
+      #brand { display: none; }
+      #toast { bottom: 84px; right: 16px; left: 16px; max-width: none; }
+      #locate-btn { bottom: 84px; right: 16px; }
+    }
+
+    /* Stop markers & tooltips */
+    .stop-mk { pointer-events: auto !important; }
+    .stop-tip {
+      background: rgba(13, 17, 23, 0.92) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      font-family: var(--font-mono) !important;
+      font-size: 11px !important;
+      padding: 4px 8px !important;
+      border-radius: 6px !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+      white-space: nowrap;
+    }
+
+    /* User location radar */
+    .user-loc-wrap { position: relative; width: 20px; height: 20px; }
+    .user-loc-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      background: rgba(0, 212, 255, 0.25);
+      animation: loc-pulse 2.2s ease-out infinite;
+      pointer-events: none;
+    }
+    .user-loc-dot {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: #00d4ff;
+      border: 2px solid #fff;
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.95);
+      pointer-events: none;
+    }
+    @keyframes loc-pulse {
+      0% { transform: scale(1); opacity: 0.7; }
+      60% { transform: scale(2.6); opacity: 0; }
+      100% { transform: scale(1); opacity: 0; }
+    }
   </style>
 </head>
 <body>
@@ -238,30 +1340,39 @@
   <aside id="sidebar">
     <div id="mob-handle"></div>
     <button class="mob-close-btn" onclick="closeSidebarMobile()" title="Close">✕</button>
-    <div id="search-wrap">
-      <span class="search-icon">⌕</span>
-      <input id="search-input" type="text" placeholder="Line, stop, route, trip, vehicle…" autocomplete="off" />
-      <button id="search-clear" onclick="clearSearch()">✕</button>
-      <div id="search-drop"></div>
-    </div>
+
     <div id="header">
       <div class="logo-row">
         <div class="logo-hex">
-          <svg viewBox="0 0 24 24"><path d="M12 2C8 2 4 2.5 4 6v10c0 1.1.9 2 2 2h1l1 2h8l1-2h1c1.1 0 2-.9 2-2V6c0-3.5-4-4-8-4zm0 2c3.8 0 5.8.5 6 1.5H6C6.2 5.5 8.2 5 12 5zM6 8h12v5H6V8zm1.5 8a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm9 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z"/></svg>
         </div>
         <div>
           <div class="logo-name">Geotransport</div>
-          <div class="logo-sub">De Lijn · Live</div>
+          <div class="logo-sub">De Lijn · Live GTFS-RT</div>
         </div>
       </div>
     </div>
+
     <div id="status-bar">
       <div class="status-row">
-        <div class="live-dot"><div class="pulse spin" id="pd"></div><span id="lt">Connecting…</span></div>
+        <div class="live-dot">
+          <div class="pulse spin" id="pd"></div>
+          <span id="lt">Connecting…</span>
+        </div>
         <div class="status-ts" id="ts">–</div>
       </div>
       <div id="bar-wrap"><div id="bar" style="width:0%"></div></div>
     </div>
+
+    <div id="search-wrap">
+      <span class="search-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </span>
+      <input id="search-input" type="text" placeholder="Line, stop, route, trip, vehicle…" autocomplete="off" spellcheck="false" />
+      <button id="search-clear" onclick="clearSearch()" title="Clear">✕</button>
+      <div id="search-drop"></div>
+    </div>
+
     <div id="stats">
       <div class="sc"><div class="sn" id="sv">–</div><div class="sl">Active</div></div>
       <div class="sc"><div class="sn gr" id="so">–</div><div class="sl">On Time</div></div>
@@ -270,19 +1381,32 @@
       <div class="sc"><div class="sn ye" id="se2">–</div><div class="sl">Early</div></div>
       <div class="sc"><div class="sn di" id="se">–</div><div class="sl">Total</div></div>
     </div>
+
     <div id="tabs">
       <div class="tab av" id="tv" onclick="switchTab('v')">Vehicles <span class="tb" id="bv">0</span></div>
       <div class="tab"    id="tc" onclick="switchTab('c')">Canceled <span class="tb" id="bc">0</span></div>
     </div>
+
     <div class="pane on" id="pv"><div class="vs" id="sv2"></div><div class="vw" id="wv"></div></div>
     <div class="pane"    id="pc"><div class="vs" id="sc3"></div><div class="vw" id="wc"></div></div>
   </aside>
 
   <div id="map"></div>
-  <button id="mob-fab" onclick="toggleSidebar()">☰ Vehicles</button>
+  <button id="mob-fab" onclick="toggleSidebar()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    Vehicles
+  </button>
   <div id="brand">Belgium · GTFS-RT</div>
   <div id="zoom-hint">Zoom in to see stops</div>
-  <button id="locate-btn" onclick="goToMyLocation()" title="Go to my location">◎</button>
+  <button id="locate-btn" onclick="goToMyLocation()" title="Go to my location">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="7"/>
+      <line x1="12" y1="2" x2="12" y2="5"/>
+      <line x1="12" y1="19" x2="12" y2="22"/>
+      <line x1="2" y1="12" x2="5" y2="12"/>
+      <line x1="19" y1="12" x2="22" y2="12"/>
+    </svg>
+  </button>
 
   <div id="info-panel">
     <div id="mob-handle"></div>
@@ -290,7 +1414,7 @@
     <div id="ip-head">
       <div id="ip-badge">–</div>
       <div id="ip-title">–</div>
-      <button id="ip-close" onclick="closePanel()">✕</button>
+      <button id="ip-close" onclick="closePanel()" title="Close">✕</button>
     </div>
     <div id="ip-body"></div>
   </div>
@@ -404,9 +1528,8 @@ async function loadStatic() {
 }
 
 async function loadStops() {
-  if (STOPS !== null) return;   // already loaded (even if empty)
+  if (STOPS !== null) return;
   if (STOPS_tried) {
-    // A load is in flight or failed; wait briefly for any in-flight fetch to settle
     await new Promise(r => setTimeout(r, 30));
     return;
   }
@@ -492,7 +1615,7 @@ async function showShape(shapeId, lineCode, fitBounds = false) {
   if (!pts?.length) return;
   const valid = pts.filter(p => p[0] != null && p[1] != null && !isNaN(p[0]) && !isNaN(p[1]));
   if (!valid.length) return;
-  shapePolyline = L.polyline(valid, { color: '#00d4ff', weight: 3, opacity: 0.55, interactive: false }).addTo(map);
+  shapePolyline = L.polyline(valid, { color: '#00d4ff', weight: 3.5, opacity: 0.65, interactive: false }).addTo(map);
   shapePolyline.bringToBack();
   if (fitBounds) map.fitBounds(shapePolyline.getBounds(), { padding: [40, 40], maxZoom: 14, animate: true });
 }
@@ -509,7 +1632,7 @@ function lineTypeLabel(tripId) { return ROUTE_TYPES[lineType(tripId)] || 'Bus'; 
 function lineColor(tripId)     { const c = getLine(tripId)?.color; return c ? '#'+c : null; }
 function lineTextColor(tripId) { const c = getLine(tripId)?.textColor; return c ? '#'+c : '#ffffff'; }
 
-const PAL = ["#00d4ff","#ff6b35","#a8ff3e","#ff3b88","#ffcc00","#c77dff","#06ffa5","#ff9f43","#48dbfb","#ff6b6b"];
+const PAL = ["#00d4ff","#ff7849","#10b981","#ff3b88","#f59e0b","#c77dff","#06ffa5","#ff9f43","#38bdf8","#f43f5e"];
 function palCol(k) { let h=0; for (let i=0;i<k.length;i++) h=(h*31+k.charCodeAt(i))&0xffffffff; return PAL[Math.abs(h)%PAL.length]; }
 function markerCol(tripId) { return lineColor(tripId) || palCol(tripId); }
 
@@ -541,15 +1664,6 @@ function getFilterStopIds() {
 }
 
 // ── Doorkomsten (live departure board) ────────────────────────────────────────
-
-/**
- * Fetch live departures from the worker's /api/kern/halte-rt proxy.
- * Returns an array of doorkomsten, or [] on any error.
- * The worker edge-caches per stop at 20 s so hammering on every 15 s cycle is fine.
- *
- * @param {string} stopId
- * @returns {Promise<Array>}
- */
 async function fetchStopDoorkomsten(stopId) {
   try {
     const r = await fetch(`/api/kern/halte-rt?id=${encodeURIComponent(stopId)}`, { cache: 'no-store' });
@@ -557,11 +1671,9 @@ async function fetchStopDoorkomsten(stopId) {
       let body = '';
       try { body = await r.text(); } catch(_) {}
       console.error(`[GT] /api/kern/halte-rt HTTP ${r.status} for stop ${stopId}:`, body);
-      // Surface the error string so buildDoorkomstenHtml can display it
       return { _error: `API ${r.status}: ${body.slice(0, 120) || '(empty)'}` };
     }
     const data = await r.json();
-    console.log(`[GT] doorkomsten stop ${stopId}:`, data);
     if (!Array.isArray(data.doorkomsten)) {
       console.error('[GT] unexpected doorkomsten shape — top-level keys:', Object.keys(data));
       return { _error: `Unexpected response shape. Keys: ${Object.keys(data).join(', ')}` };
@@ -573,11 +1685,6 @@ async function fetchStopDoorkomsten(stopId) {
   }
 }
 
-/**
- * Parse hour/minute from a De Lijn local-time ISO string (no timezone suffix).
- * e.g. "2026-05-17T14:35:00" → { h:14, m:35, total:875 }
- * Using direct string extraction avoids JS Date() locale assumptions.
- */
 function parseHM(str) {
   if (!str) return null;
   const match = str.match(/T(\d{2}):(\d{2})/);
@@ -591,17 +1698,10 @@ function fmtHM(t) {
   return `${String(t.h).padStart(2,'0')}:${String(t.m).padStart(2,'0')}`;
 }
 
-/**
- * Build the HTML for the departure board section of the stop popup.
- *
- * @param {Array|undefined} doorkomsten  undefined = still loading, [] = empty, [...] = rows
- * @returns {string}
- */
 function buildDoorkomstenHtml(doorkomsten) {
   if (doorkomsten === undefined) {
     return '<div class="sp-none">Loading departures…</div>';
   }
-  // Error object returned by fetchStopDoorkomsten on non-ok / unexpected response
   if (doorkomsten && typeof doorkomsten === 'object' && !Array.isArray(doorkomsten) && doorkomsten._error) {
     return `<div class="sp-none" style="color:var(--danger)">${doorkomsten._error}</div>`;
   }
@@ -619,13 +1719,11 @@ function buildDoorkomstenHtml(doorkomsten) {
 
     const sched = parseHM(d.scheduled);
     const rt    = parseHM(d.realtime);
-    // Treat as delayed/early only when both times exist and differ
     const hasRealtime = rt && sched && rt.total !== sched.total;
     const isDelayed   = hasRealtime && rt.total > sched.total;
     const isEarly     = hasRealtime && rt.total < sched.total;
 
-    // Line colour — look up by public line number in SL.lines
-    let color = '#6b8899', textC = '#c8dae8';
+    let color = '#8b949e', textC = '#f0f6fc';
     if (SL?.lines) {
       const entry = Object.entries(SL.lines).find(([, l]) => l.name === String(d.lijnnummer));
       if (entry) {
@@ -635,10 +1733,8 @@ function buildDoorkomstenHtml(doorkomsten) {
       }
     }
 
-    // ETA relative to now, using realtime if available, else scheduled
     const etaTime = (rt || sched);
     let etaMins = etaTime ? etaTime.total - nowMins : null;
-    // Handle midnight wrap (e.g. time is 00:05, now is 23:55 → 10 min not -1430)
     if (etaMins !== null && etaMins < -60) etaMins += 1440;
 
     let etaHtml;
@@ -652,7 +1748,6 @@ function buildDoorkomstenHtml(doorkomsten) {
       etaHtml = `<span class="dk-eta soon">${etaMins}m</span>`;
     }
 
-    // Scheduled / realtime time display
     let timesHtml = '';
     if (sched) {
       const schedStr = fmtHM(sched);
@@ -666,12 +1761,10 @@ function buildDoorkomstenHtml(doorkomsten) {
       }
     }
 
-    // Via string
     const viasHtml = d.vias?.length
       ? ` <span class="vias">via ${d.vias.join(', ')}</span>`
       : '';
 
-    // Track chip — present only when vrtnum matches a live vehicle in vData
     const vrtStr = d.vrtnum !== null && d.vrtnum !== undefined ? String(d.vrtnum) : null;
     const trackable = vrtStr && vData[vrtStr] && !isCanceled;
     const trackHtml = trackable
@@ -693,8 +1786,8 @@ function buildDoorkomstenHtml(doorkomsten) {
 }
 
 // ── Map ───────────────────────────────────────────────────────────────────────
-const map = L.map("map", {center:[51.0,4.3],zoom:9,preferCanvas:true});
-L.tileLayer(TILE,{attribution:ATTR,subdomains:"abcd",maxZoom:19}).addTo(map);
+const map = L.map("map", { center: [51.0, 4.3], zoom: 9, preferCanvas: true });
+L.tileLayer(TILE, { attribution: ATTR, subdomains: "abcd", maxZoom: 19 }).addTo(map);
 
 // ── All-stops canvas layer ────────────────────────────────────────────────────
 const AllStopsLayer = L.Layer.extend({
@@ -734,14 +1827,14 @@ const AllStopsLayer = L.Layer.extend({
     }
     if (dimPts.length) {
       ctx.beginPath(); for (const p of dimPts) { ctx.moveTo(p.x+r,p.y); ctx.arc(p.x,p.y,r,0,Math.PI*2); }
-      ctx.fillStyle='rgba(200,218,232,0.08)'; ctx.fill();
+      ctx.fillStyle='rgba(240,246,252,0.06)'; ctx.fill();
     }
     if (normalPts.length) {
       ctx.beginPath(); for (const p of normalPts) { ctx.moveTo(p.x+r,p.y); ctx.arc(p.x,p.y,r,0,Math.PI*2); }
-      ctx.fillStyle='rgba(200,218,232,0.42)'; ctx.strokeStyle='rgba(0,0,0,0.32)'; ctx.lineWidth=0.8; ctx.fill(); ctx.stroke();
+      ctx.fillStyle='rgba(240,246,252,0.48)'; ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=0.8; ctx.fill(); ctx.stroke();
     }
     if (activePts.length) {
-      const ra=r+3;
+      const ra=r+3.5;
       ctx.beginPath(); for (const p of activePts) { ctx.moveTo(p.x+ra,p.y); ctx.arc(p.x,p.y,ra,0,Math.PI*2); }
       ctx.fillStyle='#00d4ff'; ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
     }
@@ -790,14 +1883,22 @@ const ArrowLayer = L.Layer.extend({
       const pt=m.latLngToContainerPoint([v.lat,v.lng]);
       const x=pt.x, y=pt.y, color=v.c;
       const isActive=v.vehicleId===activeId, isDimmed=activeFilter&&!activeFilter.matchIds.has(v.vehicleId);
-      ctx.save(); ctx.translate(x,y); ctx.globalAlpha=isDimmed?0.15:1;
+      ctx.save(); ctx.translate(x,y); ctx.globalAlpha=isDimmed?0.12:1;
+      
+      if (isActive) {
+        ctx.beginPath(); ctx.arc(0,0,13,0,Math.PI*2);
+        ctx.fillStyle='rgba(0,212,255,0.22)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(0,0,9,0,Math.PI*2);
+        ctx.strokeStyle='#00d4ff'; ctx.lineWidth=1.5; ctx.stroke();
+      }
+
       if (v.bearing!=null) {
         ctx.rotate((v.bearing*Math.PI)/180);
         ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(5,5); ctx.lineTo(0,2); ctx.lineTo(-5,5); ctx.closePath();
-        ctx.fillStyle=color; ctx.strokeStyle=isActive?'#ffffff':'rgba(0,0,0,0.45)'; ctx.lineWidth=isActive?1.5:1; ctx.fill(); ctx.stroke();
+        ctx.fillStyle=color; ctx.strokeStyle=isActive?'#ffffff':'rgba(0,0,0,0.5)'; ctx.lineWidth=isActive?1.8:1; ctx.fill(); ctx.stroke();
       } else {
         ctx.beginPath(); ctx.arc(0,0,isActive?7:5,0,Math.PI*2);
-        ctx.fillStyle=color; ctx.strokeStyle=isActive?'#ffffff':'rgba(0,0,0,0.45)'; ctx.lineWidth=isActive?1.5:1; ctx.fill(); ctx.stroke();
+        ctx.fillStyle=color; ctx.strokeStyle=isActive?'#ffffff':'rgba(0,0,0,0.5)'; ctx.lineWidth=isActive?1.8:1; ctx.fill(); ctx.stroke();
       }
       ctx.restore();
     }
@@ -826,11 +1927,11 @@ const StopLayer = L.Layer.extend({
     this._markers.forEach(m=>m.remove()); this._markers=[];
     if (!this._routeStops.length) return;
     const styles = {
-      start:    {color:'#a8ff3e',fill:'#a8ff3e',r:7, weight:2,opacity:1  },
-      passed:   {color:'#3a5060',fill:'#1e2d3d',r:4, weight:1,opacity:0.5},
-      current:  {color:'#00d4ff',fill:'#00d4ff',r:9, weight:3,opacity:1  },
-      upcoming: {color:'#c8dae8',fill:'#141b23',r:5, weight:2,opacity:0.9},
-      terminal: {color:'#ff6b35',fill:'#ff6b35',r:7, weight:2,opacity:1  },
+      start:    {color:'#10b981',fill:'#10b981',r:6, weight:2,opacity:1  },
+      passed:   {color:'#475569',fill:'#1e293b',r:4, weight:1,opacity:0.6},
+      current:  {color:'#00d4ff',fill:'#00d4ff',r:8, weight:3,opacity:1  },
+      upcoming: {color:'#94a3b8',fill:'#0f172a',r:5, weight:2,opacity:0.95},
+      terminal: {color:'#ff7849',fill:'#ff7849',r:6, weight:2,opacity:1  },
     };
     for (const stop of this._routeStops) {
       const s=styles[stop.status]||styles.upcoming;
@@ -848,8 +1949,16 @@ let shapePolyline = null;
 function clearShape() { if (shapePolyline) { shapePolyline.remove(); shapePolyline=null; } }
 
 // ── Mobile sidebar ────────────────────────────────────────────────────────────
-function toggleSidebar() { const sb=G("sidebar"), open=sb.classList.toggle("mob-open"); G("mob-fab").textContent=open?"✕ Close":"☰ Vehicles"; }
-function closeSidebarMobile() { G("sidebar").classList.remove("mob-open"); G("mob-fab").textContent="☰ Vehicles"; }
+function toggleSidebar() {
+  const sb=G("sidebar"), open=sb.classList.toggle("mob-open");
+  G("mob-fab").innerHTML=open
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Close'
+    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg> Vehicles';
+}
+function closeSidebarMobile() {
+  G("sidebar").classList.remove("mob-open");
+  G("mob-fab").innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg> Vehicles';
+}
 
 // ── Zoom hint ─────────────────────────────────────────────────────────────────
 let _hintTimer=null;
@@ -955,7 +2064,7 @@ function moveDrop(dir){
 
 function buildDrop(){
   const q=sinput.value.trim().toLowerCase();
-  sclear.style.display=q?"block":"none";
+  sclear.style.display=q?"flex":"none";
   if (!q){closeDrop();return;}
   const groups=[], agencyName=SL?.agency?.['delijn']?.name||'De Lijn';
 
@@ -1023,7 +2132,7 @@ function buildDrop(){
     for (const [sid,s] of Object.entries(STOPS)) {
       if (!s.n?.toLowerCase().includes(q)&&!sid.includes(q)) continue;
       const snapSid=sid, snapS=s;
-      stopItems.push({badge:'⬡',color:'#6b8899',textC:'#c8dae8',main:s.n,sub:`Stop ${sid}`,
+      stopItems.push({badge:'⬡',color:'#8b949e',textC:'#f0f6fc',main:s.n,sub:`Stop ${sid}`,
         apply(){closeDrop();sinput.value='';sclear.style.display='none';map.flyTo([snapS.a,snapS.o],Math.max(map.getZoom(),17),{animate:true,duration:0.8});setTimeout(()=>selectStop(snapSid),850);}});
       if (stopItems.length>=6) break;
     }
@@ -1031,7 +2140,7 @@ function buildDrop(){
   }
 
   dropItems=[];
-  if (!groups.length) { sdrop.innerHTML=`<div style="padding:12px 14px;font-size:11px;color:var(--text-dim);font-family:var(--font-mono)">No results</div>`; sdrop.classList.add("on"); return; }
+  if (!groups.length) { sdrop.innerHTML=`<div style="padding:12px 14px;font-size:11px;color:var(--text-dim);font-family:var(--font-mono)">No results found</div>`; sdrop.classList.add("on"); return; }
 
   let html='';
   for (const g of groups) {
@@ -1060,7 +2169,7 @@ function applyFilter(filter, skipPush=false) {
   const win=G("wv"); [...win.children].forEach(ch=>{win.removeChild(ch);freeRow(ch);}); G("pv").scrollTop=0;
   allStopsLayer.setRouteFilter(filter?getFilterStopIds():null);
   arrowLayer._draw(); redraw();
-  if (filter) { sinput.value=filter.label; sclear.style.display="block"; }
+  if (filter) { sinput.value=filter.label; sclear.style.display="flex"; }
 }
 
 function clearSearch() { sinput.value=""; sclear.style.display="none"; closeDrop(); clearShape(); stopLayer.clearRouteStops(); applyFilter(null); }
@@ -1081,19 +2190,12 @@ function filterByLine(lineCode) {
   applyFilter({matchIds,label,shapeId,urlKey:'line',urlVal:lineCode});
 }
 
-// Called from doorkomsten "Track" chips — navigates to the vehicle
 function selectApproachingVehicle(vehicleId) {
   closeStopPopup();
   const v=vData[vehicleId]; if (!v) return;
   select(vehicleId); openPanel(vehicleId);
 }
 
-/**
- * Render the stop popup with optional live departure data.
- *
- * @param {string}          stopId
- * @param {Array|undefined} doorkomsten  undefined = loading, [] = empty, [...] = rows
- */
 function showStopPopup(stopId, doorkomsten) {
   const s=STOPS?.[stopId]; if (!s) return;
   if (activeStopPopup) { activeStopPopup.remove(); activeStopPopup=null; }
@@ -1102,47 +2204,38 @@ function showStopPopup(stopId, doorkomsten) {
   const linesHtml = lineCodes.length
     ? lineCodes.slice(0,20).map(lc => {
         const l=SL?.lines?.[lc]; if (!l) return '';
-        const c=l.color?'#'+l.color:'#6b8899';
+        const c=l.color?'#'+l.color:'#8b949e';
         return `<span class="sp-approach-badge sp-line-badge" style="background:${c}22;color:${c};border:1px solid ${c}44;cursor:pointer" onclick="filterByLine('${lc}')" title="Show line ${l.name} on map">${l.name}</span>`;
       }).filter(Boolean).join('')
     : '<span class="sp-none">–</span>';
 
   const departuresHtml = buildDoorkomstenHtml(doorkomsten);
 
-  activeStopPopup = L.popup({maxWidth:320, minWidth:280, closeButton:false})
+  activeStopPopup = L.popup({maxWidth:340, minWidth:280, closeButton:false})
     .setLatLng([s.a, s.o])
     .setContent(`<div class="mp" style="max-height:420px;overflow-y:auto">
       <div class="sp-name">${s.n}</div>
       <div class="sp-id">Stop ID: ${stopId}</div>
-      ${lineCodes.length ? `<div class="sp-section-label" style="margin-top:8px">Lines served</div><div class="sp-lines" style="margin-bottom:10px;line-height:2">${linesHtml}</div>` : ''}
-      <div class="sp-section-label">Departures</div>
+      ${lineCodes.length ? `<div class="sp-section-label" style="margin-top:10px">Lines served</div><div class="sp-lines" style="margin-bottom:12px;line-height:2">${linesHtml}</div>` : ''}
+      <div class="sp-section-label">Live Departures</div>
       <div id="dk-list-${stopId}">${departuresHtml}</div>
     </div>`)
     .openOn(map);
 }
 
-/**
- * Open a stop popup and load data progressively.
- * 1. Show immediately with "Loading departures…"
- * 2. Fetch doorkomsten from API + load stop-index in parallel
- * 3. Re-render when both complete
- */
 async function selectStop(stopId) {
   if (G('info-panel').classList.contains('open')) closePanel();
   closeStopPopup();
   activeStopId=stopId; allStopsLayer.setActiveStop(stopId);
 
-  // Always ensure stops are loaded — they may not be if zoom < 14 at page load
   await loadStops();
   if (!STOPS?.[stopId]) {
     console.warn('[GT] selectStop: stop', stopId, 'not found in stops.json');
     return;
   }
 
-  // First render — shows lines section (may be empty) + loading departures
   showStopPopup(stopId, undefined);
 
-  // Fetch API doorkomsten and static stop-index/stop-times in parallel
   const [doorkomsten] = await Promise.all([
     fetchStopDoorkomsten(stopId),
     (async () => {
@@ -1153,7 +2246,6 @@ async function selectStop(stopId) {
     })(),
   ]);
 
-  // Guard: user may have closed or clicked another stop while we were waiting
   if (activeStopId !== stopId) return;
   showStopPopup(stopId, doorkomsten);
 }
@@ -1190,7 +2282,7 @@ function renderV(row,v){
 
 function renderC(row,c){
   row.className="vr cr";
-  row.innerHTML=`<div class="badge" style="background:rgba(255,59,92,.1);color:var(--danger);border:1px solid rgba(255,59,92,.3)">${lineName(c.tripId)}</div><div class="ri"><div class="rr" style="color:var(--text-dim);text-decoration:line-through">${lineDest(c.tripId)||c.tripId.split('_').slice(0,3).join('_')}</div><div class="rm">${c.routeId||'–'}</div></div><div class="cx">Canceled</div>`;
+  row.innerHTML=`<div class="badge" style="background:rgba(244,63,94,.12);color:var(--danger);border:1px solid rgba(244,63,94,.3)">${lineName(c.tripId)}</div><div class="ri"><div class="rr" style="color:var(--text-dim);text-decoration:line-through">${lineDest(c.tripId)||c.tripId.split('_').slice(0,3).join('_')}</div><div class="rm">${c.routeId||'–'}</div></div><div class="cx">Canceled</div>`;
 }
 
 function redraw(){
@@ -1207,9 +2299,9 @@ function showPopup(id){
   const v=vData[id]; if(!v) return;
   const name=lineName(v.tripId), dest=lineDest(v.tripId)||'–', color=markerCol(v.tripId), textC=lineTextColor(v.tripId), url=getLine(v.tripId)?.url||'', d=fmtD(v.delay);
   if (activePopup){activePopup.remove();activePopup=null;}
-  activePopup=L.popup({maxWidth:240,minWidth:200,closeButton:false})
+  activePopup=L.popup({maxWidth:260,minWidth:220,closeButton:false})
     .setLatLng([v.lat,v.lng])
-    .setContent(`<div class="mp"><div class="mp-badge" style="background:${color};color:${textC}">${name}</div><div class="mp-dest">→ ${dest}</div><div class="mp-sub">${v.vehicleId}</div><div class="mp-delay" style="color:var(--${d.cls})">${d.text}</div>${url?`<a class="mp-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a>`:''}<button class="mp-btn" onclick="openPanel('${id}')">More Info</button></div>`)
+    .setContent(`<div class="mp"><div class="mp-badge" style="background:${color};color:${textC}">${name}</div><div class="mp-dest">→ ${dest}</div><div class="mp-sub">${v.vehicleId}</div><div class="mp-delay" style="color:var(--${d.cls})">${d.text}</div>${url?`<a class="mp-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a>`:''}<button class="mp-btn" onclick="openPanel('${id}')">Vehicle Details</button></div>`)
     .openOn(map);
 }
 
@@ -1234,7 +2326,7 @@ function openPanel(id){
 
   G("ip-body").innerHTML=`
     <div style="margin-bottom:16px"><button class="ip-share-btn" onclick="shareVehicleUrl()"><span>⬡</span> Share this vehicle</button></div>
-    <div class="ip-section"><div class="ip-section-title">Route</div><div class="ip-grid">
+    <div class="ip-section"><div class="ip-section-title">Route Information</div><div class="ip-grid">
       <div class="ip-field"><div class="ip-label">Line</div><div class="ip-value accent"><span class="ip-swatch" style="background:${color}"></span>${name}</div></div>
       <div class="ip-field"><div class="ip-label">Type</div><div class="ip-value">${typeLabel}</div></div>
       <div class="ip-field ip-full"><div class="ip-label">Direction</div><div class="ip-value">→ ${dest}</div></div>
@@ -1244,19 +2336,19 @@ function openPanel(id){
       <div class="ip-field"><div class="ip-label">Route ID</div><div class="ip-value di" style="font-size:11px">${routeId}</div></div>
       ${url?`<div class="ip-field ip-full"><div class="ip-label">De Lijn Page</div><div class="ip-value"><a class="ip-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a></div></div>`:''}
     </div></div>
-    <div class="ip-section"><div class="ip-section-title">Realtime</div><div class="ip-grid">
+    <div class="ip-section"><div class="ip-section-title">Realtime Telemetry</div><div class="ip-grid">
       <div class="ip-field"><div class="ip-label">Delay</div><div class="ip-value ${d.cls}">${d.text}</div></div>
       <div class="ip-field"><div class="ip-label">Bearing</div><div class="ip-value">${fmtB(v.bearing)}</div></div>
       <div class="ip-field"><div class="ip-label">Latitude</div><div class="ip-value">${v.lat.toFixed(5)}</div></div>
       <div class="ip-field"><div class="ip-label">Longitude</div><div class="ip-value">${v.lng.toFixed(5)}</div></div>
       <div class="ip-field ip-full"><div class="ip-label">Trip ID</div><div class="ip-value" style="font-size:10px;color:var(--text-dim)">${v.tripId||'–'}</div></div>
     </div></div>
-    <div class="ip-section"><div class="ip-section-title">Vehicle</div><div class="ip-grid">
+    <div class="ip-section"><div class="ip-section-title">Vehicle Asset</div><div class="ip-grid">
       <div class="ip-field"><div class="ip-label">Vehicle ID</div><div class="ip-value">${v.vehicleId}</div></div>
       <div class="ip-field"><div class="ip-label">Agency</div><div class="ip-value">${ag.name||'De Lijn'}</div></div>
     </div></div>
-    <div class="ip-section" id="stops-section"><div class="ip-section-title">Stops</div><div id="stops-list" style="color:var(--text-dim);font-size:11px;font-family:var(--font-mono)">Loading…</div></div>
-    ${feed.version?`<div class="ip-section"><div class="ip-section-title">Feed</div><div class="ip-grid"><div class="ip-field"><div class="ip-label">Version</div><div class="ip-value" style="font-size:10px;color:var(--text-dim)">${feed.version}</div></div><div class="ip-field"><div class="ip-label">Valid Until</div><div class="ip-value" style="font-size:11px">${feed.endDate?feed.endDate.replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3'):'–'}</div></div></div></div>`:''}
+    <div class="ip-section" id="stops-section"><div class="ip-section-title">Stop Timeline</div><div id="stops-list" style="color:var(--text-dim);font-size:11px;font-family:var(--font-mono)">Loading…</div></div>
+    ${feed.version?`<div class="ip-section"><div class="ip-section-title">Feed Metadata</div><div class="ip-grid"><div class="ip-field"><div class="ip-label">Version</div><div class="ip-value" style="font-size:10px;color:var(--text-dim)">${feed.version}</div></div><div class="ip-field"><div class="ip-label">Valid Until</div><div class="ip-value" style="font-size:11px">${feed.endDate?feed.endDate.replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3'):'–'}</div></div></div></div>`:''}
   `;
 
   G("info-panel").classList.add("open"); G("ip-body").scrollTop=0;
@@ -1357,7 +2449,6 @@ function process(data){
   arrowLayer.setVehicles(Object.values(vData));
   if (activeId&&vData[activeId]) { panToVehicle(vData[activeId]); if (activePopup) activePopup.setLatLng([vData[activeId].lat,vData[activeId].lng]); }
 
-  // Refresh stop popup doorkomsten on every data cycle — worker caches at 20s so most calls are cache hits
   if (activeStopId && STOPS?.[activeStopId] && activeStopPopup) {
     fetchStopDoorkomsten(activeStopId).then(doorkomsten => {
       if (activeStopId && STOPS?.[activeStopId] && activeStopPopup) {
@@ -1373,13 +2464,13 @@ function process(data){
   const allC=[...canceled].sort((a,b)=>a.tripId.localeCompare(b.tripId));
   sortedC=activeFilter?allC.filter(c=>activeFilter.matchIds.has(c.vehicleId||c.tripId)):allC;
   G("bv").textContent=sortedV.length; G("bc").textContent=sortedC.length;
-  G("bc").style.background=sortedC.length>0?"rgba(255,59,92,.2)":""; G("bc").style.color=sortedC.length>0?"var(--danger)":"";
+  G("bc").style.background=sortedC.length>0?"rgba(244,63,94,.2)":""; G("bc").style.color=sortedC.length>0?"var(--danger)":"";
   redraw();
 }
 
 function panToVehicle(v,zoom){
   const mobile=window.innerWidth<=768, panelOpen=!mobile&&G("info-panel").classList.contains("open");
-  const leftPad=mobile?0:290, rightPad=panelOpen?320:0, W=window.innerWidth, z=zoom??map.getZoom();
+  const leftPad=mobile?0:336, rightPad=panelOpen?356:0, W=window.innerWidth, z=zoom??map.getZoom();
   map.setView([v.lat,v.lng],z,{animate:false});
   const visCX=leftPad+(W-leftPad-rightPad)/2, offsetX=-(visCX-W/2);
   map.panBy([offsetX,0],{animate:true});
