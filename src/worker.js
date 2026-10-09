@@ -396,7 +396,14 @@ export default {
     if (ct.includes("text/html")) {
       const h = new Headers(asset.headers);
       h.set("Cache-Control", "no-cache");
-      return new Response(asset.body, { status: asset.status, headers: h });
+      // CARTO basemaps now require an API key on every tile request. The key
+      // is a client-side map key (like a Mapbox public token), not a secret
+      // that needs to stay off the wire — it just shouldn't live in the repo.
+      // We inject it into the placeholder left in public/index.html's TILE
+      // constant, the same way DL_GTFSRT/DL_OPDA are kept out of git.
+      let html = await asset.text();
+      html = html.replaceAll("__CARTO_KEY__", env.CARTO_KEY || "");
+      return new Response(html, { status: asset.status, headers: h });
     }
     return asset;
   },
