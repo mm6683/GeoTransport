@@ -1,308 +1,1702 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="nl" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Geotransport · Live Tracker</title>
+  <title>GeoTransport · Realtime Transit Tracker</title>
+  <meta name="description" content="Realtime tracking en doorgangsinformatie van openbaar vervoer in Vlaanderen en België" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
   <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{
-      --bg:#080c10;--surface:#0e1419;--surface2:#141b23;--border:#1e2d3d;
-      --accent:#00d4ff;--accent2:#ff6b35;--accent3:#a8ff3e;
-      --text:#c8dae8;--text-dim:#6b8899;--danger:#ff3b5c;
-      --panel:320px;
-      --font-ui:'Oxanium',sans-serif;--font-mono:'JetBrains Mono',monospace;
+    /* ── Source Sans Pro (Flemish Government Niveau 4 Standard) ──────────────── */
+    @font-face {
+      font-family: 'Source Sans Pro';
+      src: url('/fonts/SourceSansPro/SourceSansPro-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
     }
-    html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:var(--font-ui);overflow:hidden}
-    #app{position:relative;width:100vw;height:100vh;display:flex}
-    #map{flex:1;height:100%;background:var(--bg);z-index:1}
+    @font-face {
+      font-family: 'Source Sans Pro';
+      src: url('/fonts/SourceSansPro/SourceSansPro-Italic.ttf') format('truetype');
+      font-weight: 400;
+      font-style: italic;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Source Sans Pro';
+      src: url('/fonts/SourceSansPro/SourceSansPro-Light.ttf') format('truetype');
+      font-weight: 300;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Source Sans Pro';
+      src: url('/fonts/SourceSansPro/SourceSansPro-Semibold.ttf') format('truetype');
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Source Sans Pro';
+      src: url('/fonts/SourceSansPro/SourceSansPro-SemiboldItalic.ttf') format('truetype');
+      font-weight: 600;
+      font-style: italic;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Source Sans Pro';
+      src: url('/fonts/SourceSansPro/SourceSansPro-Bold.ttf') format('truetype');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Source Sans Pro';
+      src: url('/fonts/SourceSansPro/SourceSansPro-BoldItalic.ttf') format('truetype');
+      font-weight: 700;
+      font-style: italic;
+      font-display: swap;
+    }
 
-    /* Sidebar */
-    #sidebar{position:absolute;top:0;left:0;bottom:0;width:290px;background:linear-gradient(180deg,rgba(8,12,16,.97),rgba(14,20,25,.95));border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;backdrop-filter:blur(12px)}
-    #header{padding:16px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
-    .logo-row{display:flex;align-items:center;gap:10px}
-    .logo-hex{width:34px;height:34px;background:var(--accent);flex-shrink:0;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center}
-    .logo-hex svg{width:20px;height:20px;fill:var(--bg)}
-    .logo-name{font-size:19px;font-weight:700;letter-spacing:.1em;color:#fff;text-transform:uppercase}
-    .logo-sub{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-family:var(--font-mono)}
-    #status-bar{padding:10px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
-    .status-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
-    .live-dot{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-family:var(--font-mono)}
-    .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent3);animation:pa 2s infinite}
-    .pulse.err{background:var(--danger);animation:none}
-    .pulse.spin{background:var(--accent);animation:sp 1s linear infinite}
-    @keyframes pa{0%{box-shadow:0 0 0 0 rgba(168,255,62,.6)}70%{box-shadow:0 0 0 8px rgba(168,255,62,0)}100%{box-shadow:0 0 0 0 rgba(168,255,62,0)}}
-    @keyframes sp{to{transform:rotate(360deg)}}
-    .status-ts{font-size:11px;font-family:var(--font-mono);color:var(--text-dim)}
-    #bar-wrap{height:2px;background:var(--border);border-radius:1px;margin-top:6px;overflow:hidden}
-    #bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:1px;transition:width 1s linear}
-    #stats{padding:10px 20px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);gap:7px;flex-shrink:0}
-    .sc{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px}
-    .sn{font-size:19px;font-weight:700;font-family:var(--font-mono);color:var(--accent);line-height:1}
-    .sn.or{color:var(--accent2)}.sn.gr{color:var(--accent3)}.sn.re{color:var(--danger)}.sn.ye{color:#ffcc00}.sn.di{color:var(--text-dim)}
-    .sl{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);margin-top:3px;font-family:var(--font-mono)}
-    #tabs{display:flex;flex-shrink:0;border-bottom:1px solid var(--border);position:relative}
-    .tab{flex:1;padding:9px 0;text-align:center;font-size:10px;font-family:var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;user-select:none}
-    .tab:hover{color:var(--text)}
-    .tab.av{color:var(--accent);border-bottom-color:var(--accent)}
-    .tab.ac{color:var(--danger);border-bottom-color:var(--danger)}
-    .tb{display:inline-block;margin-left:4px;padding:1px 5px;border-radius:10px;font-size:9px;background:var(--surface2)}
-    .pane{display:none;flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;position:relative}
-    .pane.on{display:block}
-    .pane::-webkit-scrollbar{width:4px}
-    .pane::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-    .vs{width:1px}.vw{position:absolute;top:0;left:0;right:0}
-    .vr{display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(30,45,61,.45);cursor:pointer;transition:background .12s;padding:0 18px}
-    .vr:hover{background:rgba(0,212,255,.04)}
-    .vr.sel{background:rgba(0,212,255,.08);border-left:2px solid var(--accent);padding-left:16px}
-    .vr.cr{cursor:default}.vr.cr:hover{background:none}
-    .badge{width:38px;height:22px;border-radius:4px;font-size:11px;font-weight:700;font-family:var(--font-mono);flex-shrink:0;display:flex;align-items:center;justify-content:center}
-    .ri{flex:1;min-width:0}
-    .rr{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .rm{font-size:10px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .rd{font-size:11px;font-family:var(--font-mono);font-weight:500;flex-shrink:0}
-    .cx{font-size:9px;font-family:var(--font-mono);font-weight:600;letter-spacing:.1em;color:var(--danger);background:rgba(255,59,92,.1);border:1px solid rgba(255,59,92,.3);border-radius:3px;padding:2px 5px;flex-shrink:0}
-    .arrow-marker{position:relative;display:flex;align-items:center;justify-content:center}
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    /* Popups */
-    .leaflet-popup-content-wrapper{background:var(--surface)!important;border:1px solid var(--border)!important;border-radius:10px!important;box-shadow:0 4px 24px rgba(0,0,0,.5)!important;color:var(--text)!important;font-family:var(--font-ui)!important;padding:0!important}
-    .leaflet-popup-tip-container{display:none!important}
-    .leaflet-popup-content{margin:0!important}
-    .mp{padding:14px 16px;min-width:200px}
-    .mp-badge{display:inline-flex;align-items:center;justify-content:center;padding:3px 10px;border-radius:20px;font-size:13px;font-weight:700;margin-bottom:8px;letter-spacing:.05em}
-    .mp-dest{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
-    .mp-sub{font-size:11px;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:10px}
-    .mp-delay{font-size:12px;font-family:var(--font-mono);margin-bottom:12px}
-    .mp-btn{width:100%;padding:8px;border:1px solid var(--accent);background:rgba(0,212,255,.08);color:var(--accent);border-radius:6px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .15s}
-    .mp-btn:hover{background:rgba(0,212,255,.18)}
-    .mp-link{display:block;font-size:10px;font-family:var(--font-mono);color:var(--text-dim);text-decoration:none;margin-bottom:8px;}
-    .mp-link:hover{color:var(--accent)}
-    /* Stop popup styles */
-    .sp-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
-    .sp-id{font-size:10px;font-family:var(--font-mono);color:var(--text-dim);margin-bottom:10px}
-    .sp-section-label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:5px}
-    .sp-lines{line-height:2;margin-bottom:12px}
-    /* Doorkomsten (departure board) rows */
-    .dk-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(30,45,61,.35)}
-    .dk-row:last-child{border-bottom:none}
-    .dk-row.canceled{opacity:.65}
-    .dk-badge{padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--font-mono);flex-shrink:0;white-space:nowrap}
-    .dk-dest{flex:1;min-width:0;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .dk-dest .vias{color:var(--text-dim);font-size:9px}
-    .dk-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
-    .dk-eta{font-size:12px;font-weight:700;font-family:var(--font-mono);white-space:nowrap}
-    .dk-eta.now{color:var(--accent3)}
-    .dk-eta.soon{color:var(--text)}
-    .dk-times{display:flex;gap:4px;align-items:center;font-size:9px;font-family:var(--font-mono);white-space:nowrap}
-    .dk-sched{color:var(--text-dim)}
-    .dk-sched.strike{text-decoration:line-through}
-    .dk-rt{color:var(--accent2)}
-    .dk-rt.early{color:var(--accent3)}
-    .dk-canceled-badge{font-size:8px;font-weight:700;letter-spacing:.08em;color:var(--danger);background:rgba(255,59,92,.15);border:1px solid rgba(255,59,92,.3);border-radius:3px;padding:2px 5px;white-space:nowrap}
-    .dk-track{font-size:9px;font-family:var(--font-mono);color:var(--accent);background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);border-radius:3px;padding:1px 5px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background .12s}
-    .dk-track:hover{background:rgba(0,212,255,.2)}
-    /* Legacy approach rows kept for fallback */
-    .sp-approach-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(30,45,61,.35)}
-    .sp-approach-row:last-child{border-bottom:none}
-    .sp-approach-badge{padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--font-mono);flex-shrink:0}
-    .sp-approach-dest{flex:1;font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .sp-approach-row:hover{background:rgba(0,212,255,.06)}
-    .sp-line-badge:hover{opacity:.8}
-    .sp-none{color:var(--text-dim);font-size:11px;font-family:var(--font-mono);padding:4px 0}
+    /* ── Digitaal Vlaanderen Design System Tokens (Niveau 4) ──────────────────── */
+    :root {
+      /* Primary Brand: Deep Pine / Juniper Green (strictly non-yellow, non-blue) */
+      --primary: #0D5C3A;
+      --primary-hover: #083D26;
+      --primary-light: rgba(13, 92, 58, 0.08);
+      --primary-border: rgba(13, 92, 58, 0.22);
+      --accent: var(--primary);
+      --action: var(--primary);
+      --action-hover: var(--primary-hover);
 
-    .leaflet-control-attribution{background:rgba(8,12,16,.8)!important;color:#4a6070!important;font-size:10px!important}
-    .leaflet-control-attribution a{color:var(--accent)!important}
-    .leaflet-control-zoom a{background:var(--surface)!important;border-color:var(--border)!important;color:var(--text)!important}
-    .leaflet-control-zoom a:hover{background:var(--surface2)!important}
+      /* Functional status colors (Vlaanderen Design System) */
+      --success: #009E47;
+      --green: #009E47;
+      --warning: #D97706;
+      --orange: #D97706;
+      --danger: #D2373C;
+      --re: #D2373C;
+      --accent2: #D97706;
+      --accent3: #009E47;
 
-    /* Info panel */
-    #info-panel{position:absolute;top:0;right:0;bottom:0;width:var(--panel);background:linear-gradient(180deg,rgba(8,12,16,.98),rgba(14,20,25,.96));border-left:1px solid var(--border);z-index:200;display:flex;flex-direction:column;backdrop-filter:blur(16px);transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
-    #info-panel.open{transform:translateX(0)}
-    #ip-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
-    #ip-close{background:none;border:1px solid var(--border);color:var(--text-dim);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0;transition:all .15s}
-    #ip-close:hover{border-color:var(--text);color:var(--text)}
-    #ip-badge{padding:4px 12px;border-radius:20px;font-size:14px;font-weight:700;letter-spacing:.05em;flex-shrink:0}
-    #ip-title{font-size:15px;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #ip-body{flex:1;overflow-y:auto;padding:18px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
-    #ip-body::-webkit-scrollbar{width:4px}
-    #ip-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-    .ip-section{margin-bottom:20px}
-    .ip-section-title{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-    .ip-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .ip-field{}
-    .ip-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);margin-bottom:3px}
-    .ip-value{font-size:13px;font-weight:600;font-family:var(--font-mono);color:var(--text);word-break:break-all}
-    .ip-value.accent{color:var(--accent)}.ip-value.danger{color:var(--danger)}.ip-value.green{color:var(--accent3)}.ip-value.orange{color:var(--accent2)}.ip-value.di{color:var(--text-dim)}
-    .ip-full{grid-column:1/-1}
-    .ip-link{color:var(--accent);text-decoration:none;font-size:11px;font-family:var(--font-mono)}
-    .ip-link:hover{text-decoration:underline}
-    .ip-swatch{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:5px}
-    .ip-share-btn{width:100%;padding:9px;border:1px solid var(--border);background:var(--surface2);color:var(--accent);border-radius:6px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .15s,border-color .15s;display:flex;align-items:center;justify-content:center;gap:6px}
-    .ip-share-btn:hover{background:var(--border);border-color:var(--accent)}
+      /* Neutrals & surfaces */
+      --bg: #F7F9FC;
+      --surface: #FFFFFF;
+      --surface2: #EEF2F6;
+      --surface-hover: #F1F5F9;
+      --surface-active: #E8F0EA;
+      --border: #CFD5DD;
+      --border-subtle: #E2E8F0;
+      --text: #333332;
+      --text-dim: #687483;
+      --text-muted: #8695A8;
+      --di: #687483;
 
-    /* Search */
-    #search-wrap{padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative}
-    #search-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 30px 7px 30px;color:var(--text);font-family:var(--font-mono);font-size:11px;outline:none;transition:border-color .15s}
-    #search-input::placeholder{color:var(--text-dim)}
-    #search-input:focus{border-color:var(--accent)}
-    .search-icon{position:absolute;left:22px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none;font-size:13px}
-    #search-clear{position:absolute;right:22px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;line-height:1;padding:2px;display:none}
-    #search-clear:hover{color:var(--text)}
-    #search-drop{position:absolute;top:calc(100% - 2px);left:14px;right:14px;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;z-index:500;display:none;max-height:280px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4)}
-    #search-drop.on{display:block}
-    .sd-group{padding:6px 12px 2px;font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim);font-family:var(--font-mono);border-top:1px solid var(--border)}
-    .sd-group:first-child{border-top:none}
-    .sd-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;transition:background .1s}
-    .sd-item:hover,.sd-item.hi{background:rgba(0,212,255,.07)}
-    .sd-badge{flex-shrink:0;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;font-family:var(--font-mono)}
-    .sd-main{flex:1;min-width:0;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .sd-sub{font-size:10px;color:var(--text-dim);font-family:var(--font-mono);white-space:nowrap;flex-shrink:0}
-    .sd-delay{font-size:10px;font-family:var(--font-mono);font-weight:600;white-space:nowrap;flex-shrink:0}
+      /* Component geometry */
+      --panel: 340px;
+      --sidebar-w: 320px;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.12);
 
-    #toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-size:12px;font-family:var(--font-mono);z-index:9999;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:320px}
-    #toast.on{opacity:1;transform:translateY(0)}
-    #toast.er{border-color:var(--danger);color:var(--danger)}
-    #brand{position:absolute;bottom:28px;left:306px;z-index:50;font-family:var(--font-ui);font-size:11px;font-weight:300;letter-spacing:.3em;text-transform:uppercase;color:rgba(200,218,232,.18);pointer-events:none}
+      --font-ui: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: 'Source Sans Pro', monospace;
+    }
 
-    /* Stop sequence in vehicle panel */
-    .stop-list{margin-top:4px}
-    .stop-row{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(30,45,61,.35)}
-    .stop-row:last-child{border-bottom:none}
-    .stop-dot{width:9px;height:9px;border-radius:50%;background:var(--border);border:2px solid var(--text-dim);flex-shrink:0}
-    .stop-dot.passed{background:rgba(107,136,153,.3);border-color:rgba(107,136,153,.3)}
-    .stop-dot.next{background:var(--accent);border-color:var(--accent);box-shadow:0 0 5px rgba(0,212,255,.6)}
-    .stop-dot.term{background:var(--accent2);border-color:var(--accent2)}
-    .stop-info{flex:1;min-width:0}
-    .stop-name{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .stop-name.passed{color:var(--text-dim);font-weight:400}
-    .stop-times{display:flex;gap:6px;margin-top:2px;font-size:10px;font-family:var(--font-mono);color:var(--text-dim)}
-    .stop-times .adj{color:var(--accent3);font-weight:600}
-    .stop-times .late{color:var(--accent2)}
-    .stop-times .vlate{color:var(--danger)}
+    /* ── Dark Theme Tokens ───────────────────────────────────────────────────── */
+    [data-theme="dark"] {
+      --primary: #34D399;
+      --primary-hover: #6EE7B7;
+      --primary-light: rgba(52, 211, 153, 0.12);
+      --primary-border: rgba(52, 211, 153, 0.3);
+      --accent: var(--primary);
+      --action: var(--primary);
+      --action-hover: var(--primary-hover);
 
-    /* Mobile FAB */
-    #mob-fab{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:350;
-      background:var(--surface);border:1px solid var(--border);border-radius:24px;
-      padding:10px 22px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
-      text-transform:uppercase;color:var(--accent);cursor:pointer;
-      box-shadow:0 4px 20px rgba(0,0,0,.6);transition:background .15s;align-items:center;gap:8px}
-    #mob-fab:hover{background:var(--surface2)}
+      --success: #10B981;
+      --green: #10B981;
+      --warning: #FBBF24;
+      --orange: #FBBF24;
+      --danger: #F87171;
+      --re: #F87171;
+      --accent2: #FBBF24;
+      --accent3: #10B981;
 
-    /* Mobile responsive */
+      --bg: #0B131E;
+      --surface: #131F2E;
+      --surface2: #1B2B3E;
+      --surface-hover: #1E3147;
+      --surface-active: rgba(52, 211, 153, 0.15);
+      --border: #26394E;
+      --border-subtle: #1C2D40;
+      --text: #F1F5F9;
+      --text-dim: #94A3B8;
+      --text-muted: #64748B;
+      --di: #94A3B8;
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.6);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      line-height: 1.45;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Accessible focus rings */
+    :focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+    }
+
+    #map {
+      flex: 1;
+      height: 100%;
+      background: var(--bg);
+      z-index: 1;
+    }
+
+    /* ── Sidebar (Flemish Basisgrid structure) ─────────────────────────────────── */
+    #sidebar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+      transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────────────── */
+    #header {
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--surface);
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .logo-brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .logo-mark {
+      width: 34px;
+      height: 34px;
+      background: var(--primary-light);
+      border: 1px solid var(--primary-border);
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+    }
+
+    .logo-mark svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .logo-name {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      line-height: 1.15;
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 400;
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Theme Switcher Button */
+    .theme-toggle-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .theme-toggle-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .theme-toggle-btn svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    /* ── Search Bar ──────────────────────────────────────────────────────────── */
+    #search-wrap {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      position: relative;
+      background: var(--surface);
+    }
+
+    .search-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    #search-input {
+      width: 100%;
+      height: 36px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0 32px 0 32px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    #search-input::placeholder {
+      color: var(--text-muted);
+    }
+    #search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-border);
+      background: var(--surface);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .search-icon svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    #search-clear {
+      position: absolute;
+      right: 7px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 22px;
+      height: 22px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    #search-clear:hover {
+      color: var(--text);
+      background: var(--surface2);
+    }
+    #search-clear svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    #search-drop {
+      position: absolute;
+      top: calc(100% - 2px);
+      left: 16px;
+      right: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      z-index: 500;
+      display: none;
+      max-height: 280px;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    #search-drop.on {
+      display: block;
+    }
+    .sd-group {
+      padding: 6px 12px 3px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-top: 1px solid var(--border-subtle);
+    }
+    .sd-group:first-child {
+      border-top: none;
+    }
+    .sd-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 0.1s;
+    }
+    .sd-item:last-child {
+      border-bottom: none;
+    }
+    .sd-item:hover, .sd-item.hi {
+      background: var(--primary-light);
+    }
+    .sd-badge {
+      flex-shrink: 0;
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 700;
+      min-width: 28px;
+      text-align: center;
+    }
+    .sd-main {
+      flex: 1;
+      min-width: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sd-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .sd-delay {
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── Status Bar ──────────────────────────────────────────────────────────── */
+    #status-bar {
+      padding: 9px 18px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--bg);
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .live-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+    .pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      position: relative;
+    }
+    .pulse::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid var(--success);
+      opacity: 0.8;
+      animation: pa 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+    }
+    .pulse.err {
+      background: var(--danger);
+      animation: none;
+    }
+    .pulse.err::after {
+      border-color: var(--danger);
+      animation: none;
+    }
+    .pulse.spin {
+      background: var(--primary);
+      animation: sp 1s linear infinite;
+    }
+    .pulse.spin::after {
+      display: none;
+    }
+    @keyframes pa {
+      0% { transform: scale(0.6); opacity: 0.9; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+    @keyframes sp {
+      to { transform: rotate(360deg); }
+    }
+    .status-ts {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-variant-numeric: tabular-nums;
+    }
+    #bar-wrap {
+      height: 3px;
+      background: var(--border-subtle);
+      border-radius: 2px;
+      margin-top: 7px;
+      overflow: hidden;
+    }
+    #bar {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 2px;
+      transition: width 0.25s linear;
+    }
+
+    /* ── Metrics Cards Grid (Basisgrid) ──────────────────────────────────────── */
+    #stats {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      flex-shrink: 0;
+      background: var(--surface);
+    }
+    .sc {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 7px 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .sc:hover {
+      background: var(--surface);
+      border-color: var(--primary);
+    }
+    .sn {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .sn.gr { color: var(--success); }
+    .sn.or { color: var(--warning); }
+    .sn.re { color: var(--danger); }
+    .sn.ye { color: var(--warning); }
+    .sn.di { color: var(--text-dim); }
+    .sl {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    /* ── Tabs ────────────────────────────────────────────────────────────────── */
+    #tabs {
+      display: flex;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .tab:hover {
+      color: var(--text);
+      background: var(--bg);
+    }
+    .tab.av {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 700;
+    }
+    .tab.ac {
+      color: var(--danger);
+      border-bottom-color: var(--danger);
+      font-weight: 700;
+    }
+    .tb {
+      padding: 1px 7px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      background: var(--surface2);
+      color: var(--text-dim);
+      line-height: 1.4;
+      font-variant-numeric: tabular-nums;
+    }
+    .tab.av .tb {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    /* ── Virtual Scroll Panes ────────────────────────────────────────────────── */
+    .pane {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      position: relative;
+      background: var(--surface);
+    }
+    .pane.on {
+      display: block;
+    }
+    .pane::-webkit-scrollbar {
+      width: 5px;
+    }
+    .pane::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    .vs {
+      width: 1px;
+    }
+    .vw {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+    }
+
+    .vr {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: background 0.12s;
+      padding: 0 16px;
+      box-sizing: border-box;
+    }
+    .vr:hover {
+      background: var(--surface-hover);
+    }
+    .vr.sel {
+      background: var(--surface-active);
+      border-left: 4px solid var(--primary);
+      padding-left: 12px;
+    }
+    .vr.cr {
+      cursor: default;
+    }
+    .vr.cr:hover {
+      background: transparent;
+    }
+
+    .badge {
+      width: 42px;
+      height: 24px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .ri {
+      flex: 1;
+      min-width: 0;
+    }
+    .rr {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.25;
+    }
+    .rm {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+    .rd {
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .cx {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--danger);
+      background: rgba(210, 55, 60, 0.12);
+      border: 1px solid rgba(210, 55, 60, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 2px 6px;
+      flex-shrink: 0;
+    }
+
+    /* ── Sidebar Partner / Secondary Footer (Niveau 4 Requirement) ───────────── */
+    #sidebar-footer {
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.35;
+    }
+    .sf-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .sf-partners {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .sf-dot {
+      color: var(--border);
+    }
+
+    /* ── Slide-out Info Panel (Right) ────────────────────────────────────────── */
+    #info-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: var(--panel);
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    #info-panel.open {
+      transform: translateX(0);
+    }
+    #ip-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      background: var(--bg);
+    }
+    #ip-badge {
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    #ip-title {
+      font-size: 14px;
+      font-weight: 700;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+    }
+    #ip-close {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: auto;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    #ip-close:hover {
+      border-color: var(--text);
+      color: var(--text);
+      background: var(--surface-hover);
+    }
+    #ip-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 18px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      background: var(--surface);
+    }
+    #ip-body::-webkit-scrollbar {
+      width: 4px;
+    }
+    #ip-body::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+    .ip-section {
+      margin-bottom: 18px;
+    }
+    .ip-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .ip-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .ip-field {}
+    .ip-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 2px;
+    }
+    .ip-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      word-break: break-all;
+    }
+    .ip-value.accent { color: var(--primary); }
+    .ip-value.danger { color: var(--danger); }
+    .ip-value.green { color: var(--success); }
+    .ip-value.orange { color: var(--warning); }
+    .ip-value.di { color: var(--text-dim); }
+    .ip-full { grid-column: 1 / -1; }
+    .ip-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .ip-link:hover {
+      text-decoration: underline;
+    }
+    .ip-swatch {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      vertical-align: middle;
+      margin-right: 5px;
+    }
+    .ip-share-btn {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .ip-share-btn:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* ── Stop Timeline in Vehicle Panel ──────────────────────────────────────── */
+    .stop-list {
+      margin-top: 6px;
+      position: relative;
+    }
+    .stop-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+    .stop-row:last-child {
+      border-bottom: none;
+    }
+    .stop-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--text-dim);
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+    .stop-dot.passed {
+      background: var(--border);
+      border-color: var(--border);
+    }
+    .stop-dot.next {
+      background: var(--primary);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-border);
+    }
+    .stop-dot.term {
+      background: var(--danger);
+      border-color: var(--danger);
+    }
+    .stop-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .stop-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .stop-name.passed {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+    .stop-times {
+      display: flex;
+      gap: 6px;
+      margin-top: 2px;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-dim);
+    }
+    .stop-times .adj {
+      color: var(--success);
+      font-weight: 600;
+    }
+    .stop-times .late {
+      color: var(--warning);
+      font-weight: 600;
+    }
+    .stop-times .vlate {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    /* ── Leaflet Popups ──────────────────────────────────────────────────────── */
+    .leaflet-popup-content-wrapper {
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius-lg) !important;
+      box-shadow: var(--shadow-lg) !important;
+      color: var(--text) !important;
+      font-family: var(--font-ui) !important;
+      padding: 0 !important;
+    }
+    .leaflet-popup-tip-container {
+      display: none !important;
+    }
+    .leaflet-popup-content {
+      margin: 0 !important;
+    }
+    .mp {
+      padding: 14px 16px;
+      min-width: 220px;
+    }
+    .mp-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .mp-dest {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .mp-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+    .mp-delay {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .mp-btn {
+      width: 100%;
+      height: 34px;
+      border: 1px solid var(--primary);
+      background: var(--primary);
+      color: #FFFFFF;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    [data-theme="dark"] .mp-btn {
+      color: #0B131E;
+    }
+    .mp-btn:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+    .mp-link {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary);
+      text-decoration: none;
+      margin-bottom: 10px;
+    }
+    .mp-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Stop Popup Departures */
+    .sp-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .sp-id {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+    .sp-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    .sp-lines {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+    .sp-line-badge, .sp-approach-badge {
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.12s;
+    }
+    .sp-line-badge:hover {
+      opacity: 0.85;
+    }
+
+    .dk-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .dk-row:last-child {
+      border-bottom: none;
+    }
+    .dk-row.canceled {
+      opacity: 0.65;
+    }
+    .dk-badge {
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      min-width: 28px;
+      text-align: center;
+    }
+    .dk-dest {
+      flex: 1;
+      min-width: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .dk-dest .vias {
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 400;
+    }
+    .dk-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .dk-eta {
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .dk-eta.now { color: var(--success); }
+    .dk-eta.soon { color: var(--text); }
+    .dk-times {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 10px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .dk-sched { color: var(--text-dim); }
+    .dk-sched.strike { text-decoration: line-through; }
+    .dk-rt { color: var(--warning); font-weight: 600; }
+    .dk-rt.early { color: var(--success); }
+    .dk-canceled-badge {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--danger);
+      background: rgba(210, 55, 60, 0.12);
+      border: 1px solid rgba(210, 55, 60, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 1px 5px;
+      white-space: nowrap;
+    }
+    .dk-track {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--primary);
+      background: var(--primary-light);
+      border: 1px solid var(--primary-border);
+      border-radius: var(--radius-sm);
+      padding: 2px 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.12s;
+    }
+    .dk-track:hover {
+      background: var(--surface2);
+    }
+    .sp-none {
+      color: var(--text-dim);
+      font-size: 12px;
+      padding: 6px 0;
+    }
+
+    /* ── Controls & Floating Buttons ─────────────────────────────────────────── */
+    .leaflet-control-attribution {
+      background: var(--surface) !important;
+      color: var(--text-dim) !important;
+      font-size: 11px !important;
+      border-radius: var(--radius-sm) !important;
+      border: 1px solid var(--border) !important;
+      box-shadow: var(--shadow-sm) !important;
+    }
+    .leaflet-control-attribution a {
+      color: var(--primary) !important;
+      text-decoration: none !important;
+    }
+    .leaflet-control-zoom {
+      border: 1px solid var(--border) !important;
+      box-shadow: var(--shadow-sm) !important;
+      border-radius: var(--radius-sm) !important;
+      overflow: hidden;
+    }
+    .leaflet-control-zoom a {
+      background: var(--surface) !important;
+      border-color: var(--border) !important;
+      color: var(--text) !important;
+      width: 32px !important;
+      height: 32px !important;
+      line-height: 32px !important;
+    }
+    .leaflet-control-zoom a:hover {
+      background: var(--surface-hover) !important;
+      color: var(--primary) !important;
+    }
+
+    #locate-btn {
+      position: absolute;
+      right: 12px;
+      bottom: 90px;
+      z-index: 400;
+      width: 36px;
+      height: 36px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    #locate-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    #locate-btn.locating {
+      color: var(--primary);
+      animation: loc-spin 1.4s linear infinite;
+    }
+    #locate-btn.located {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+    #locate-btn svg {
+      width: 19px;
+      height: 19px;
+    }
+    @keyframes loc-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* User location marker */
+    .user-loc-wrap {
+      position: relative;
+      width: 22px;
+      height: 22px;
+    }
+    .user-loc-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      background: var(--primary-border);
+      animation: loc-pulse 2.2s ease-out infinite;
+      pointer-events: none;
+    }
+    .user-loc-dot {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+    }
+    @keyframes loc-pulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      60% { transform: scale(2.4); opacity: 0; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+
+    #mob-fab {
+      display: none;
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 350;
+      background: var(--primary);
+      border: 1px solid var(--primary-hover);
+      border-radius: 24px;
+      padding: 10px 20px;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #FFFFFF;
+      cursor: pointer;
+      box-shadow: var(--shadow-lg);
+      transition: background 0.15s;
+      align-items: center;
+      gap: 8px;
+    }
+    [data-theme="dark"] #mob-fab {
+      color: #0B131E;
+    }
+    #mob-fab:hover {
+      background: var(--primary-hover);
+    }
+    #mob-fab svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    #brand {
+      position: absolute;
+      bottom: 24px;
+      left: calc(var(--sidebar-w) + 16px);
+      z-index: 50;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      opacity: 0.7;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    #zoom-hint {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 7px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      box-shadow: var(--shadow-md);
+      z-index: 50;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s;
+      white-space: nowrap;
+    }
+    #zoom-hint.on {
+      opacity: 1;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      max-width: 320px;
+      box-shadow: var(--shadow-lg);
+    }
+    #toast.on {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #toast.er {
+      border-color: var(--danger);
+      color: var(--danger);
+      background: var(--surface);
+    }
+
+    /* Stop markers & tooltip */
+    .stop-mk { pointer-events: auto !important; }
+    .stop-tip {
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      font-family: var(--font-ui) !important;
+      font-size: 11px !important;
+      font-weight: 600 !important;
+      padding: 4px 8px !important;
+      border-radius: var(--radius-sm) !important;
+      box-shadow: var(--shadow-sm) !important;
+      white-space: nowrap;
+    }
+
+    /* Mobile drawer handle & close */
+    .mob-close-btn {
+      display: none;
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      z-index: 10;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .mob-close-btn:hover {
+      border-color: var(--text);
+      color: var(--text);
+    }
+    #mob-handle {
+      display: none;
+      width: 38px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 10px auto 2px;
+      flex-shrink: 0;
+    }
+
+    /* ── Responsive adjustments ──────────────────────────────────────────────── */
     @media (max-width: 768px) {
-      #sidebar{position:fixed;bottom:0;left:0;right:0;top:auto;width:100%;height:68vh;border-right:none;border-top:1px solid var(--border);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);z-index:400}
-      #sidebar.mob-open{transform:translateY(0)}
-      #mob-handle{display:block!important}
-      #info-panel{top:auto;right:0;left:0;bottom:0;width:100%;height:72vh;border-left:none;border-top:1px solid var(--border);border-radius:16px 16px 0 0}
-      #info-panel.open{transform:translateY(0)}
-      #mob-fab{display:flex}
-      #map{width:100%;height:100%}
-      #brand{display:none}
-      #toast{bottom:80px;right:12px;left:12px;max-width:none}
-      #locate-btn{bottom:80px}
+      #sidebar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        width: 100%;
+        height: 70vh;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        border-radius: 16px 16px 0 0;
+        transform: translateY(100%);
+        z-index: 400;
+      }
+      #sidebar.mob-open {
+        transform: translateY(0);
+      }
+      #mob-handle {
+        display: block !important;
+      }
+      .mob-close-btn {
+        display: flex !important;
+      }
+      #info-panel {
+        top: auto;
+        right: 0;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 72vh;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        border-radius: 16px 16px 0 0;
+      }
+      #info-panel.open {
+        transform: translateY(0);
+      }
+      #mob-fab {
+        display: flex;
+      }
+      #brand {
+        display: none;
+      }
+      #toast {
+        bottom: 80px;
+        right: 16px;
+        left: 16px;
+        max-width: none;
+      }
+      #locate-btn {
+        bottom: 80px;
+      }
     }
-
-    /* Stop markers */
-    .stop-mk{pointer-events:auto!important}
-    .stop-tip{background:var(--surface)!important;border:1px solid var(--border)!important;color:var(--text)!important;font-family:var(--font-mono)!important;font-size:11px!important;padding:4px 8px!important;border-radius:4px!important;box-shadow:0 2px 8px rgba(0,0,0,.4)!important;white-space:nowrap}
-
-    /* Mobile close buttons */
-    .mob-close-btn{display:none;position:absolute;top:14px;right:14px;z-index:10;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer;align-items:center;justify-content:center;line-height:1;padding:0}
-    .mob-close-btn:hover{border-color:var(--text);color:var(--text)}
-    @media(max-width:768px){.mob-close-btn{display:flex}}
-    #mob-handle{display:none;width:40px;height:4px;background:var(--border);border-radius:2px;margin:10px auto 0;flex-shrink:0}
-
-    /* Zoom hint */
-    #zoom-hint{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);background:rgba(8,12,16,.88);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--text-dim);z-index:50;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}
-    #zoom-hint.on{opacity:1}
-
-    /* Locate button */
-    #locate-btn{position:absolute;right:10px;bottom:96px;z-index:400;width:34px;height:34px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.5);transition:background .15s,border-color .15s,color .15s}
-    #locate-btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent)}
-    #locate-btn.locating{color:var(--accent);animation:loc-spin 1.4s linear infinite}
-    #locate-btn.located{border-color:var(--accent3);color:var(--accent3)}
-    @keyframes loc-spin{to{transform:rotate(360deg)}}
-
-    /* User location dot */
-    .user-loc-wrap{position:relative;width:20px;height:20px}
-    .user-loc-ring{position:absolute;inset:-6px;border-radius:50%;background:rgba(0,212,255,.25);animation:loc-pulse 2.2s ease-out infinite;pointer-events:none}
-    .user-loc-dot{position:absolute;inset:0;border-radius:50%;background:#00d4ff;border:2px solid #fff;box-shadow:0 0 10px rgba(0,212,255,.9);pointer-events:none}
-    @keyframes loc-pulse{0%{transform:scale(1);opacity:.7}60%{transform:scale(2.6);opacity:0}100%{transform:scale(1);opacity:0}}
   </style>
 </head>
 <body>
 <div id="app">
-  <aside id="sidebar">
+  <aside id="sidebar" role="region" aria-label="Hoofdmenu en overzicht">
     <div id="mob-handle"></div>
-    <button class="mob-close-btn" onclick="closeSidebarMobile()" title="Close">✕</button>
-    <div id="search-wrap">
-      <span class="search-icon">⌕</span>
-      <input id="search-input" type="text" placeholder="Line, stop, route, trip, vehicle…" autocomplete="off" />
-      <button id="search-clear" onclick="clearSearch()">✕</button>
-      <div id="search-drop"></div>
-    </div>
+    <button class="mob-close-btn" onclick="closeSidebarMobile()" title="Sluiten" aria-label="Sluit menu">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+
     <div id="header">
       <div class="logo-row">
-        <div class="logo-hex">
-          <svg viewBox="0 0 24 24"><path d="M12 2C8 2 4 2.5 4 6v10c0 1.1.9 2 2 2h1l1 2h8l1-2h1c1.1 0 2-.9 2-2V6c0-3.5-4-4-8-4zm0 2c3.8 0 5.8.5 6 1.5H6C6.2 5.5 8.2 5 12 5zM6 8h12v5H6V8zm1.5 8a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm9 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>
+        <div class="logo-brand-wrap">
+          <div class="logo-mark" aria-hidden="true">
+            <!-- Modern Flemish line style transit vehicle & route mark -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="3" width="16" height="13" rx="2.5"></rect>
+              <line x1="4" y1="10" x2="20" y2="10"></line>
+              <line x1="7" y1="19" x2="6" y2="21"></line>
+              <line x1="17" y1="19" x2="18" y2="21"></line>
+              <circle cx="8" cy="13.5" r="1.2" fill="currentColor"></circle>
+              <circle cx="16" cy="13.5" r="1.2" fill="currentColor"></circle>
+            </svg>
+          </div>
+          <div>
+            <div class="logo-name">GeoTransport</div>
+            <div class="logo-sub">Realtime Openbaar Vervoer & Tracking</div>
+          </div>
         </div>
-        <div>
-          <div class="logo-name">Geotransport</div>
-          <div class="logo-sub">De Lijn · Live</div>
-        </div>
+        <!-- Theme toggle button -->
+        <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" title="Wissel naar donkere modus" aria-label="Wissel naar donkere modus">
+          <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <svg class="theme-icon-sun" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+        </button>
       </div>
     </div>
+
+    <div id="search-wrap" role="search">
+      <div class="search-input-wrap">
+        <span class="search-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="21" y1="21" x2="16" y2="16"></line>
+          </svg>
+        </span>
+        <input id="search-input" type="text" placeholder="Zoek lijn, halte, rit, voertuig…" autocomplete="off" aria-label="Zoeken" />
+        <button id="search-clear" onclick="clearSearch()" title="Zoekopdracht wissen" aria-label="Zoekopdracht wissen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div id="search-drop" role="listbox"></div>
+    </div>
+
     <div id="status-bar">
       <div class="status-row">
-        <div class="live-dot"><div class="pulse spin" id="pd"></div><span id="lt">Connecting…</span></div>
+        <div class="live-dot">
+          <div class="pulse spin" id="pd"></div>
+          <span id="lt">Verbinden…</span>
+        </div>
         <div class="status-ts" id="ts">–</div>
       </div>
-      <div id="bar-wrap"><div id="bar" style="width:0%"></div></div>
+      <div id="bar-wrap" aria-hidden="true"><div id="bar" style="width:0%"></div></div>
     </div>
+
     <div id="stats">
-      <div class="sc"><div class="sn" id="sv">–</div><div class="sl">Active</div></div>
-      <div class="sc"><div class="sn gr" id="so">–</div><div class="sl">On Time</div></div>
-      <div class="sc"><div class="sn or" id="sd">–</div><div class="sl">Delayed</div></div>
-      <div class="sc"><div class="sn re" id="sc2">–</div><div class="sl">Canceled</div></div>
-      <div class="sc"><div class="sn ye" id="se2">–</div><div class="sl">Early</div></div>
-      <div class="sc"><div class="sn di" id="se">–</div><div class="sl">Total</div></div>
+      <div class="sc"><div class="sn" id="sv">–</div><div class="sl">Actief</div></div>
+      <div class="sc"><div class="sn gr" id="so">–</div><div class="sl">Op tijd</div></div>
+      <div class="sc"><div class="sn or" id="sd">–</div><div class="sl">Vertraagd</div></div>
+      <div class="sc"><div class="sn re" id="sc2">–</div><div class="sl">Afgeschaft</div></div>
+      <div class="sc"><div class="sn ye" id="se2">–</div><div class="sl">Vroeg</div></div>
+      <div class="sc"><div class="sn di" id="se">–</div><div class="sl">Totaal</div></div>
     </div>
-    <div id="tabs">
-      <div class="tab av" id="tv" onclick="switchTab('v')">Vehicles <span class="tb" id="bv">0</span></div>
-      <div class="tab"    id="tc" onclick="switchTab('c')">Canceled <span class="tb" id="bc">0</span></div>
+
+    <div id="tabs" role="tablist">
+      <div class="tab av" id="tv" role="tab" aria-selected="true" onclick="switchTab('v')">
+        Voertuigen <span class="tb" id="bv">0</span>
+      </div>
+      <div class="tab" id="tc" role="tab" aria-selected="false" onclick="switchTab('c')">
+        Afgeschaft <span class="tb" id="bc">0</span>
+      </div>
     </div>
+
     <div class="pane on" id="pv"><div class="vs" id="sv2"></div><div class="vw" id="wv"></div></div>
-    <div class="pane"    id="pc"><div class="vs" id="sc3"></div><div class="vw" id="wc"></div></div>
+    <div class="pane" id="pc"><div class="vs" id="sc3"></div><div class="vw" id="wc"></div></div>
+
+    <!-- Secondary footer (Niveau 4 - Hoofdpartnerschappen lange termijn) -->
+    <footer id="sidebar-footer">
+      <div class="sf-row">
+        <span class="sf-title">GeoTransport Platform</span>
+      </div>
+      <div class="sf-partners">
+        <span class="sf-partner">GTFS-RT</span>
+        <span class="sf-dot">•</span>
+        <span class="sf-partner">OpenStreetMap</span>
+        <span class="sf-dot">•</span>
+        <span class="sf-partner">CARTO</span>
+      </div>
+    </footer>
   </aside>
 
   <div id="map"></div>
-  <button id="mob-fab" onclick="toggleSidebar()">☰ Vehicles</button>
-  <div id="brand">Belgium · GTFS-RT</div>
-  <div id="zoom-hint">Zoom in to see stops</div>
-  <button id="locate-btn" onclick="goToMyLocation()" title="Go to my location">◎</button>
+  <button id="mob-fab" onclick="toggleSidebar()" aria-label="Open overzicht voertuigen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+    <span>Voertuigen</span>
+  </button>
+  <div id="brand">GeoTransport · Realtime Transit</div>
+  <div id="zoom-hint">Zoom verder in om haltes te zien</div>
+  <button id="locate-btn" onclick="goToMyLocation()" title="Ga naar mijn locatie" aria-label="Ga naar mijn locatie">
+    <svg class="locate-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="7"></circle>
+      <line x1="12" y1="2" x2="12" y2="5"></line>
+      <line x1="12" y1="19" x2="12" y2="22"></line>
+      <line x1="2" y1="12" x2="5" y2="12"></line>
+      <line x1="19" y1="12" x2="22" y2="12"></line>
+      <circle cx="12" cy="12" r="2" fill="currentColor"></circle>
+    </svg>
+  </button>
 
-  <div id="info-panel">
+  <div id="info-panel" role="dialog" aria-modal="true" aria-label="Voertuig details">
     <div id="mob-handle"></div>
-    <button class="mob-close-btn" onclick="closePanel()" title="Close">✕</button>
+    <button class="mob-close-btn" onclick="closePanel()" title="Sluiten" aria-label="Sluit paneel">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
     <div id="ip-head">
       <div id="ip-badge">–</div>
       <div id="ip-title">–</div>
-      <button id="ip-close" onclick="closePanel()">✕</button>
+      <button id="ip-close" onclick="closePanel()" title="Sluiten" aria-label="Sluit paneel">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
     </div>
     <div id="ip-body"></div>
   </div>
 </div>
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 const REFRESH = 15000;
-const TILE = "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=__CARTO_KEY__";
+const TILE_LIGHT = "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=__CARTO_KEY__";
+const TILE_DARK  = "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=__CARTO_KEY__";
 const ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
 const IH_V = 52, IH_C = 46;
-const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Rail','3':'Bus','4':'Ferry','11':'Trolleybus'};
+const ROUTE_TYPES = {'0':'Tram','1':'Metro','2':'Trein','3':'Bus','4':'Veerboot','11':'Trolleybus'};
+
+// ── Theme management (Light / Dark) ──────────────────────────────────────────
+let currentTheme = 'light';
+let mapTileLayer = null;
+
+function applyTheme(t, save = true) {
+  currentTheme = t;
+  document.documentElement.setAttribute('data-theme', t);
+  if (save) {
+    try { localStorage.setItem('geotransport-theme', t); } catch(_) {}
+  }
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    btn.setAttribute('aria-label', t === 'dark' ? 'Schakel over naar lichte modus' : 'Schakel over naar donkere modus');
+    btn.setAttribute('title', t === 'dark' ? 'Lichte modus' : 'Donkere modus');
+    const sun = btn.querySelector('.theme-icon-sun');
+    const moon = btn.querySelector('.theme-icon-moon');
+    if (sun && moon) {
+      sun.style.display = t === 'dark' ? 'block' : 'none';
+      moon.style.display = t === 'dark' ? 'none' : 'block';
+    }
+  }
+  const url = t === 'dark' ? TILE_DARK : TILE_LIGHT;
+  if (mapTileLayer) {
+    mapTileLayer.setUrl(url);
+  } else if (map) {
+    mapTileLayer = L.tileLayer(url, { attribution: ATTR, subdomains: "abcd", maxZoom: 19 }).addTo(map);
+  }
+  if (allStopsLayer) allStopsLayer._draw();
+  if (arrowLayer) arrowLayer._draw();
+}
+
+function toggleTheme() {
+  applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+}
 
 // ── User geolocation ──────────────────────────────────────────────────────────
 let _userMarker = null, _userCircle = null;
@@ -313,10 +1707,11 @@ const _locBtn = () => document.getElementById('locate-btn');
 
 function _updateUserMarker(lat, lng, accuracy) {
   if (_userCircle) _userCircle.remove();
+  const themeCol = currentTheme === 'dark' ? '#34D399' : '#0D5C3A';
   if (accuracy > 0 && accuracy < 50000) {
     _userCircle = L.circle([lat, lng], {
-      radius: accuracy, color: '#00d4ff', fillColor: '#00d4ff',
-      fillOpacity: 0.06, weight: 1, dashArray: '4 4', interactive: false,
+      radius: accuracy, color: themeCol, fillColor: themeCol,
+      fillOpacity: 0.08, weight: 1.5, dashArray: '4 4', interactive: false,
     }).addTo(map);
     _userCircle.bringToBack();
   }
@@ -324,7 +1719,7 @@ function _updateUserMarker(lat, lng, accuracy) {
   const icon = L.divIcon({
     className: '',
     html: '<div class="user-loc-wrap"><div class="user-loc-ring"></div><div class="user-loc-dot"></div></div>',
-    iconSize: [20, 20], iconAnchor: [10, 10],
+    iconSize: [22, 22], iconAnchor: [11, 11],
   });
   _userMarker = L.marker([lat, lng], { icon, interactive: false, zIndexOffset: 800 }).addTo(map);
   const btn = _locBtn();
@@ -346,8 +1741,8 @@ function _onGeoError(err) {
   const btn = _locBtn();
   if (btn) btn.classList.remove('locating', 'located');
   if (_geoExplicit) {
-    const msg = err.code === 1 ? 'Location permission denied'
-              : err.code === 2 ? 'Position unavailable' : 'Location request timed out';
+    const msg = err.code === 1 ? 'Locatietoegang geweigerd'
+              : err.code === 2 ? 'Positie niet beschikbaar' : 'Locatieverzoek verlopen';
     toast('⚠ ' + msg, true);
   }
   _geoExplicit = false;
@@ -363,7 +1758,7 @@ function initGeolocation() {
 }
 
 function goToMyLocation() {
-  if (!navigator.geolocation) { toast('⚠ Geolocation not supported by your browser', true); return; }
+  if (!navigator.geolocation) { toast('⚠ Geolocation wordt niet ondersteund door uw browser', true); return; }
   const btn = _locBtn();
   if (btn) { btn.classList.add('locating'); btn.classList.remove('located'); }
   _geoExplicit = true;
@@ -404,9 +1799,8 @@ async function loadStatic() {
 }
 
 async function loadStops() {
-  if (STOPS !== null) return;   // already loaded (even if empty)
+  if (STOPS !== null) return;
   if (STOPS_tried) {
-    // A load is in flight or failed; wait briefly for any in-flight fetch to settle
     await new Promise(r => setTimeout(r, 30));
     return;
   }
@@ -492,7 +1886,8 @@ async function showShape(shapeId, lineCode, fitBounds = false) {
   if (!pts?.length) return;
   const valid = pts.filter(p => p[0] != null && p[1] != null && !isNaN(p[0]) && !isNaN(p[1]));
   if (!valid.length) return;
-  shapePolyline = L.polyline(valid, { color: '#00d4ff', weight: 3, opacity: 0.55, interactive: false }).addTo(map);
+  const shapeCol = currentTheme === 'dark' ? '#34D399' : '#0D5C3A';
+  shapePolyline = L.polyline(valid, { color: shapeCol, weight: 3.5, opacity: 0.65, interactive: false }).addTo(map);
   shapePolyline.bringToBack();
   if (fitBounds) map.fitBounds(shapePolyline.getBounds(), { padding: [40, 40], maxZoom: 14, animate: true });
 }
@@ -509,17 +1904,18 @@ function lineTypeLabel(tripId) { return ROUTE_TYPES[lineType(tripId)] || 'Bus'; 
 function lineColor(tripId)     { const c = getLine(tripId)?.color; return c ? '#'+c : null; }
 function lineTextColor(tripId) { const c = getLine(tripId)?.textColor; return c ? '#'+c : '#ffffff'; }
 
-const PAL = ["#00d4ff","#ff6b35","#a8ff3e","#ff3b88","#ffcc00","#c77dff","#06ffa5","#ff9f43","#48dbfb","#ff6b6b"];
+/* Non-yellow accessible palette for routes */
+const PAL = ["#0D5C3A","#1D4ED8","#B45309","#9333EA","#0F766E","#C2410C","#4338CA","#BE185D","#0369A1","#15803D"];
 function palCol(k) { let h=0; for (let i=0;i<k.length;i++) h=(h*31+k.charCodeAt(i))&0xffffffff; return PAL[Math.abs(h)%PAL.length]; }
 function markerCol(tripId) { return lineColor(tripId) || palCol(tripId); }
 
 function fmtD(s) {
-  if (s==null||s===0) return {text:'On time',cls:'green'};
+  if (s==null||s===0) return {text:'Op tijd',cls:'green'};
   const sg=s>0?'+':'−', a=Math.abs(Math.round(s));
   const text = a<60?`${sg}${a}s`:`${sg}${Math.floor(a/60)}m ${a%60}s`;
   return {text, cls: s>=60?'danger':s<-30?'green':'di'};
 }
-function fmtB(d) { if (d==null) return '–'; return ["N","NE","E","SE","S","SW","W","NW"][Math.round(d/45)%8]+` ${Math.round(d)}°`; }
+function fmtB(d) { if (d==null) return '–'; return ["N","NO","O","ZO","Z","ZW","W","NW"][Math.round(d/45)%8]+` ${Math.round(d)}°`; }
 function fmtMins(m) { if (m==null) return ''; const h=Math.floor(m/60)%24,mn=m%60; return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`; }
 
 // ── Filter stop IDs ───────────────────────────────────────────────────────────
@@ -541,15 +1937,6 @@ function getFilterStopIds() {
 }
 
 // ── Doorkomsten (live departure board) ────────────────────────────────────────
-
-/**
- * Fetch live departures from the worker's /api/kern/halte-rt proxy.
- * Returns an array of doorkomsten, or [] on any error.
- * The worker edge-caches per stop at 20 s so hammering on every 15 s cycle is fine.
- *
- * @param {string} stopId
- * @returns {Promise<Array>}
- */
 async function fetchStopDoorkomsten(stopId) {
   try {
     const r = await fetch(`/api/kern/halte-rt?id=${encodeURIComponent(stopId)}`, { cache: 'no-store' });
@@ -557,14 +1944,12 @@ async function fetchStopDoorkomsten(stopId) {
       let body = '';
       try { body = await r.text(); } catch(_) {}
       console.error(`[GT] /api/kern/halte-rt HTTP ${r.status} for stop ${stopId}:`, body);
-      // Surface the error string so buildDoorkomstenHtml can display it
-      return { _error: `API ${r.status}: ${body.slice(0, 120) || '(empty)'}` };
+      return { _error: `API ${r.status}: ${body.slice(0, 120) || '(leeg)'}` };
     }
     const data = await r.json();
-    console.log(`[GT] doorkomsten stop ${stopId}:`, data);
     if (!Array.isArray(data.doorkomsten)) {
-      console.error('[GT] unexpected doorkomsten shape — top-level keys:', Object.keys(data));
-      return { _error: `Unexpected response shape. Keys: ${Object.keys(data).join(', ')}` };
+      console.error('[GT] unexpected doorkomsten shape:', Object.keys(data));
+      return { _error: `Onverwacht formaat: ${Object.keys(data).join(', ')}` };
     }
     return data.doorkomsten;
   } catch(e) {
@@ -573,11 +1958,6 @@ async function fetchStopDoorkomsten(stopId) {
   }
 }
 
-/**
- * Parse hour/minute from a De Lijn local-time ISO string (no timezone suffix).
- * e.g. "2026-05-17T14:35:00" → { h:14, m:35, total:875 }
- * Using direct string extraction avoids JS Date() locale assumptions.
- */
 function parseHM(str) {
   if (!str) return null;
   const match = str.match(/T(\d{2}):(\d{2})/);
@@ -591,22 +1971,15 @@ function fmtHM(t) {
   return `${String(t.h).padStart(2,'0')}:${String(t.m).padStart(2,'0')}`;
 }
 
-/**
- * Build the HTML for the departure board section of the stop popup.
- *
- * @param {Array|undefined} doorkomsten  undefined = still loading, [] = empty, [...] = rows
- * @returns {string}
- */
 function buildDoorkomstenHtml(doorkomsten) {
   if (doorkomsten === undefined) {
-    return '<div class="sp-none">Loading departures…</div>';
+    return '<div class="sp-none">Vertrektijden laden…</div>';
   }
-  // Error object returned by fetchStopDoorkomsten on non-ok / unexpected response
   if (doorkomsten && typeof doorkomsten === 'object' && !Array.isArray(doorkomsten) && doorkomsten._error) {
     return `<div class="sp-none" style="color:var(--danger)">${doorkomsten._error}</div>`;
   }
   if (!Array.isArray(doorkomsten) || !doorkomsten.length) {
-    return '<div class="sp-none">No upcoming departures</div>';
+    return '<div class="sp-none">Geen geplande vertrekken gevonden</div>';
   }
 
   const nowH   = new Date().getHours();
@@ -619,13 +1992,11 @@ function buildDoorkomstenHtml(doorkomsten) {
 
     const sched = parseHM(d.scheduled);
     const rt    = parseHM(d.realtime);
-    // Treat as delayed/early only when both times exist and differ
     const hasRealtime = rt && sched && rt.total !== sched.total;
     const isDelayed   = hasRealtime && rt.total > sched.total;
     const isEarly     = hasRealtime && rt.total < sched.total;
 
-    // Line colour — look up by public line number in SL.lines
-    let color = '#6b8899', textC = '#c8dae8';
+    let color = '#0D5C3A', textC = '#ffffff';
     if (SL?.lines) {
       const entry = Object.entries(SL.lines).find(([, l]) => l.name === String(d.lijnnummer));
       if (entry) {
@@ -635,24 +2006,21 @@ function buildDoorkomstenHtml(doorkomsten) {
       }
     }
 
-    // ETA relative to now, using realtime if available, else scheduled
     const etaTime = (rt || sched);
     let etaMins = etaTime ? etaTime.total - nowMins : null;
-    // Handle midnight wrap (e.g. time is 00:05, now is 23:55 → 10 min not -1430)
     if (etaMins !== null && etaMins < -60) etaMins += 1440;
 
     let etaHtml;
     if (isCanceled) {
-      etaHtml = '<span class="dk-canceled-badge">CANCELED</span>';
+      etaHtml = '<span class="dk-canceled-badge">AFGESCHAFT</span>';
     } else if (etaMins === null) {
       etaHtml = '';
     } else if (etaMins <= 0) {
-      etaHtml = '<span class="dk-eta now">Now</span>';
+      etaHtml = '<span class="dk-eta now">Nu</span>';
     } else {
-      etaHtml = `<span class="dk-eta soon">${etaMins}m</span>`;
+      etaHtml = `<span class="dk-eta soon">${etaMins} min</span>`;
     }
 
-    // Scheduled / realtime time display
     let timesHtml = '';
     if (sched) {
       const schedStr = fmtHM(sched);
@@ -666,23 +2034,18 @@ function buildDoorkomstenHtml(doorkomsten) {
       }
     }
 
-    // Via string
-    const viasHtml = d.vias?.length
-      ? ` <span class="vias">via ${d.vias.join(', ')}</span>`
-      : '';
-
-    // Track chip — present only when vrtnum matches a live vehicle in vData
+    const viasHtml = d.vias?.length ? ` <span class="vias">via ${d.vias.join(', ')}</span>` : '';
     const vrtStr = d.vrtnum !== null && d.vrtnum !== undefined ? String(d.vrtnum) : null;
     const trackable = vrtStr && vData[vrtStr] && !isCanceled;
     const trackHtml = trackable
-      ? `<span class="dk-track" onclick="selectApproachingVehicle('${vrtStr}')" title="Track vehicle ${vrtStr}">⬡ Track</span>`
+      ? `<span class="dk-track" onclick="selectApproachingVehicle('${vrtStr}')" title="Volg voertuig ${vrtStr}">Volg</span>`
       : '';
 
     const rowClass = `dk-row${isCanceled ? ' canceled' : ''}`;
     const rowClick = trackable ? `onclick="selectApproachingVehicle('${vrtStr}')" style="cursor:pointer"` : '';
 
     return `<div class="${rowClass}" ${rowClick}>
-      <span class="dk-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${d.lijnnummer || '?'}</span>
+      <span class="dk-badge" style="background:${color};color:${textC}">${d.lijnnummer || '?'}</span>
       <span class="dk-dest">→ ${d.bestemming || '–'}${viasHtml}</span>
       <span class="dk-right">
         ${etaHtml}
@@ -692,9 +2055,8 @@ function buildDoorkomstenHtml(doorkomsten) {
   }).join('');
 }
 
-// ── Map ───────────────────────────────────────────────────────────────────────
-const map = L.map("map", {center:[51.0,4.3],zoom:9,preferCanvas:true});
-L.tileLayer(TILE,{attribution:ATTR,subdomains:"abcd",maxZoom:19}).addTo(map);
+// ── Map initialization ────────────────────────────────────────────────────────
+const map = L.map("map", { center: [51.0, 4.3], zoom: 9, preferCanvas: true, zoomControl: true });
 
 // ── All-stops canvas layer ────────────────────────────────────────────────────
 const AllStopsLayer = L.Layer.extend({
@@ -722,7 +2084,8 @@ const AllStopsLayer = L.Layer.extend({
     ctx.clearRect(0,0,this._canvas.width,this._canvas.height);
     if (!STOPS||m.getZoom()<14) return;
     const b=m.getBounds(), sw=b.getSouth(),ne=b.getNorth(),ww=b.getWest(),ew=b.getEast();
-    const z=m.getZoom(), r=z>=16?4:z>=15?3:2.5, rId=this._routeStopIds;
+    const z=m.getZoom(), r=z>=16?4.5:z>=15?3.5:2.5, rId=this._routeStopIds;
+    const isDark = currentTheme === 'dark';
     const normalPts=[], dimPts=[], activePts=[];
     for (const [sid,s] of Object.entries(STOPS)) {
       const la=s.a, lo=s.o;
@@ -734,22 +2097,29 @@ const AllStopsLayer = L.Layer.extend({
     }
     if (dimPts.length) {
       ctx.beginPath(); for (const p of dimPts) { ctx.moveTo(p.x+r,p.y); ctx.arc(p.x,p.y,r,0,Math.PI*2); }
-      ctx.fillStyle='rgba(200,218,232,0.08)'; ctx.fill();
+      ctx.fillStyle = isDark ? 'rgba(148,163,184,0.15)' : 'rgba(104,116,131,0.18)';
+      ctx.fill();
     }
     if (normalPts.length) {
       ctx.beginPath(); for (const p of normalPts) { ctx.moveTo(p.x+r,p.y); ctx.arc(p.x,p.y,r,0,Math.PI*2); }
-      ctx.fillStyle='rgba(200,218,232,0.42)'; ctx.strokeStyle='rgba(0,0,0,0.32)'; ctx.lineWidth=0.8; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = isDark ? 'rgba(241,245,249,0.75)' : 'rgba(51,51,50,0.65)';
+      ctx.strokeStyle = isDark ? 'rgba(15,23,42,0.8)' : 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 1;
+      ctx.fill(); ctx.stroke();
     }
     if (activePts.length) {
-      const ra=r+3;
+      const ra=r+3.5;
       ctx.beginPath(); for (const p of activePts) { ctx.moveTo(p.x+ra,p.y); ctx.arc(p.x,p.y,ra,0,Math.PI*2); }
-      ctx.fillStyle='#00d4ff'; ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = isDark ? '#34D399' : '#0D5C3A';
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2.5;
+      ctx.fill(); ctx.stroke();
     }
   },
   getStopAt(containerPoint) {
     if (!STOPS||!this._map||this._map.getZoom()<14) return null;
     const b=this._map.getBounds(), sw=b.getSouth(),ne=b.getNorth(),ww=b.getWest(),ew=b.getEast();
-    let best=null, bestD=12;
+    let best=null, bestD=14;
     for (const [sid,s] of Object.entries(STOPS)) {
       if (s.a<sw||s.a>ne||s.o<ww||s.o>ew) continue;
       const pt=this._map.latLngToContainerPoint([s.a,s.o]);
@@ -790,14 +2160,34 @@ const ArrowLayer = L.Layer.extend({
       const pt=m.latLngToContainerPoint([v.lat,v.lng]);
       const x=pt.x, y=pt.y, color=v.c;
       const isActive=v.vehicleId===activeId, isDimmed=activeFilter&&!activeFilter.matchIds.has(v.vehicleId);
-      ctx.save(); ctx.translate(x,y); ctx.globalAlpha=isDimmed?0.15:1;
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.globalAlpha = isDimmed ? 0.15 : 1;
+      if (isActive) {
+        ctx.beginPath();
+        ctx.arc(0, 0, 11, 0, Math.PI * 2);
+        ctx.fillStyle = currentTheme === 'dark' ? 'rgba(52, 211, 153, 0.3)' : 'rgba(13, 92, 58, 0.25)';
+        ctx.fill();
+      }
       if (v.bearing!=null) {
         ctx.rotate((v.bearing*Math.PI)/180);
-        ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(5,5); ctx.lineTo(0,2); ctx.lineTo(-5,5); ctx.closePath();
-        ctx.fillStyle=color; ctx.strokeStyle=isActive?'#ffffff':'rgba(0,0,0,0.45)'; ctx.lineWidth=isActive?1.5:1; ctx.fill(); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0,-9);
+        ctx.lineTo(6,6);
+        ctx.lineTo(0,2.5);
+        ctx.lineTo(-6,6);
+        ctx.closePath();
+        ctx.fillStyle=color;
+        ctx.strokeStyle=isActive ? '#FFFFFF' : 'rgba(0,0,0,0.5)';
+        ctx.lineWidth=isActive ? 2 : 1;
+        ctx.fill(); ctx.stroke();
       } else {
-        ctx.beginPath(); ctx.arc(0,0,isActive?7:5,0,Math.PI*2);
-        ctx.fillStyle=color; ctx.strokeStyle=isActive?'#ffffff':'rgba(0,0,0,0.45)'; ctx.lineWidth=isActive?1.5:1; ctx.fill(); ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0,0,isActive?7:5.5,0,Math.PI*2);
+        ctx.fillStyle=color;
+        ctx.strokeStyle=isActive ? '#FFFFFF' : 'rgba(0,0,0,0.5)';
+        ctx.lineWidth=isActive ? 2 : 1;
+        ctx.fill(); ctx.stroke();
       }
       ctx.restore();
     }
@@ -805,7 +2195,7 @@ const ArrowLayer = L.Layer.extend({
   getVehicleAt(containerPoint) {
     for (const v of this._vehicles) {
       const pt=this._map.latLngToContainerPoint([v.lat,v.lng]);
-      if (Math.hypot(containerPoint.x-pt.x,containerPoint.y-pt.y)<10) return v.vehicleId;
+      if (Math.hypot(containerPoint.x-pt.x,containerPoint.y-pt.y)<12) return v.vehicleId;
     }
     return null;
   },
@@ -825,12 +2215,13 @@ const StopLayer = L.Layer.extend({
     if (!this._map) return;
     this._markers.forEach(m=>m.remove()); this._markers=[];
     if (!this._routeStops.length) return;
+    const isDark = currentTheme === 'dark';
     const styles = {
-      start:    {color:'#a8ff3e',fill:'#a8ff3e',r:7, weight:2,opacity:1  },
-      passed:   {color:'#3a5060',fill:'#1e2d3d',r:4, weight:1,opacity:0.5},
-      current:  {color:'#00d4ff',fill:'#00d4ff',r:9, weight:3,opacity:1  },
-      upcoming: {color:'#c8dae8',fill:'#141b23',r:5, weight:2,opacity:0.9},
-      terminal: {color:'#ff6b35',fill:'#ff6b35',r:7, weight:2,opacity:1  },
+      start:    {color: isDark ? '#10B981' : '#009E47', fill: isDark ? '#10B981' : '#009E47', r:7, weight:2, opacity:1  },
+      passed:   {color: isDark ? '#475569' : '#8695A8', fill: isDark ? '#1E293B' : '#CFD5DD', r:4, weight:1, opacity:0.6},
+      current:  {color: isDark ? '#34D399' : '#0D5C3A', fill: isDark ? '#34D399' : '#0D5C3A', r:9, weight:3, opacity:1  },
+      upcoming: {color: isDark ? '#94A3B8' : '#687483', fill: isDark ? '#1E293B' : '#FFFFFF', r:5, weight:2, opacity:0.95},
+      terminal: {color: isDark ? '#F87171' : '#D2373C', fill: isDark ? '#F87171' : '#D2373C', r:7, weight:2, opacity:1  },
     };
     for (const stop of this._routeStops) {
       const s=styles[stop.status]||styles.upcoming;
@@ -848,8 +2239,18 @@ let shapePolyline = null;
 function clearShape() { if (shapePolyline) { shapePolyline.remove(); shapePolyline=null; } }
 
 // ── Mobile sidebar ────────────────────────────────────────────────────────────
-function toggleSidebar() { const sb=G("sidebar"), open=sb.classList.toggle("mob-open"); G("mob-fab").textContent=open?"✕ Close":"☰ Vehicles"; }
-function closeSidebarMobile() { G("sidebar").classList.remove("mob-open"); G("mob-fab").textContent="☰ Vehicles"; }
+function toggleSidebar() {
+  const sb = G("sidebar"), open = sb.classList.toggle("mob-open");
+  const fab = G("mob-fab");
+  fab.innerHTML = open
+    ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg><span>Sluiten</span>`
+    : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg><span>Voertuigen</span>`;
+}
+function closeSidebarMobile() {
+  G("sidebar").classList.remove("mob-open");
+  const fab = G("mob-fab");
+  fab.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg><span>Voertuigen</span>`;
+}
 
 // ── Zoom hint ─────────────────────────────────────────────────────────────────
 let _hintTimer=null;
@@ -912,15 +2313,15 @@ async function restoreFromUrl() {
     const matchIds=new Set(Object.values(vData).filter(v=>v.tripId?.split('_')[0]===pLine).map(v=>v.vehicleId));
     const shapeIds=new Set(Object.values(vData).filter(v=>v.tripId?.split('_')[0]===pLine).map(v=>getTrip(v.tripId)?.shapeId).filter(Boolean));
     const shapeId=shapeIds.size===1?[...shapeIds][0]:null;
-    const dirs=[l.dir0,l.dir1].filter(Boolean);
-    applyFilter({matchIds,label:l.name+(dirs.length?' · '+dirs.join(' ↔ '):''),shapeId,urlKey:'line',urlVal:pLine},true);
+    const dirs=[l.dir0,l.dir1].filter(Boolean), label=`${l.name}${dirs.length?' · '+dirs.join(' ↔ '):''}`;
+    applyFilter({matchIds,label,shapeId,urlKey:'line',urlVal:pLine},true);
   } else if (pRoute) {
     const matchIds=new Set(); let shapeId=null,lName='',hs='';
     for (const v of Object.values(vData)) { const ti=getTrip(v.tripId); if (ti?.routeId!==pRoute) continue; matchIds.add(v.vehicleId); if (!shapeId&&ti.shapeId) shapeId=ti.shapeId; if (!lName) lName=getLine(v.tripId)?.name||''; if (!hs) hs=ti.headsign||''; }
     if (matchIds.size) applyFilter({matchIds,label:`${lName} → ${hs}`,shapeId,urlKey:'route',urlVal:pRoute},true);
   } else if (pTrip) {
     const v=Object.values(vData).find(v=>v.tripId?.split('_').slice(0,3).join('_')===pTrip||v.tripId===pTrip);
-    if (v) applyFilter({matchIds:new Set([v.vehicleId]),label:`Trip ${pTrip}`,shapeId:getTrip(v.tripId)?.shapeId||null,urlKey:'trip',urlVal:pTrip},true);
+    if (v) applyFilter({matchIds:new Set([v.vehicleId]),label:`Rit ${pTrip}`,shapeId:getTrip(v.tripId)?.shapeId||null,urlKey:'trip',urlVal:pTrip},true);
   }
   if (pVehicle) { const v=Object.values(vData).find(v=>v.vehicleId===pVehicle); if (v) { select(v.vehicleId); openPanel(v.vehicleId); } }
 }
@@ -955,20 +2356,21 @@ function moveDrop(dir){
 
 function buildDrop(){
   const q=sinput.value.trim().toLowerCase();
-  sclear.style.display=q?"block":"none";
+  sclear.style.display=q?"flex":"none";
   if (!q){closeDrop();return;}
-  const groups=[], agencyName=SL?.agency?.['delijn']?.name||'De Lijn';
+  const groups=[];
+  const agencyName=SL?.agency?.['delijn']?.name||'De Lijn';
 
   if (agencyName.toLowerCase().includes(q)) {
-    groups.push({label:'Agency',items:[{badge:'ALL',color:'#1e2d3d',textC:'#c8dae8',main:agencyName,sub:`${Object.keys(vData).length} vehicles`,apply(){applyFilter(null);}}]});
+    groups.push({label:'Vervoermaatschappij',items:[{badge:'ALL',color:'#0D5C3A',textC:'#ffffff',main:agencyName,sub:`${Object.keys(vData).length} voertuigen`,apply(){applyFilter(null);}}]});
   }
   const typeMatches=[];
   for (const [code,label] of Object.entries(ROUTE_TYPES)) {
     if (!label.toLowerCase().includes(q)) continue;
     const matchIds=new Set(Object.values(vData).filter(v=>(getLine(v.tripId)?.type||'3')===code).map(v=>v.vehicleId));
-    if (matchIds.size>0) typeMatches.push({badge:label[0],color:'#1e2d3d',textC:'#c8dae8',main:label,sub:`${matchIds.size} vehicles`,apply(){applyFilter({matchIds,label,urlKey:'type',urlVal:code});}});
+    if (matchIds.size>0) typeMatches.push({badge:label[0],color:'#0D5C3A',textC:'#ffffff',main:label,sub:`${matchIds.size} voertuigen`,apply(){applyFilter({matchIds,label,urlKey:'type',urlVal:code});}});
   }
-  if (typeMatches.length) groups.push({label:'Type',items:typeMatches});
+  if (typeMatches.length) groups.push({label:'Vervoerstype',items:typeMatches});
 
   if (SL?.lines) {
     const lineItems=[];
@@ -977,12 +2379,12 @@ function buildDrop(){
       const matchIds=new Set(), shapeIds=new Set();
       for (const v of Object.values(vData)) { if (v.tripId?.split('_')[0]!==code) continue; matchIds.add(v.vehicleId); const sid=getTrip(v.tripId)?.shapeId; if (sid) shapeIds.add(sid); }
       if (!matchIds.size) continue;
-      const color=l.color?'#'+l.color:'#444', textC=l.textColor?'#'+l.textColor:'#fff';
+      const color=l.color?'#'+l.color:'#0D5C3A', textC=l.textColor?'#'+l.textColor:'#ffffff';
       const snap=new Set(matchIds), shapeId=shapeIds.size===1?[...shapeIds][0]:null;
       const dirs=[l.dir0,l.dir1].filter(Boolean), label=`${l.name}${dirs.length?' · '+dirs.join(' ↔ '):''}`;
-      lineItems.push({badge:l.name,color,textC,main:label,sub:`${snap.size} vehicle${snap.size!==1?'s':''}`,apply(){applyFilter({matchIds:snap,label,shapeId,urlKey:'line',urlVal:code});}});
+      lineItems.push({badge:l.name,color,textC,main:label,sub:`${snap.size} voertuig${snap.size!==1?'en':''}`,apply(){applyFilter({matchIds:snap,label,shapeId,urlKey:'line',urlVal:code});}});
     }
-    if (lineItems.length) groups.push({label:'Line',items:lineItems.slice(0,8)});
+    if (lineItems.length) groups.push({label:'Lijn',items:lineItems.slice(0,8)});
   }
 
   if (SL?.trips) {
@@ -996,8 +2398,8 @@ function buildDrop(){
     }
     const routeItems=[];
     for (const [rid,entry] of routeHits) {
-      const color=entry.color?'#'+entry.color:'#444', textC=entry.textColor?'#'+entry.textColor:'#fff', snap=new Set(entry.matchIds);
-      routeItems.push({badge:entry.lineName,color,textC,main:`${entry.lineName} → ${entry.headsign}`,sub:`${snap.size} vehicles`,apply(){applyFilter({matchIds:snap,label:`${entry.lineName} → ${entry.headsign}`,shapeId:entry.shapeId,urlKey:'route',urlVal:rid});}});
+      const color=entry.color?'#'+entry.color:'#0D5C3A', textC=entry.textColor?'#'+entry.textColor:'#ffffff', snap=new Set(entry.matchIds);
+      routeItems.push({badge:entry.lineName,color,textC,main:`${entry.lineName} → ${entry.headsign}`,sub:`${snap.size} voertuigen`,apply(){applyFilter({matchIds:snap,label:`${entry.lineName} → ${entry.headsign}`,shapeId:entry.shapeId,urlKey:'route',urlVal:rid});}});
     }
     if (routeItems.length) groups.push({label:'Route',items:routeItems.slice(0,6)});
   }
@@ -1006,32 +2408,32 @@ function buildDrop(){
   for (const v of Object.values(vData)) {
     if (!v.tripId?.toLowerCase().includes(q)) continue;
     const name=lineName(v.tripId),dest=lineDest(v.tripId),c=markerCol(v.tripId),tc=lineTextColor(v.tripId),d=fmtD(v.delay),snap=new Set([v.vehicleId]),tripShapeId=getTrip(v.tripId)?.shapeId||null;
-    tripItems.push({badge:name,color:c,textC:tc,main:dest?`${name} → ${dest}`:v.tripId.slice(0,30),sub:v.vehicleId,delayText:d.text,delayCls:d.cls,apply(){const tripKey=v.tripId.split('_').slice(0,3).join('_');applyFilter({matchIds:snap,label:`Trip ${tripKey}`,shapeId:tripShapeId,urlKey:'trip',urlVal:tripKey});select(v.vehicleId);openPanel(v.vehicleId);}});
+    tripItems.push({badge:name,color:c,textC:tc,main:dest?`${name} → ${dest}`:v.tripId.slice(0,30),sub:v.vehicleId,delayText:d.text,delayCls:d.cls,apply(){const tripKey=v.tripId.split('_').slice(0,3).join('_');applyFilter({matchIds:snap,label:`Rit ${tripKey}`,shapeId:tripShapeId,urlKey:'trip',urlVal:tripKey});select(v.vehicleId);openPanel(v.vehicleId);}});
   }
-  if (tripItems.length) groups.push({label:'Trip',items:tripItems.slice(0,4)});
+  if (tripItems.length) groups.push({label:'Rit',items:tripItems.slice(0,4)});
 
   const vehItems=[];
   for (const v of Object.values(vData)) {
     if (!v.vehicleId?.toLowerCase().includes(q)) continue;
     const name=lineName(v.tripId),dest=lineDest(v.tripId),c=markerCol(v.tripId),tc=lineTextColor(v.tripId),d=fmtD(v.delay),snap=new Set([v.vehicleId]);
-    vehItems.push({badge:name,color:c,textC:tc,main:dest?`${name} → ${dest}`:name,sub:v.vehicleId,delayText:d.text,delayCls:d.cls,apply(){applyFilter({matchIds:snap,label:`Vehicle ${v.vehicleId}`});select(v.vehicleId);openPanel(v.vehicleId);}});
+    vehItems.push({badge:name,color:c,textC:tc,main:dest?`${name} → ${dest}`:name,sub:v.vehicleId,delayText:d.text,delayCls:d.cls,apply(){applyFilter({matchIds:snap,label:`Voertuig ${v.vehicleId}`});select(v.vehicleId);openPanel(v.vehicleId);}});
   }
-  if (vehItems.length) groups.push({label:'Vehicle',items:vehItems.slice(0,4)});
+  if (vehItems.length) groups.push({label:'Voertuig',items:vehItems.slice(0,4)});
 
   if (STOPS) {
     const stopItems=[];
     for (const [sid,s] of Object.entries(STOPS)) {
       if (!s.n?.toLowerCase().includes(q)&&!sid.includes(q)) continue;
       const snapSid=sid, snapS=s;
-      stopItems.push({badge:'⬡',color:'#6b8899',textC:'#c8dae8',main:s.n,sub:`Stop ${sid}`,
+      stopItems.push({badge:'H',color:'#0D5C3A',textC:'#ffffff',main:s.n,sub:`Halte ${sid}`,
         apply(){closeDrop();sinput.value='';sclear.style.display='none';map.flyTo([snapS.a,snapS.o],Math.max(map.getZoom(),17),{animate:true,duration:0.8});setTimeout(()=>selectStop(snapSid),850);}});
       if (stopItems.length>=6) break;
     }
-    if (stopItems.length) groups.push({label:'Stop',items:stopItems});
+    if (stopItems.length) groups.push({label:'Halte',items:stopItems});
   }
 
   dropItems=[];
-  if (!groups.length) { sdrop.innerHTML=`<div style="padding:12px 14px;font-size:11px;color:var(--text-dim);font-family:var(--font-mono)">No results</div>`; sdrop.classList.add("on"); return; }
+  if (!groups.length) { sdrop.innerHTML=`<div style="padding:12px 14px;font-size:12px;color:var(--text-dim)">Geen resultaten</div>`; sdrop.classList.add("on"); return; }
 
   let html='';
   for (const g of groups) {
@@ -1039,7 +2441,7 @@ function buildDrop(){
     for (const it of g.items) {
       const idx=dropItems.length; dropItems.push(it);
       const delaySpan=it.delayText?`<span class="sd-delay" style="color:var(--${it.delayCls})">${it.delayText}</span>`:(it.sub?`<span class="sd-sub">${it.sub}</span>`:'');
-      html+=`<div class="sd-item" data-i="${idx}"><span class="sd-badge" style="background:${it.color}22;color:${it.color};border:1px solid ${it.color}44">${it.badge}</span><span class="sd-main">${it.main}</span>${delaySpan}</div>`;
+      html+=`<div class="sd-item" data-i="${idx}"><span class="sd-badge" style="background:${it.color};color:${it.textC}">${it.badge}</span><span class="sd-main">${it.main}</span>${delaySpan}</div>`;
     }
   }
   sdrop.innerHTML=html;
@@ -1060,7 +2462,7 @@ function applyFilter(filter, skipPush=false) {
   const win=G("wv"); [...win.children].forEach(ch=>{win.removeChild(ch);freeRow(ch);}); G("pv").scrollTop=0;
   allStopsLayer.setRouteFilter(filter?getFilterStopIds():null);
   arrowLayer._draw(); redraw();
-  if (filter) { sinput.value=filter.label; sclear.style.display="block"; }
+  if (filter) { sinput.value=filter.label; sclear.style.display="flex"; }
 }
 
 function clearSearch() { sinput.value=""; sclear.style.display="none"; closeDrop(); clearShape(); stopLayer.clearRouteStops(); applyFilter(null); }
@@ -1081,19 +2483,12 @@ function filterByLine(lineCode) {
   applyFilter({matchIds,label,shapeId,urlKey:'line',urlVal:lineCode});
 }
 
-// Called from doorkomsten "Track" chips — navigates to the vehicle
 function selectApproachingVehicle(vehicleId) {
   closeStopPopup();
   const v=vData[vehicleId]; if (!v) return;
   select(vehicleId); openPanel(vehicleId);
 }
 
-/**
- * Render the stop popup with optional live departure data.
- *
- * @param {string}          stopId
- * @param {Array|undefined} doorkomsten  undefined = loading, [] = empty, [...] = rows
- */
 function showStopPopup(stopId, doorkomsten) {
   const s=STOPS?.[stopId]; if (!s) return;
   if (activeStopPopup) { activeStopPopup.remove(); activeStopPopup=null; }
@@ -1102,47 +2497,38 @@ function showStopPopup(stopId, doorkomsten) {
   const linesHtml = lineCodes.length
     ? lineCodes.slice(0,20).map(lc => {
         const l=SL?.lines?.[lc]; if (!l) return '';
-        const c=l.color?'#'+l.color:'#6b8899';
-        return `<span class="sp-approach-badge sp-line-badge" style="background:${c}22;color:${c};border:1px solid ${c}44;cursor:pointer" onclick="filterByLine('${lc}')" title="Show line ${l.name} on map">${l.name}</span>`;
+        const c=l.color?'#'+l.color:'#0D5C3A', tc=l.textColor?'#'+l.textColor:'#ffffff';
+        return `<span class="sp-approach-badge sp-line-badge" style="background:${c};color:${tc};" onclick="filterByLine('${lc}')" title="Toon lijn ${l.name} op kaart">${l.name}</span>`;
       }).filter(Boolean).join('')
     : '<span class="sp-none">–</span>';
 
   const departuresHtml = buildDoorkomstenHtml(doorkomsten);
 
-  activeStopPopup = L.popup({maxWidth:320, minWidth:280, closeButton:false})
+  activeStopPopup = L.popup({maxWidth:330, minWidth:280, closeButton:false})
     .setLatLng([s.a, s.o])
     .setContent(`<div class="mp" style="max-height:420px;overflow-y:auto">
       <div class="sp-name">${s.n}</div>
-      <div class="sp-id">Stop ID: ${stopId}</div>
-      ${lineCodes.length ? `<div class="sp-section-label" style="margin-top:8px">Lines served</div><div class="sp-lines" style="margin-bottom:10px;line-height:2">${linesHtml}</div>` : ''}
-      <div class="sp-section-label">Departures</div>
+      <div class="sp-id">Halte-ID: ${stopId}</div>
+      ${lineCodes.length ? `<div class="sp-section-label" style="margin-top:10px">Bediende lijnen</div><div class="sp-lines">${linesHtml}</div>` : ''}
+      <div class="sp-section-label" style="margin-top:10px">Live Doorkomsten</div>
       <div id="dk-list-${stopId}">${departuresHtml}</div>
     </div>`)
     .openOn(map);
 }
 
-/**
- * Open a stop popup and load data progressively.
- * 1. Show immediately with "Loading departures…"
- * 2. Fetch doorkomsten from API + load stop-index in parallel
- * 3. Re-render when both complete
- */
 async function selectStop(stopId) {
   if (G('info-panel').classList.contains('open')) closePanel();
   closeStopPopup();
   activeStopId=stopId; allStopsLayer.setActiveStop(stopId);
 
-  // Always ensure stops are loaded — they may not be if zoom < 14 at page load
   await loadStops();
   if (!STOPS?.[stopId]) {
     console.warn('[GT] selectStop: stop', stopId, 'not found in stops.json');
     return;
   }
 
-  // First render — shows lines section (may be empty) + loading departures
   showStopPopup(stopId, undefined);
 
-  // Fetch API doorkomsten and static stop-index/stop-times in parallel
   const [doorkomsten] = await Promise.all([
     fetchStopDoorkomsten(stopId),
     (async () => {
@@ -1153,7 +2539,6 @@ async function selectStop(stopId) {
     })(),
   ]);
 
-  // Guard: user may have closed or clicked another stop while we were waiting
   if (activeStopId !== stopId) return;
   showStopPopup(stopId, doorkomsten);
 }
@@ -1182,15 +2567,15 @@ function drawList(paneId,spacerId,winId,items,rowH,renderFn){
 }
 
 function renderV(row,v){
-  const d=fmtD(v.delay), name=lineName(v.tripId), dest=lineDest(v.tripId)||v.vehicleId, c=markerCol(v.tripId);
+  const d=fmtD(v.delay), name=lineName(v.tripId), dest=lineDest(v.tripId)||v.vehicleId, c=markerCol(v.tripId), tc=lineTextColor(v.tripId);
   row.className="vr"+(v.vehicleId===activeId?" sel":"");
   row.onclick=()=>{select(v.vehicleId);openPanel(v.vehicleId);};
-  row.innerHTML=`<div class="badge" style="background:${c}22;color:${c};border:1px solid ${c}44">${name}</div><div class="ri"><div class="rr">${dest}</div><div class="rm">${v.vehicleId}</div></div><div class="rd" style="color:var(--${d.cls})">${d.text}</div>`;
+  row.innerHTML=`<div class="badge" style="background:${c};color:${tc}">${name}</div><div class="ri"><div class="rr">${dest}</div><div class="rm">${v.vehicleId}</div></div><div class="rd" style="color:var(--${d.cls})">${d.text}</div>`;
 }
 
 function renderC(row,c){
   row.className="vr cr";
-  row.innerHTML=`<div class="badge" style="background:rgba(255,59,92,.1);color:var(--danger);border:1px solid rgba(255,59,92,.3)">${lineName(c.tripId)}</div><div class="ri"><div class="rr" style="color:var(--text-dim);text-decoration:line-through">${lineDest(c.tripId)||c.tripId.split('_').slice(0,3).join('_')}</div><div class="rm">${c.routeId||'–'}</div></div><div class="cx">Canceled</div>`;
+  row.innerHTML=`<div class="badge" style="background:rgba(210,55,60,0.12);color:var(--danger);border:1px solid rgba(210,55,60,0.3)">${lineName(c.tripId)}</div><div class="ri"><div class="rr" style="color:var(--text-dim);text-decoration:line-through">${lineDest(c.tripId)||c.tripId.split('_').slice(0,3).join('_')}</div><div class="rm">${c.routeId||'–'}</div></div><div class="cx">Afgeschaft</div>`;
 }
 
 function redraw(){
@@ -1207,9 +2592,9 @@ function showPopup(id){
   const v=vData[id]; if(!v) return;
   const name=lineName(v.tripId), dest=lineDest(v.tripId)||'–', color=markerCol(v.tripId), textC=lineTextColor(v.tripId), url=getLine(v.tripId)?.url||'', d=fmtD(v.delay);
   if (activePopup){activePopup.remove();activePopup=null;}
-  activePopup=L.popup({maxWidth:240,minWidth:200,closeButton:false})
+  activePopup=L.popup({maxWidth:260,minWidth:220,closeButton:false})
     .setLatLng([v.lat,v.lng])
-    .setContent(`<div class="mp"><div class="mp-badge" style="background:${color};color:${textC}">${name}</div><div class="mp-dest">→ ${dest}</div><div class="mp-sub">${v.vehicleId}</div><div class="mp-delay" style="color:var(--${d.cls})">${d.text}</div>${url?`<a class="mp-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a>`:''}<button class="mp-btn" onclick="openPanel('${id}')">More Info</button></div>`)
+    .setContent(`<div class="mp"><div class="mp-badge" style="background:${color};color:${textC}">${name}</div><div class="mp-dest">→ ${dest}</div><div class="mp-sub">Voertuig: ${v.vehicleId}</div><div class="mp-delay" style="color:var(--${d.cls})">${d.text}</div>${url?`<a class="mp-link" href="${url}" target="_blank" rel="noopener">Lijninfo openen ↗</a>`:''}<button class="mp-btn" onclick="openPanel('${id}')">Meer details</button></div>`)
     .openOn(map);
 }
 
@@ -1219,7 +2604,7 @@ function openPanel(id){
   closeStopPopup(); activeId=id; ++_renderToken;
   const lineInfo=getLine(v.tripId)||{}, tripInfo=getTrip(v.tripId)||{}, routeInfo=getRoute(tripInfo.routeId||v.routeId)||{};
   const name=routeInfo.name||lineInfo.name||'–', dest=tripInfo.headsign||'–';
-  const color='#'+(routeInfo.color||lineInfo.color||'444'), textC='#'+(routeInfo.textColor||lineInfo.textColor||'fff');
+  const color='#'+(routeInfo.color||lineInfo.color||'0D5C3A'), textC='#'+(routeInfo.textColor||lineInfo.textColor||'fff');
   const routeLong=routeInfo.long||lineInfo[`dir${tripInfo.dir}`]||lineInfo.dir0||'–';
   const url=routeInfo.url||lineInfo.url||'', type=routeInfo.type||lineInfo.type||'3';
   const typeLabel=ROUTE_TYPES[type]||'Bus', routeId=tripInfo.routeId||v.routeId||'–';
@@ -1233,30 +2618,30 @@ function openPanel(id){
   G("ip-title").textContent=dest;
 
   G("ip-body").innerHTML=`
-    <div style="margin-bottom:16px"><button class="ip-share-btn" onclick="shareVehicleUrl()"><span>⬡</span> Share this vehicle</button></div>
-    <div class="ip-section"><div class="ip-section-title">Route</div><div class="ip-grid">
-      <div class="ip-field"><div class="ip-label">Line</div><div class="ip-value accent"><span class="ip-swatch" style="background:${color}"></span>${name}</div></div>
+    <div style="margin-bottom:16px"><button class="ip-share-btn" onclick="shareVehicleUrl()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg><span>Deel dit voertuig</span></button></div>
+    <div class="ip-section"><div class="ip-section-title">Route-informatie</div><div class="ip-grid">
+      <div class="ip-field"><div class="ip-label">Lijn</div><div class="ip-value accent"><span class="ip-swatch" style="background:${color}"></span>${name}</div></div>
       <div class="ip-field"><div class="ip-label">Type</div><div class="ip-value">${typeLabel}</div></div>
-      <div class="ip-field ip-full"><div class="ip-label">Direction</div><div class="ip-value">→ ${dest}</div></div>
-      <div class="ip-field ip-full"><div class="ip-label">Full Route</div><div class="ip-value" style="font-size:11px">${routeLong}</div></div>
-      <div class="ip-field ip-full"><div class="ip-label">Terminals</div><div class="ip-value" style="font-size:11px;color:var(--text-dim)">${terminals}</div></div>
-      <div class="ip-field"><div class="ip-label">Internal Line ID</div><div class="ip-value di" style="font-size:11px">${lineCode}</div></div>
-      <div class="ip-field"><div class="ip-label">Route ID</div><div class="ip-value di" style="font-size:11px">${routeId}</div></div>
-      ${url?`<div class="ip-field ip-full"><div class="ip-label">De Lijn Page</div><div class="ip-value"><a class="ip-link" href="${url}" target="_blank" rel="noopener">Open on delijn.be ↗</a></div></div>`:''}
+      <div class="ip-field ip-full"><div class="ip-label">Richting</div><div class="ip-value">→ ${dest}</div></div>
+      <div class="ip-field ip-full"><div class="ip-label">Volledig traject</div><div class="ip-value" style="font-size:12px">${routeLong}</div></div>
+      <div class="ip-field ip-full"><div class="ip-label">Eindhaltes</div><div class="ip-value" style="font-size:12px;color:var(--text-dim)">${terminals}</div></div>
+      <div class="ip-field"><div class="ip-label">Interne Lijncode</div><div class="ip-value di" style="font-size:12px">${lineCode}</div></div>
+      <div class="ip-field"><div class="ip-label">Route-ID</div><div class="ip-value di" style="font-size:12px">${routeId}</div></div>
+      ${url?`<div class="ip-field ip-full"><div class="ip-label">Dienstregeling & Info</div><div class="ip-value"><a class="ip-link" href="${url}" target="_blank" rel="noopener">Open pagina ↗</a></div></div>`:''}
     </div></div>
-    <div class="ip-section"><div class="ip-section-title">Realtime</div><div class="ip-grid">
-      <div class="ip-field"><div class="ip-label">Delay</div><div class="ip-value ${d.cls}">${d.text}</div></div>
-      <div class="ip-field"><div class="ip-label">Bearing</div><div class="ip-value">${fmtB(v.bearing)}</div></div>
-      <div class="ip-field"><div class="ip-label">Latitude</div><div class="ip-value">${v.lat.toFixed(5)}</div></div>
-      <div class="ip-field"><div class="ip-label">Longitude</div><div class="ip-value">${v.lng.toFixed(5)}</div></div>
-      <div class="ip-field ip-full"><div class="ip-label">Trip ID</div><div class="ip-value" style="font-size:10px;color:var(--text-dim)">${v.tripId||'–'}</div></div>
+    <div class="ip-section"><div class="ip-section-title">Realtime Status</div><div class="ip-grid">
+      <div class="ip-field"><div class="ip-label">Vertraging</div><div class="ip-value ${d.cls}">${d.text}</div></div>
+      <div class="ip-field"><div class="ip-label">Koers</div><div class="ip-value">${fmtB(v.bearing)}</div></div>
+      <div class="ip-field"><div class="ip-label">Breedtegraad</div><div class="ip-value">${v.lat.toFixed(5)}</div></div>
+      <div class="ip-field"><div class="ip-label">Lengtegraad</div><div class="ip-value">${v.lng.toFixed(5)}</div></div>
+      <div class="ip-field ip-full"><div class="ip-label">Ritcode (Trip ID)</div><div class="ip-value" style="font-size:11px;color:var(--text-dim)">${v.tripId||'–'}</div></div>
     </div></div>
-    <div class="ip-section"><div class="ip-section-title">Vehicle</div><div class="ip-grid">
-      <div class="ip-field"><div class="ip-label">Vehicle ID</div><div class="ip-value">${v.vehicleId}</div></div>
-      <div class="ip-field"><div class="ip-label">Agency</div><div class="ip-value">${ag.name||'De Lijn'}</div></div>
+    <div class="ip-section"><div class="ip-section-title">Voertuiggegevens</div><div class="ip-grid">
+      <div class="ip-field"><div class="ip-label">Voertuignummer</div><div class="ip-value">${v.vehicleId}</div></div>
+      <div class="ip-field"><div class="ip-label">Vervoerder</div><div class="ip-value">${ag.name||'De Lijn'}</div></div>
     </div></div>
-    <div class="ip-section" id="stops-section"><div class="ip-section-title">Stops</div><div id="stops-list" style="color:var(--text-dim);font-size:11px;font-family:var(--font-mono)">Loading…</div></div>
-    ${feed.version?`<div class="ip-section"><div class="ip-section-title">Feed</div><div class="ip-grid"><div class="ip-field"><div class="ip-label">Version</div><div class="ip-value" style="font-size:10px;color:var(--text-dim)">${feed.version}</div></div><div class="ip-field"><div class="ip-label">Valid Until</div><div class="ip-value" style="font-size:11px">${feed.endDate?feed.endDate.replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3'):'–'}</div></div></div></div>`:''}
+    <div class="ip-section" id="stops-section"><div class="ip-section-title">Haltes op dit traject</div><div id="stops-list" style="color:var(--text-dim);font-size:12px">Haltes laden…</div></div>
+    ${feed.version?`<div class="ip-section"><div class="ip-section-title">Feed Metadata</div><div class="ip-grid"><div class="ip-field"><div class="ip-label">Versie</div><div class="ip-value" style="font-size:11px;color:var(--text-dim)">${feed.version}</div></div><div class="ip-field"><div class="ip-label">Geldig tot</div><div class="ip-value" style="font-size:12px">${feed.endDate?feed.endDate.replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3'):'–'}</div></div></div></div>`:''}
   `;
 
   G("info-panel").classList.add("open"); G("ip-body").scrollTop=0;
@@ -1271,7 +2656,7 @@ function openPanel(id){
       await loadStops(); if (activeId!==_vid) return;
       await loadStopTimes(v.tripId); if (activeId!==_vid) return;
       await renderStopMarkers(v); if (activeId===_vid) await renderStopsForVehicle(v);
-    } catch(e) { console.warn('stop loading:',e.message); const el=G("stops-list"); if (el&&activeId===_vid) el.textContent='Error loading stops'; }
+    } catch(e) { console.warn('stop loading:',e.message); const el=G("stops-list"); if (el&&activeId===_vid) el.textContent='Fout bij het laden van haltes'; }
   })();
   redraw();
 }
@@ -1279,8 +2664,8 @@ function openPanel(id){
 function shareVehicleUrl() {
   const url=location.href;
   if (navigator.share) navigator.share({title:document.title,url}).catch(()=>{});
-  else if (navigator.clipboard) navigator.clipboard.writeText(url).then(()=>toast('🔗 Link copied to clipboard'));
-  else prompt('Copy this link:',url);
+  else if (navigator.clipboard) navigator.clipboard.writeText(url).then(()=>toast('Link gekopieerd naar klembord'));
+  else prompt('Kopieer deze link:',url);
 }
 
 async function renderStopsForVehicle(v) {
@@ -1289,7 +2674,7 @@ async function renderStopsForVehicle(v) {
     await Promise.all([loadStops(),loadStopTimes(v.tripId)]);
     if (activeId!==v.vehicleId) return;
     const stops=getTripStops(v.tripId);
-    if (!stops?.length){el.textContent='No stop data available';return;}
+    if (!stops?.length){el.textContent='Geen haltegegevens beschikbaar';return;}
     const nowMins=new Date().getHours()*60+new Date().getMinutes(), delayMins=Math.round((v.delay||0)/60);
     let nextIdx=stops.findIndex(s=>s.a!=null&&(s.a+delayMins)>=nowMins); if (nextIdx<0) nextIdx=stops.length;
     const rows=stops.map((st,i)=>{
@@ -1305,7 +2690,7 @@ async function renderStopsForVehicle(v) {
     });
     el.innerHTML=`<div class="stop-list">${rows.join('')}</div>`;
     if (nextIdx>2){const rowEls=el.querySelectorAll('.stop-row');rowEls[Math.max(0,nextIdx-1)]?.scrollIntoView({block:'start',behavior:'smooth'});}
-  } catch(e) { console.warn('renderStopsForVehicle:',e); const el2=G("stops-list"); if (el2&&activeId===v.vehicleId) el2.textContent='Error loading stops'; }
+  } catch(e) { console.warn('renderStopsForVehicle:',e); const el2=G("stops-list"); if (el2&&activeId===v.vehicleId) el2.textContent='Fout bij het laden van haltes'; }
 }
 
 async function renderStopMarkers(v) {
@@ -1330,15 +2715,15 @@ function closePanel(){
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 async function refresh(){
   const pd=G("pd"),lt=G("lt");
-  pd.className="pulse spin"; lt.textContent="Fetching…";
+  pd.className="pulse spin"; lt.textContent="Bijwerken…";
   let data;
   try{
     const r=await fetch("/api/gtfs",{cache:"no-store"});
     if(!r.ok){const e=await r.json().catch(()=>({error:`HTTP ${r.status}`}));throw new Error(e.error)}
     data=await r.json();
-  }catch(err){pd.className="pulse err";lt.textContent="Error";toast("⚠ "+err.message,true);return}
+  }catch(err){pd.className="pulse err";lt.textContent="Fout";toast("⚠ "+err.message,true);return}
   pd.className="pulse"; lt.textContent="Live";
-  G("ts").textContent=new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  G("ts").textContent=new Date().toLocaleTimeString("nl-BE",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
   process(data); startBar();
 }
 
@@ -1357,7 +2742,6 @@ function process(data){
   arrowLayer.setVehicles(Object.values(vData));
   if (activeId&&vData[activeId]) { panToVehicle(vData[activeId]); if (activePopup) activePopup.setLatLng([vData[activeId].lat,vData[activeId].lng]); }
 
-  // Refresh stop popup doorkomsten on every data cycle — worker caches at 20s so most calls are cache hits
   if (activeStopId && STOPS?.[activeStopId] && activeStopPopup) {
     fetchStopDoorkomsten(activeStopId).then(doorkomsten => {
       if (activeStopId && STOPS?.[activeStopId] && activeStopPopup) {
@@ -1373,13 +2757,13 @@ function process(data){
   const allC=[...canceled].sort((a,b)=>a.tripId.localeCompare(b.tripId));
   sortedC=activeFilter?allC.filter(c=>activeFilter.matchIds.has(c.vehicleId||c.tripId)):allC;
   G("bv").textContent=sortedV.length; G("bc").textContent=sortedC.length;
-  G("bc").style.background=sortedC.length>0?"rgba(255,59,92,.2)":""; G("bc").style.color=sortedC.length>0?"var(--danger)":"";
+  G("bc").style.background=sortedC.length>0?"rgba(210,55,60,0.15)":""; G("bc").style.color=sortedC.length>0?"var(--danger)":"";
   redraw();
 }
 
 function panToVehicle(v,zoom){
   const mobile=window.innerWidth<=768, panelOpen=!mobile&&G("info-panel").classList.contains("open");
-  const leftPad=mobile?0:290, rightPad=panelOpen?320:0, W=window.innerWidth, z=zoom??map.getZoom();
+  const leftPad=mobile?0:320, rightPad=panelOpen?340:0, W=window.innerWidth, z=zoom??map.getZoom();
   map.setView([v.lat,v.lng],z,{animate:false});
   const visCX=leftPad+(W-leftPad-rightPad)/2, offsetX=-(visCX-W/2);
   map.panBy([offsetX,0],{animate:true});
@@ -1395,6 +2779,11 @@ function schedNext(){clearTimeout(rtimer);rtimer=setTimeout(async()=>{await refr
 
 let _firstLoad=true;
 async function _init(){
+  // Load saved or system theme preference
+  const savedTheme = localStorage.getItem('geotransport-theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(savedTheme || (prefersDark ? 'dark' : 'light'), false);
+
   initGeolocation();
   loadStatic();
   loadStopIndex();
